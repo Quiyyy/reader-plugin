@@ -10,7 +10,11 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const dataDir = process.env.READER_DATA_DIR ?? (process.platform === 'darwin' ? join(homedir(), 'Library', 'Application Support', 'Reader') : process.platform === 'win32' ? join(process.env.LOCALAPPDATA ?? homedir(), 'Reader') : join(process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share'), 'reader-plugin'));
 const service = new ReaderService(new ReaderStore(resolve(dataDir)));
 const uiPath = join(root, 'dist', 'ui', 'index.html');
-if (process.argv.includes('--http')) {
+if (process.argv.includes('--reflow-text')) {
+  for (const book of (await service.store.list()).books) {
+    if (book.format === 'txt') console.log(JSON.stringify(await service.store.reflowText(book.id)));
+  }
+} else if (process.argv.includes('--http')) {
   const port = Number(process.env.PORT ?? 4173);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid PORT');
   const server = createReaderHttpServer(service, uiPath);

@@ -18,7 +18,7 @@ All five completed UI import, chapter navigation, full-text search, bookmark cre
 - 红楼 includes the forty-fifth chapter heading twice. Reader retains both sections and warns about repeated headings. Chapter 104 joins a two-column title and prose; Reader extracts the column title while preserving the complete line in reading paragraphs. The 122-section count includes the opening and repeat, not 121 unique literary chapters.
 - Pride contains 61 literary chapters in fewer spine files. Intra-file navigation anchors currently merge into 16 readable sections; full per-anchor chapter navigation is not implemented.
 - Alice now labels the twelve chapters `CHAPTER I` through `CHAPTER XII`, plus introductory/license sections. The source includes 38 image assets. This text-first build does not show illustrations or reconstruct image-based drop-cap letters: image content and those letters are absent from normalized reading text. Original EPUB bytes remain preserved.
-- Imported normalized documents are immutable. Parser improvements affect new imports/new test data, not previously stored documents; there is no re-import/migration UI yet.
+- Original source fragments and locator indexes remain stable. Version 0.1.1 adds display-only paragraph grouping to existing TXT documents with backups, without rewriting progress/bookmarks. Other parser/encoding changes still require an explicit migration; there is no re-decoding UI.
 
 ## SHA-256 of tested bytes
 

@@ -16,7 +16,7 @@ The parsed EPUB is converted to original text paragraphs; scripts, styles, frame
 
 DOM traversal is iterative and caches each node's child list once, avoiding stack exhaustion and quadratic wide-node traversal. The preview client aborts requests after 15 seconds and keeps failed progress available for retry. Dependency overrides pin the UI package's lodash to 4.18.1; use the lockfile and repeat the dependency audit before a later release.
 
-Original bytes are preserved verbatim under their SHA-256 ID. Immutable document.json is separate from mutable record.json, so scrolling never rewrites a whole novel. Updates use private file modes, fsync and atomic same-directory rename. Lock directories serialize per-book updates across processes. Settings use their own lock. Saved locators use chapter and paragraph indexes tied to the original-file hash and this normalized representation. They are not EPUB CFIs and cannot silently carry over to a different parser/representation.
+Original bytes are preserved verbatim under their SHA-256 ID. Source-fragment document.json is separate from mutable record.json, so scrolling never rewrites a whole novel. Updates use private file modes, fsync and atomic same-directory rename. Lock directories serialize per-book updates across processes. Settings use their own lock. Saved locators use chapter and paragraph indexes tied to the original-file hash and this normalized representation. They are not EPUB CFIs and cannot silently carry over to a different parser/representation.
 
 UI saves are debounced and serialized, stale queued writes are skipped, failed saves are retained and shown with retry, and chapter/book changes flush pending work. Host teardown awaits pending writes when the host supports that lifecycle. Hard kill, network loss, disk failure or a non-graceful close can lose the last unconfirmed position. Two simultaneously active readers follow last successful write; there is no distributed merge of competing reading positions.
 
@@ -35,3 +35,9 @@ A reviewed candidate is foliate-js MIT commit 78914aef4466eb960965702401634c2cb3
 7. Run malicious EPUB fixtures, WebKit/Chromium tests, real-host tests, plus reflow/resize/resume regression cases
 
 MOBI6, KF8/AZW3, combined MOBI and KFX are different formats. Only DRM-free tested variants may be claimed. Manga follows as a separate image-page representation: CBZ first, natural order, RTL/spreads/vertical strip, bounded image dimensions. CBR and licensed DRM need separate dependencies and review.
+
+## TXT layout version 2
+
+Physical source lines retain their existing chapter/fragment indexes. Optional paragraphStarts groups soft-wrapped Chinese prose for display. Blank lines, new indentation, headings, lists, short verse and speaker transitions prevent merging; uncertain short lines remain separate. Inline fragment anchors retain old reading positions and bookmarks, including multiple bookmarks in one displayed paragraph. Search runs on joined reading paragraphs.
+
+Opening a legacy TXT under the per-book lock re-parses its preserved original with the same encoding, verifies the source hash and exact equality of every chapter fragment array, backs up document/record metadata, then atomically replaces only document layout metadata. The maintenance command `node dist/server/index.js --reflow-text` uses READER_DATA_DIR and performs the same migration without marking books as read. A mismatched source structure is refused, not silently reindexed. Existing processes can continue saving the same locators. No remote upload or public endpoint is part of this migration.

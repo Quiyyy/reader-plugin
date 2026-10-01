@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { strToU8, zipSync } from 'fflate';
 import { importDocument, isChapterHeading, ZIP_LIMITS } from '../src/server/importers.js';
 import { readSafeZip } from '../src/server/formats/zip.js';
+import { readingBlocks } from '../src/shared/reading.js';
 
 function epub(overrides: Record<string, string | Uint8Array> = {}, options: { nav?: boolean; ncx?: boolean } = {}): Uint8Array {
   const files: Record<string, Uint8Array> = {
@@ -37,7 +38,24 @@ describe('TXT importer', () => {
     expect(isChapterHeading('Chapter 2 is a title, but this line is prose.')).toBe(false);
     expect(isChapterHeading(`第一章${'长'.repeat(101)}`)).toBe(false);
     expect(isChapterHeading('第十二章风雪归人')).toBe(true);
-    expect(importDocument('book.txt', strToU8('Line one.\n\nLine two.')).chapters).toEqual([{ id: 'chapter-0', title: 'book', paragraphs: ['Line one.', 'Line two.'] }]);
+    expect(importDocument('book.txt', strToU8('Line one.\n\nLine two.')).chapters).toEqual([{ id: 'chapter-0', title: 'book', paragraphs: ['Line one.', 'Line two.'], paragraphStarts: [0, 1] }]);
+  });
+  it('reflows hard-wrapped Chinese prose while keeping blanks, indentation, dialogue and verse boundaries', () => {
+    const first = '　　旅人沿着河岸慢慢向前走，天边的晚霞映在水面上，他忽然看见远';
+    const second = '处亮起了一盏灯。';
+    const third = '　　另一个有缩进的段落不会接到前一段后面。';
+    const lines = ['第一章 归途', '', first, second, third, '', '“我们走吧。”', '“稍等一下。”', '', '夜雨落空山，', '春风吹野渡。', '', '这是一段写给测试使用的很长的中文句子，末尾标点也可能被硬换行拆开', '。', '第二章 远行', '另一章正文。'];
+    const book = importDocument('wrapped.txt', strToU8(lines.join('\n')));
+    expect(book.layoutVersion).toBe(2);
+    expect(readingBlocks(book.chapters[0]!).map(block => block.text)).toEqual([
+      '第一章 归途', first.trim() + second, third.trim(), '“我们走吧。”', '“稍等一下。”', '夜雨落空山，', '春风吹野渡。', '这是一段写给测试使用的很长的中文句子，末尾标点也可能被硬换行拆开。',
+    ]);
+    expect(book.chapters.flatMap(chapter => chapter.paragraphs)).toEqual(lines.map(line => line.trim()).filter(Boolean));
+    expect(book.chapters[0]!.paragraphs[2]).toBe(second); // historical locator is unchanged
+  });
+  it('keeps English paragraphs and numbered lists separate and preserves Latin word boundaries', () => {
+    const book = importDocument('mixed.txt', strToU8('第一章\n这是一段包含外文词组的中文说明，它一直延续到下面的 hello\nworld，而词组中间应该保留空格。\n1. 列表项目\n2. 下一个列表项目\nAn English line.\nAnother English line.'));
+    expect(readingBlocks(book.chapters[0]!).map(block => block.text)).toEqual(['第一章', '这是一段包含外文词组的中文说明，它一直延续到下面的 hello world，而词组中间应该保留空格。', '1. 列表项目', '2. 下一个列表项目', 'An English line.', 'Another English line.']);
   });
   it('recognizes digit-by-digit Chinese chapter numbers using the white-circle zero', () => {
     const headings = ['第九十九回 夜航', '第一○○回：薄雾退去，来客抵达', '第一二○回 归来'];

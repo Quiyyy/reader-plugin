@@ -1,6 +1,6 @@
 # Acceptance evidence
 
-Candidate: 0.1.0, verified 2026-10-01. A passed stage does not imply a neighboring stage passed.
+Version: 0.1.1, verified 2026-10-01. A passed stage does not imply a neighboring stage passed.
 
 ## Target environment
 
@@ -11,9 +11,9 @@ Candidate: 0.1.0, verified 2026-10-01. A passed stage does not imply a neighbori
 
 ## Verified
 
-- `npm run check`: strict typecheck, 34 tests in 4 files, production UI/server build
+- `npm run check`: strict typecheck, 37 tests in 4 files, production UI/server build
 - `npm run validate:plugin`: manifest, MCP configuration and built UI validation
-- `npm run test:e2e`: 4 browser scenarios passed, including import, search, bookmark, typography/theme, saved position, mobile layout, back/close, same-location save completion, and 15-second timeout recovery
+- `npm run test:e2e`: 5 browser scenarios passed, including import, search, bookmark, typography/theme, saved position, mobile layout, back/close, same-location save completion, and 15-second timeout recovery
 - Official AppBridge test host: real postMessage/resource reads in a sandboxed opaque iframe with networking disabled
 - `npm run test:books`: five public-domain/derived samples passed UI flows at nonzero positions and fresh-browser restoration after replacing the Node service process; see CORPUS.md
 - TXT original bytes and encodings; chapter punctuation, digit-style Chinese zero, joined column headings, duplicate-source preservation
@@ -28,15 +28,13 @@ Candidate: 0.1.0, verified 2026-10-01. A passed stage does not imply a neighbori
 
 The supported CLI installed `reader-plugin@reader-local` from a dedicated Reader Local marketplace. The plugin is enabled. Existing configuration values were preserved; no authentication, permissions, hooks, or global git identity were changed. The machine-specific marketplace and absolute paths are outside this repository.
 
-An official MCP SDK client started the **installed** stdio configuration, listed 12 tools (11 app-only), read `ui://reader/bookshelf.html`, and called `reader_open`. The installed UI exactly matched the production build. Resource MIME: `text/html;profile=mcp-app`; SHA-256: `471ae8a62a3eb414df86651ed28681e8f4c1c95c52f1032a1b7a8c97a39ce14c`.
+An official MCP SDK client started the **installed** stdio configuration, listed 12 tools (11 app-only), read `ui://reader/v0.1.1/bookshelf.html`, and called `reader_open`. The installed UI exactly matched the production build. Resource MIME: `text/html;profile=mcp-app`; SHA-256: `14f52f8fda0b2f1ab01873313fc30d0f7658a4b57baa2d0dfb63eeb02ea8abac`.
 
 The server declares global/thread entrypoints on `reader_open`, and file entrypoints on `reader_open_file`. The installed OpenAI extensions SDK 0.1.0 requires dot-prefixed extensions (`.txt`, `.epub`). The model-visible tool returns only the fixed app-opening message; reading operations return data in app-only result metadata.
 
-## Still requires the real desktop host
+## Native host evidence and remaining checks
 
-The delegated task cannot automate the ChatGPT/Codex app itself. No current task MCP Apps panel was available. These items are **not passed**:
-
-- Native global/sidebar and thread view presence and operation
+The user directly confirmed that the global Reader navigation and a local Codex thread panel both display the bookshelf. The delegated task cannot automate the ChatGPT/Codex app itself. The dot conversation panel fails before receiving HTML with host error `-32600: thread not found`; see HOST_ROUTING.md. This remains unresolved. These items are **not passed**:
 - Native TXT/EPUB file-handler dispatch, host resource limits and picker behavior
 - Host enforcement of app-only visibility, lifecycle/teardown, and desktop restart recovery
 
@@ -47,8 +45,12 @@ Minimal manual continuation on the Mac:
 3. Open a test TXT and EPUB through the host file surface and choose Reader. Confirm import, navigation, a bookmark and nonzero progress. Close/reopen the panel/app and check restoration.
 4. Check that book paragraphs do not appear as model-visible tool text and that unsupported resource access offers manual import.
 
-Do not report native acceptance until those steps are observed. CLI installation and the AppBridge harness alone do not establish it.
+The user confirmation applies to global and local Codex thread display. Do not extend it to dot threads, file handling, privacy enforcement or lifecycle behavior. CLI installation and the AppBridge harness alone do not establish those checks.
 
 ## Reproduction
 
 Run `npm ci`, `npm run check`, `npm run validate:plugin`, install official Playwright Chromium, and run `npm run test:e2e`. For authorized real books outside the repo, run `READER_ACCEPTANCE_BOOKS_DIR=/external/books npm run test:books`. Server data stays outside the repository and generated evidence goes to ignored `artifacts/`.
+
+## Chinese layout update
+
+Version 0.1.1 adds reading paragraph boundaries without renumbering source fragments. Cross-line search and fragment-bookmark restoration pass browser tests. Legacy TXT documents receive an atomic layout-only upgrade under the existing per-book lock, with original document/record backups. Source bytes, all fragment arrays, chapter indexes and mutable records remain unchanged. On the installed four-book library, before/after hashes confirmed all source files and records were unchanged; EPUB documents were also unchanged. 三国 now displays 4,254 reading paragraphs from 17,893 preserved source fragments, and 红楼 3,956 from 28,239.

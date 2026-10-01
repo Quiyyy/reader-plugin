@@ -62,6 +62,36 @@ describe('durable ReaderStore', () => {
     expect((await restarted.list()).settings.theme).toBe('sepia');
     expect((await restarted.open(imported.summary.id)).summary.locator).toEqual(locator);
   });
+  it('upgrades legacy TXT layout atomically without changing source, state or old client locators', async () => {
+    const store = new ReaderStore(directory);
+    const bytes = Buffer.from('第一章\n　　这是一段足够长的原创中文正文，它在排版时被人工折行，因此句子尚未写\n完便进入了下一行。\n\n第二段正文。');
+    const book = await store.importBook('Wrapped.txt', bytes);
+    const id = book.summary.id;
+    await store.saveProgress(id, { chapter: 0, paragraph: 2 });
+    await store.addBookmark(id, { chapter: 0, paragraph: 1 }, 'First fragment');
+    await store.addBookmark(id, { chapter: 0, paragraph: 2 }, 'Continuation fragment');
+    const path = join(directory, 'books', id);
+    const legacy = JSON.parse(await readFile(join(path, 'document.json'), 'utf8'));
+    delete legacy.layoutVersion;
+    for (const chapter of legacy.chapters) delete chapter.paragraphStarts;
+    await writeFile(join(path, 'document.json'), JSON.stringify(legacy));
+    const recordBefore = await readFile(join(path, 'record.json'));
+    const result = await new ReaderStore(directory).reflowText(id);
+    expect(result).toMatchObject({ layoutVersion: 2, fragments: 4, readingParagraphs: 3 });
+    expect(await readFile(join(path, 'source.txt'))).toEqual(bytes);
+    expect(await readFile(join(path, 'record.json'))).toEqual(recordBefore);
+    expect(await readFile(join(path, 'record.before-layout-v2.json'))).toEqual(recordBefore);
+    expect(JSON.parse(await readFile(join(path, 'document.before-layout-v2.json'), 'utf8'))).toEqual(legacy);
+    const upgraded = await readFile(join(path, 'document.json'));
+    await new ReaderStore(directory).reflowText(id);
+    expect(await readFile(join(path, 'document.json'))).toEqual(upgraded);
+    // An already open pre-upgrade client can still save the original fragment index.
+    await store.saveProgress(id, { chapter: 0, paragraph: 2 });
+    const reopened = await store.open(id);
+    expect(reopened.summary.locator).toEqual({ chapter: 0, paragraph: 2 });
+    expect(reopened.bookmarks.map(mark => mark.locator.paragraph)).toEqual([1, 2]);
+    expect(reopened.document.chapters[0]!.paragraphs[2]).toBe('完便进入了下一行。');
+  });
   it('serializes concurrent mutations across ReaderStore instances without dropping bookmarks', async () => {
     const first = new ReaderStore(directory), second = new ReaderStore(directory);
     const book = await first.importBook('Journey.txt', source);

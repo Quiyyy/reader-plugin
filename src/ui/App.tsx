@@ -2,6 +2,7 @@ import { Button } from '@openai/apps-sdk-ui/components/Button';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, BookOpen, Bookmark as BookmarkIcon, BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, FileUp, HelpCircle, Library, List, LoaderCircle, Minus, Monitor, Moon, Plus, Search, Settings2, Sun, Trash2, X } from 'lucide-react';
 import { defaultSettings, type BookDetail, type BookSummary, type Locator, type ReaderApi, type ReaderSettings, type Theme } from '../shared/types';
+import { readingBlocks } from '../shared/reading';
 import './styles.css';
 
 type Panel = 'contents' | 'bookmarks' | 'appearance' | 'search' | null;
@@ -279,7 +280,7 @@ export function App({ api }: { api: ReaderApi }) {
       const container = readingRef.current; const activeBook = bookRef.current;
       if (!container || !activeBook) return;
       const threshold = container.getBoundingClientRect().top + 55;
-      const paragraphs = container.querySelector('.reading-paragraphs')?.children;
+      const paragraphs = container.querySelectorAll('[data-reader-paragraph]');
       if (!paragraphs?.length) return;
       let low = 0; let high = paragraphs.length - 1; let visibleIndex = 0;
       while (low <= high) {
@@ -385,8 +386,11 @@ export function App({ api }: { api: ReaderApi }) {
     const query = bookQuery.trim().toLocaleLowerCase();
     if (!book || query.length < 1) return [];
     const results: { chapter: number; paragraph: number; text: string; title: string }[] = [];
-    book.document.chapters.forEach((chapter, chapterNumber) => chapter.paragraphs.forEach((text, paragraph) => {
+    book.document.chapters.forEach((chapter, chapterNumber) => readingBlocks(chapter).forEach(block => {
+      const text = block.text;
       const index = text.toLocaleLowerCase().indexOf(query);
+      let paragraph = block.start;
+      for (const piece of block.pieces) { if (piece.offset > index) break; paragraph = piece.index; }
       if (index >= 0 && results.length < 100) results.push({ chapter: chapterNumber, paragraph, text: `${index > 26 ? '…' : ''}${text.slice(Math.max(0, index - 26), Math.max(0, index - 26) + 130)}${text.length > index + 104 ? '…' : ''}`, title: chapter.title });
     }));
     return results;
@@ -436,7 +440,7 @@ export function App({ api }: { api: ReaderApi }) {
         </aside></>}
         <div className="reading-column"><div className="reading-scroll" ref={readingRef} onScroll={onReadingScroll} tabIndex={0} aria-label="正文，向下滚动阅读"><article className="reading-content"><div className="chapter-kicker">{book.document.author || '佚名'}<span>/</span>第 {chapterIndex + 1} 节，共 {book.document.chapters.length} 节</div><div className="chapter-heading"><h1>{activeChapter?.title || book.document.title}</h1></div>
           {book.document.warnings.length > 0 && chapterIndex === 0 && <details className="book-warnings"><summary><CircleAlert size={14} />导入提示（{book.document.warnings.length}）<ChevronDown size={13} /></summary><ul>{book.document.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}
-          <div className="reading-paragraphs">{activeChapter?.paragraphs.map((paragraph, index) => <p id={`reader-paragraph-${chapterIndex}-${index}`} data-chapter={chapterIndex} data-reader-paragraph={index} key={`${chapterIndex}-${index}`} className={book.bookmarks.some(item => item.locator.chapter === chapterIndex && item.locator.paragraph === index) ? 'has-bookmark' : ''}>{paragraph}</p>)}</div>
+          <div className="reading-paragraphs">{activeChapter && readingBlocks(activeChapter).map(block => <p key={`${chapterIndex}-${block.start}`} className={book.bookmarks.some(item => item.locator.chapter === chapterIndex && item.locator.paragraph >= block.start && item.locator.paragraph < block.end) ? 'has-bookmark' : ''}>{block.pieces.map(piece => <span id={`reader-paragraph-${chapterIndex}-${piece.index}`} data-chapter={chapterIndex} data-reader-paragraph={piece.index} key={piece.index}>{piece.text}</span>)}</p>)}</div>
           <nav className="chapter-navigation" aria-label="前后章节"><button type="button" className="chapter-navigation-button" disabled={chapterIndex === 0} onClick={() => navigate({ chapter: chapterIndex - 1, paragraph: 0 })}><ChevronLeft size={17} /><span><small>上一章</small><strong>{book.document.chapters[chapterIndex - 1]?.title || '已是第一章'}</strong></span></button>{chapterIndex < book.document.chapters.length - 1 ? <button type="button" className="chapter-navigation-button next" onClick={() => navigate({ chapter: chapterIndex + 1, paragraph: 0 })}><span><small>下一章</small><strong>{book.document.chapters[chapterIndex + 1]?.title}</strong></span><ChevronRight size={17} /></button> : <div className="end-of-book"><span>本书完</span><button type="button" className="text-button" onClick={() => void returnToShelf()} disabled={returning}>回到书架 <ArrowRight size={14} /></button></div>}</nav>
         </article></div><footer className="reading-footer"><button type="button" className="current-chapter-label" onClick={() => togglePanel('contents')} title={activeChapter?.title}>{activeChapter?.title}</button><div className="reading-footer-right"><span className={`save-indicator ${saveState}`} title={saveState === 'saved' ? '阅读位置已保存在 Reader 服务中' : saveState === 'error' ? '阅读位置尚未保存' : '正在保存阅读位置'}>{saveState === 'saving' ? <LoaderCircle size={12} className="spin" /> : saveState === 'error' ? <CircleAlert size={12} /> : <span className="save-dot" />}<span>{saveState === 'saved' ? '已保存' : saveState === 'error' ? '未保存' : '保存中'}</span></span><span className="reading-percent">{progress}%</span><IconButton label="键盘快捷键（?）" className="footer-help" onClick={() => setHelpOpen(true)}><HelpCircle size={14} /></IconButton></div></footer><div className="reading-progress-line" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div></div>
       </div>

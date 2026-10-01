@@ -11,7 +11,8 @@ const locatorSchema = z.object({ chapter: z.number().int().nonnegative(), paragr
 const settingsSchema = z.object({ theme: z.enum(['system', 'light', 'sepia', 'dark']), fontSize: z.number().min(14).max(36), lineHeight: z.number().min(1.3).max(2.6), lineWidth: z.number().min(420).max(960), fontFamily: z.enum(['serif', 'sans']) });
 const summarySchema = z.object({ id: z.string().regex(/^[a-f0-9]{64}$/), title: z.string(), author: z.string(), format: z.enum(['txt', 'epub']), addedAt: z.string(), lastReadAt: z.string().optional(), progress: z.number().min(0).max(1), locator: locatorSchema, chapterCount: z.number().int().positive(), wordCount: z.number().int().nonnegative() });
 const bookmarkSchema = z.object({ id: z.string(), locator: locatorSchema, label: z.string(), createdAt: z.string() });
-const documentSchema = z.object({ id: z.string(), title: z.string(), author: z.string(), format: z.enum(['txt', 'epub']), chapters: z.array(z.object({ id: z.string(), title: z.string(), paragraphs: z.array(z.string()).min(1) })).min(1), encoding: z.string().optional(), warnings: z.array(z.string()) });
+const chapterSchema = z.object({ id: z.string(), title: z.string(), paragraphs: z.array(z.string()).min(1), paragraphStarts: z.array(z.number().int().nonnegative()).min(1).optional() }).refine(chapter => !chapter.paragraphStarts || chapter.paragraphStarts.every((start, index, starts) => start < chapter.paragraphs.length && (index === 0 ? start === 0 : start > starts[index - 1]!)), 'Invalid reading paragraph boundaries');
+const documentSchema = z.object({ id: z.string(), title: z.string(), author: z.string(), format: z.enum(['txt', 'epub']), chapters: z.array(chapterSchema).min(1), encoding: z.string().optional(), warnings: z.array(z.string()), layoutVersion: z.number().int().positive().optional() });
 const stateSchema = z.object({ version: z.literal(1), originalFilename: z.string(), summary: summarySchema, bookmarks: z.array(bookmarkSchema) });
 type StoredBook = z.infer<typeof stateSchema> & { document: z.infer<typeof documentSchema> };
 const isMissing = (error: unknown): boolean => !!error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT';
@@ -125,12 +126,37 @@ export class ReaderStore {
   private async readBook(id: string): Promise<StoredBook> {
     const state = await this.readState(id);
     try {
-      const document = documentSchema.parse(JSON.parse(await fs.readFile(join(this.bookPath(id), 'document.json'), 'utf8')));
+      let document = documentSchema.parse(JSON.parse(await fs.readFile(join(this.bookPath(id), 'document.json'), 'utf8')));
       if (document.id !== id) throw new Error('Mismatched document ID');
+      if (document.format === 'txt' && (document.layoutVersion ?? 1) < 2) {
+        // All callers hold the per-book lock. Upgrade display metadata only:
+        // original fragments, locators, progress, bookmarks and timestamps stay
+        // byte-for-byte stable. A stale open client can still save its locator.
+        const directory = this.bookPath(id);
+        const source = await fs.readFile(join(directory, 'source.txt'));
+        const parsed = importDocument(state.originalFilename, source, document.encoding);
+        if (parsed.id !== id || parsed.chapters.length !== document.chapters.length || parsed.chapters.some((chapter, index) => JSON.stringify(chapter.paragraphs) !== JSON.stringify(document.chapters[index]!.paragraphs))) {
+          throw new Error('Source structure does not match the saved reading positions; text layout was not changed.');
+        }
+        await atomicWrite(join(directory, 'document.before-layout-v2.json'), JSON.stringify(document));
+        await atomicWrite(join(directory, 'record.before-layout-v2.json'), JSON.stringify(state));
+        document = { ...document, layoutVersion: 2, chapters: document.chapters.map((chapter, index) => ({ ...chapter, paragraphStarts: parsed.chapters[index]!.paragraphStarts })) };
+        await atomicWrite(join(directory, 'document.json'), JSON.stringify(document));
+        await syncDirectory(directory);
+      }
       return { ...state, document };
     } catch {
       throw new Error('This book document is damaged. Your original source file is still preserved in the library.');
     }
+  }
+
+  /** Explicit maintenance path; never marks a book as read or rewrites its record. */
+  async reflowText(id: string): Promise<{ id: string; layoutVersion: number; fragments: number; readingParagraphs: number }> {
+    this.bookPath(id);
+    return this.locked(id, async () => {
+      const { document } = await this.readBook(id);
+      return { id, layoutVersion: document.layoutVersion ?? 1, fragments: document.chapters.reduce((n, chapter) => n + chapter.paragraphs.length, 0), readingParagraphs: document.chapters.reduce((n, chapter) => n + (chapter.paragraphStarts?.length ?? chapter.paragraphs.length), 0) };
+    });
   }
   private async writeBook(record: StoredBook): Promise<void> {
     const directory = this.bookPath(record.summary.id);

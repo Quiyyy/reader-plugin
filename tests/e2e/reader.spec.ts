@@ -51,6 +51,30 @@ test('EPUB strips active content and fits narrow panel', async ({ page }) => {
   await expect(page.locator('.toast')).toHaveCount(0);
   await page.screenshot({path:'artifacts/reader-mobile.png',fullPage:true});
 });
+test('Chinese hard wraps reflow, cross-line search works, and fragment bookmarks restore', async ({ page }) => {
+  const paragraphs = Array.from({ length: 36 }, (_, i) => `　　这是第${i + 1}段原创测试文字，旅人沿着河岸慢慢向前走，直到他看见远\n处的小桥，还有桥边一盏温暖的灯。`);
+  await page.goto('/');
+  await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: '连续中文.txt', mimeType: 'text/plain', buffer: Buffer.from('第一章 归途\n\n' + paragraphs.join('\n\n')) });
+  await expect(page.locator('.reading-paragraphs p')).toHaveCount(37);
+  await expect(page.locator('.reading-paragraphs p').nth(1)).toContainText('远处的小桥');
+  await page.getByRole('button', { name: '搜索本书（F）', exact: true }).click();
+  await page.getByRole('searchbox', { name: '搜索本书内容' }).fill('远处的小桥');
+  await expect(page.locator('.search-results button')).toHaveCount(36);
+  await page.locator('.search-results button').nth(20).click();
+  await page.getByRole('button', { name: '收藏当前段落（B）', exact: true }).click();
+  await expect(page.locator('.save-indicator')).toHaveText('已保存');
+  await page.getByRole('button', { name: '返回书架', exact: true }).click();
+  await page.reload();
+  await page.getByRole('button', { name: /打开 连续中文/ }).click();
+  await expect.poll(() => page.getByLabel('正文，向下滚动阅读').evaluate(element => element.scrollTop)).toBeGreaterThan(1000);
+  await page.getByRole('button', { name: '我的书签', exact: true }).click();
+  await expect(page.locator('.bookmark-list li')).toHaveCount(1);
+  await page.locator('.bookmark-jump').click();
+  await expect(page.locator('.reading-paragraphs .has-bookmark')).toContainText('第21段');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('.toast')).toHaveCount(0);
+  await page.screenshot({ path: 'artifacts/reader-chinese-reflow.png', fullPage: true });
+});
 test('a stalled progress request releases the return overlay and can be retried', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: '超时恢复.txt', mimeType: 'text/plain', buffer: Buffer.from(original + '\n\n网络超时恢复测试。') });

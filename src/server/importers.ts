@@ -59,26 +59,49 @@ function txtChapterTitle(line: string): string | undefined {
   if (joined && /[，。！？；]/.test(joined[2]!)) return joined[1];
   return isChapterHeading(line) ? line : undefined;
 }
+function softWrap(previous: string, next: string): boolean {
+  // Short verse/list/speaker lines are meaningful boundaries. Join only likely
+  // wrapped CJK prose; explicit blank lines, indentation and headings are handled
+  // by the caller before this conservative continuation rule.
+  if (previous.length < 24 || !/\p{Script=Han}/u.test(previous)) return false;
+  if (!/\p{Script=Han}/u.test(next) && !/^[\p{P}\p{S}]+$/u.test(next)) return false;
+  if (/^[\s\-_*─=•●]+$/.test(previous) || /^[\s\-_*─=•●]+$/.test(next)) return false;
+  if (/^(?:[•●*\-]|\d+[.)、]|[一二三四五六七八九十]+[、．])\s*/.test(next)) return false;
+  if (/[：:]$/.test(previous)) return false;
+  if (/^[“「『"]/.test(next) && /[。！？!?．”」』"]$/.test(previous)) return false;
+  return true;
+}
 function importTxt(filename: string, bytes: Uint8Array, override?: string): Omit<BookDocument, 'id'> {
   const decoded = decodeText(bytes, override);
-  const lines = decoded.text.split('\n').map(line => line.trim()).filter(Boolean);
-  if (!lines.length) throw new Error('This text file is empty.');
-  if (lines.length > IMPORT_LIMITS.paragraphs) throw new Error('The file exceeds the 500,000-paragraph limit.');
+  const lines = decoded.text.split('\n');
+  const nonempty = lines.filter(line => line.trim()).length;
+  if (!nonempty) throw new Error('This text file is empty.');
+  if (nonempty > IMPORT_LIMITS.paragraphs) throw new Error('The file exceeds the 500,000-paragraph limit.');
   const chapters: Chapter[] = [];
   const headings = new Set<string>();
   let repeatedHeading = false;
-  for (const line of lines) {
+  let blankBefore = true;
+  let previousHeading = false;
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) { blankBefore = true; continue; }
     const title = txtChapterTitle(line);
     if (title || !chapters.length) {
       if (title) { repeatedHeading ||= headings.has(clean(title)); headings.add(clean(title)); }
-      chapters.push({ id: `chapter-${chapters.length}`, title: title ?? 'Opening', paragraphs: [] });
+      chapters.push({ id: `chapter-${chapters.length}`, title: title ?? 'Opening', paragraphs: [], paragraphStarts: [] });
       if (chapters.length > IMPORT_LIMITS.chapters) throw new Error('The file exceeds the 10,000-chapter limit.');
     }
-    chapters[chapters.length - 1]!.paragraphs.push(line);
+    const chapter = chapters[chapters.length - 1]!;
+    const index = chapter.paragraphs.length;
+    const indented = /^(?:\u3000|\t| {2,})/.test(rawLine);
+    if (!index || title || previousHeading || blankBefore || indented || !softWrap(chapter.paragraphs[index - 1]!, line)) chapter.paragraphStarts!.push(index);
+    chapter.paragraphs.push(line);
+    previousHeading = !!title;
+    blankBefore = false;
   }
   if (repeatedHeading) decoded.warnings.push('Repeated chapter headings were retained as separate sections to preserve the source text.');
   if (chapters.length === 1 && chapters[0]!.title === 'Opening') chapters[0]!.title = filenameTitle(filename);
-  return { title: filenameTitle(filename), author: '', format: 'txt', chapters, encoding: decoded.encoding, warnings: decoded.warnings };
+  return { title: filenameTitle(filename), author: '', format: 'txt', chapters, encoding: decoded.encoding, warnings: decoded.warnings, layoutVersion: 2 };
 }
 
 function parseXml(bytes: Uint8Array, label: string): any {
