@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.data/
+reader-data/
+*.epub
+*.mobi
+*.azw3
+*.cbz
+*.env
+.env*
+!.env.example
+playwright-report/
+artifacts/
+test-results/
+*.log
+.DS_Store

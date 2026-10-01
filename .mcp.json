@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "reader": {
+      "command": "node",
+      "args": ["${PLUGIN_ROOT}/dist/server/index.js"]
+    }
+  }
+}

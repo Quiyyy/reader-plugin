@@ -1,0 +1,16 @@
+{
+  "name": "reader-plugin",
+  "version": "0.1.0",
+  "description": "A private, local-first TXT and EPUB novel reader with an embedded bookshelf and durable reading progress.",
+  "author": { "name": "Quiyyy" },
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Reader",
+    "shortDescription": "安静读书，接着上次的位置。",
+    "longDescription": "A focused Chinese-language novel reader for MCP Apps hosts. Import DRM-free TXT and EPUB books, browse chapters, save bookmarks, and customize typography. Host sidebar and panel compatibility requires client validation.",
+    "developerName": "Quiyyy",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": ["打开 Reader 书架"]
+  }
+}

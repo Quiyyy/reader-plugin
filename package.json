@@ -1,0 +1,51 @@
+{
+  "name": "reader-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  },
+  "scripts": {
+    "dev": "vite build && tsx src/server/index.ts --http",
+    "build": "vite build && tsc -p tsconfig.server.json",
+    "start": "node dist/server/index.js",
+    "preview": "node dist/server/index.js --http",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "node scripts/build-test-host.mjs && playwright test",
+    "test:books": "node scripts/test-real-books.mjs",
+    "check": "npm run typecheck && npm test && npm run build",
+    "validate:plugin": "node scripts/validate-plugin.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "@openai/apps-sdk-ui": "0.2.2",
+    "@openai/mcp-extensions": "0.1.0",
+    "fast-xml-parser": "5.11.2",
+    "fflate": "0.8.3",
+    "linkedom": "0.18.13",
+    "lucide-react": "1.49.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.5"
+  },
+  "overrides": {
+    "@openai/apps-sdk-ui": {
+      "lodash": "4.18.1"
+    }
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.6.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.2",
+    "vite-plugin-singlefile": "2.3.3",
+    "vitest": "5.0.3"
+  }
+}
