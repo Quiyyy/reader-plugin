@@ -78,7 +78,7 @@ export async function verifyPackage(root) {
   return { manifest, manifestHash: hash(manifestBytes) };
 }
 function catalog(version) {
-  return { name: 'reader-local', interface: { displayName: 'Reader Local' }, plugins: [{
+  return { name: 'reader-local', interface: { displayName: 'Reader' }, plugins: [{
     name: 'reader-plugin', source: { source: 'local', path: `./versions/${version}/plugin` },
     policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' }, category: 'Productivity',
   }] };

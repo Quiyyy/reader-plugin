@@ -10,14 +10,14 @@ export function createMcpServer(service: ReaderService, htmlPath: string): McpSe
   const server = new McpServer({ name: 'reader-plugin', version: '0.1.5' });
   new OpenAIExtensions(server);
   const meta = { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] }, prefersBorder: false }, 'openai/ui': { preferredDisplayMode: 'fullscreen', availableDisplayModes: ['inline', 'fullscreen'] } satisfies OpenAIUiResourceMetadata };
-  registerAppResource(server, 'Reader bookshelf', UI_URI, { _meta: meta }, async () => ({ contents: [{ uri: UI_URI, mimeType: RESOURCE_MIME_TYPE, text: await readFile(htmlPath, 'utf8'), _meta: meta }] }));
+  registerAppResource(server, 'Reader', UI_URI, { _meta: meta }, async () => ({ contents: [{ uri: UI_URI, mimeType: RESOURCE_MIME_TYPE, text: await readFile(htmlPath, 'utf8'), _meta: meta }] }));
   registerAppTool(server, 'reader_open', {
     title: 'Reader', description: 'Open the private Reader bookshelf. Book text is not sent to the model; import and reading happen in the app.', inputSchema: {},
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
     _meta: { ui: { resourceUri: UI_URI }, 'openai/ui': { entrypoints: [{ type: 'global' }, { type: 'thread' }] } satisfies OpenAIUiToolMetadata },
   }, async () => ({ content: [{ type: 'text', text: 'Reader is ready. Use the app to import and read your books.' }] }));
   registerAppTool(server, 'reader_open_file', {
-    title: '在 Reader 中阅读', description: 'Open a DRM-free TXT or EPUB file from a host-managed resource.', inputSchema: OpenAIFileEntrypointInputSchema,
+    title: 'Reader', description: 'Open a DRM-free TXT or EPUB file from a host-managed resource.', inputSchema: OpenAIFileEntrypointInputSchema,
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
     _meta: { ui: { resourceUri: UI_URI, visibility: ['app'] }, 'openai/ui': { entrypoints: [{ type: 'file', extensions: ['.txt', '.epub'] }] } satisfies OpenAIUiToolMetadata },
   }, async () => ({ content: [] }));

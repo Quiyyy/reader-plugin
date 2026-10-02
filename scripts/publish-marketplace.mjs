@@ -57,7 +57,7 @@ for (const kind of values.stable ? ['current'] : ['current', 'fixture']) {
     plugins.push({ name: `reader-${target}`, source: { source: 'url', url: remote, sha }, policy: { installation: values.stable && target.startsWith('darwin') ? 'NOT_AVAILABLE' : 'AVAILABLE', authentication: 'ON_INSTALL' }, category: 'Productivity' });
   }
   const directory = join(work, `catalog-${kind}`); await fs.mkdir(join(directory, '.agents/plugins'), { recursive: true });
-  await fs.writeFile(join(directory, '.agents/plugins/marketplace.json'), JSON.stringify({ name: 'reader-marketplace', interface: { displayName: 'Reader · choose your platform · preview' }, plugins }, null, 2));
+  await fs.writeFile(join(directory, '.agents/plugins/marketplace.json'), JSON.stringify({ name: 'reader-marketplace', interface: { displayName: 'Reader' }, plugins }, null, 2));
   const branch = `${prefix}/${kind === 'current' && values.stable ? '' : kind + '/'}catalog`;
   catalogs[kind] = { branch, sha: await publish(directory, branch), source: `Quiyyy/reader-plugin@${branch}` };
 }

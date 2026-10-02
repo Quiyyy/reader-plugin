@@ -112,7 +112,7 @@ const executable = target.goos === 'windows' ? 'reader-launcher.exe' : 'reader-l
 await fs.writeFile(join(stage, '.gitattributes'), '* -text\n');
 await fs.writeFile(join(stage, 'plugin.json'), json({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: id, version: pkg.version,
   description: `Local TXT and DRM-free EPUB reader; bundled runtime for ${target.label}.`, author: { name: 'Quiyyy' }, repository: 'https://github.com/Quiyyy/reader-plugin',
-  extensions: { 'com.openai': { interface: { displayName: `Reader · ${target.label}`, shortDescription: '本地阅读，无需安装 Node 或 npm。', longDescription: 'Choose only the package matching this device. Book storage is separate from the plugin cache. System trust prompts may apply.', developerName: 'Quiyyy', category: 'Productivity', capabilities: ['Interactive', 'Write'], defaultPrompt: ['打开 Reader 书架'] } } } }));
+  extensions: { 'com.openai': { interface: { displayName: 'Reader', shortDescription: `${target.label}。本地阅读，无需 Node 或 npm。`, longDescription: `Bundled runtime for ${target.label}. Choose only the package matching this device. Book storage is separate from the plugin cache. System trust prompts may apply.`, developerName: 'Quiyyy', category: 'Productivity', capabilities: ['Interactive', 'Write'], defaultPrompt: ['打开 Reader 书架'] } } } }));
 await fs.writeFile(join(stage, 'mcp.json'), json({ $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json', mcpServers: { reader: { type: 'stdio', command: `./${executable}`, args: [], env: { NODE_OPTIONS: '', NODE_PATH: '' } } } }));
 const files = {};
 for (const name of ['app/package.json', 'app/dist/server/index.js', 'app/dist/ui/index.html', 'payload/node.gz']) files[name] = hash(await fs.readFile(join(stage, name)));
