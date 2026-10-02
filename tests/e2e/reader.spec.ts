@@ -44,6 +44,52 @@ async function expectSettingsAfterReload(page: Page, title: string, settings: Re
   await expect(page.locator('.reader-app')).toHaveCSS('--reading-size', `${settings.fontSize}px`);
 }
 const original = `第一章 雨后的书店\n\n${Array.from({length: 35},(_,i)=>`这是第 ${i+1} 段。雨停下来的时候，街角的小书店还亮着灯。林把伞靠在门边，听见纸页翻动的声音。她找到一把靠窗的椅子，把未读完的故事重新打开。`).join('\n\n')}\n\n第二章 河边散步\n\n晚风吹过河面。桥上的灯映在水里，像一行没有写完的句子。\n\n第三章 归途\n\n她把书合上，记住了回家的路。`;
+for (const [layout, width, height] of [['wide', 1280, 900], ['narrow', 390, 844], ['small', 320, 720]] as const) {
+  test(`compact reader controls remain usable in ${layout} layout`, async ({ page, request }) => {
+    await previewTool(request, 'reader_settings', { settings: defaultSettings });
+    await page.setViewportSize({ width, height });
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
+    await expect(page.getByRole('link', { name: 'Reader 书架', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: '键盘快捷键', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: '让阅读更顺手' })).toBeVisible();
+    await page.getByRole('button', { name: '关闭键盘快捷键', exact: true }).click();
+    const title = `紧凑布局 ${layout}`;
+    await waitForImport(page, async () => {
+      const chooser = page.waitForEvent('filechooser');
+      await page.getByRole('button', { name: '导入书籍', exact: true }).click();
+      await (await chooser).setFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`${original}\n\n${title}原创验收`) });
+    });
+    await expect(page.getByRole('heading', { name: '第一章 雨后的书店', exact: true })).toBeVisible();
+    for (const name of ['返回书架', '目录（T）', '搜索本书（F）', '收藏当前段落（B）', '我的书签', '阅读样式']) {
+      const button = page.getByRole('button', { name, exact: true });
+      await expect(button).toBeVisible();
+      const box = await button.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+      expect(box!.height).toBeGreaterThanOrEqual(30);
+    }
+    expect((await page.locator('.reader-toolbar').boundingBox())!.height).toBeLessThanOrEqual(44);
+    await page.getByRole('button', { name: '目录（T）', exact: true }).click();
+    await page.getByRole('button', { name: /02 第二章 河边散步/ }).click();
+    await expect(page.getByRole('heading', { name: '第二章 河边散步', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '阅读样式', exact: true }).click();
+    await page.getByRole('button', { name: '纸色', exact: true }).click();
+    await page.getByRole('button', { name: '关闭阅读样式', exact: true }).click();
+    await expect(page.locator('.reader-app')).toHaveClass(/theme-sepia/);
+    await page.screenshot({ path: `artifacts/reader-layout-${layout}-reading.png`, fullPage: true });
+    await page.getByRole('button', { name: '返回书架', exact: true }).click();
+    await expect(page.getByRole('heading', { name: '书架', exact: true })).toBeVisible();
+    await page.getByRole('searchbox', { name: '搜索书名或作者' }).fill(title);
+    await expect(page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) })).toBeVisible();
+    expect((await page.locator('.book-grid').boundingBox())!.y).toBeLessThan(250);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `artifacts/reader-layout-${layout}-bookshelf.png`, fullPage: true });
+    await page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) }).click();
+    await expect(page.getByRole('heading', { name: '第二章 河边散步', exact: true })).toBeVisible();
+  });
+}
 function epub() { return Buffer.from(zipSync({ mimetype: strToU8('application/epub+zip'), 'META-INF/container.xml': strToU8('<container><rootfiles><rootfile full-path="book.opf"/></rootfiles></container>'), 'book.opf': strToU8('<package><metadata><title>纸页之间</title><creator>Reader 测试</creator></metadata><manifest><item id="one" href="one.xhtml" media-type="application/xhtml+xml"/><item id="two" href="two.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="one"/><itemref idref="two"/></spine></package>'), 'one.xhtml': strToU8('<html><body><h1>第一章 纸页</h1><p>这是 EPUB 里的第一段。</p><script>window.PWNED=true;fetch("https://attacker.invalid")</script><img src="https://attacker.invalid/track.png"/><p>文字安静地留在这里。</p></body></html>'), 'two.xhtml': strToU8('<html><body><h1>第二章 日落</h1><p>窗外的光慢慢落下。</p></body></html>') })); }
 test('TXT import, progress, bookmarks, settings and restart', async ({ page, request }, testInfo) => {
   const title = `雨后的书店-${testInfo.repeatEachIndex}`;
