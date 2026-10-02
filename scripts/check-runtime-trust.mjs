@@ -22,6 +22,7 @@ try {
     if (process.platform === 'darwin') {
       await check(file, '/usr/bin/codesign', ['--verify', '--strict', '--verbose=4', file]);
       await check(file, '/usr/bin/codesign', ['--display', '--verbose=4', file]);
+      await check(file, '/usr/sbin/spctl', ['--assess', '--type', 'execute', '--verbose=4', file]);
     } else if (process.platform === 'win32') {
       await check(file, 'powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Get-AuthenticodeSignature -LiteralPath '${file.replaceAll("'", "''")}' | Select-Object Status,StatusMessage,@{Name='Signer';Expression={$_.SignerCertificate.Subject}} | ConvertTo-Json`]);
     }

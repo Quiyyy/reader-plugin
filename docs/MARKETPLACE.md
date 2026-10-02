@@ -23,7 +23,7 @@ CLI 基线为 0.159.2。该 Git 来源传输需要宿主可用的 Git 和 GitHub
 | macOS Apple Silicon | `reader-darwin-arm64` | 正常目录禁止安装，等待发行信任验证 |
 | macOS Intel | `reader-darwin-x64` | 正常目录禁止安装，等待发行信任验证 |
 
-macOS 的本机官方 Node 归档 SHA-256 与 Node 官方发布值一致，解压后二进制字节未改动；但严格 `codesign --verify --strict` 失败。Reader 的 Go 启动器也没有 Developer ID 签名和公证。**本机可执行不等于 Gatekeeper 或发行信任通过。** CI 保存每个平台的签名检查原始结果；预览验收市场允许在隔离环境验证功能，正常目录将 macOS 标为 `NOT_AVAILABLE`。不会移除 quarantine、重签上游 Node、关闭安全检查或自动确认信任提示。
+macOS 的官方 Node 归档 SHA-256 与 Node 官方发布值一致，解压后二进制字节未改动；GitHub macOS CI 和本机执行器沙盒外的只读 `codesign --verify --strict` 均通过。早先受限执行器内的失败已保留为环境差异证据，不据此认定上游二进制损坏。本机 `spctl --assess` 对 Node 返回“代码有效但不像应用”，对 Reader 启动器返回拒绝。Reader 启动器只有编译器生成的本地代码签名，没有 Developer ID 签名和公证。**本机可执行、代码签名字节有效均不等于 Gatekeeper 或发行信任通过。** CI 保存每个平台的签名检查原始结果；预览验收市场允许在隔离环境验证功能，正常目录将 macOS 标为 `NOT_AVAILABLE`。不会移除 quarantine、重签上游 Node、关闭安全检查或自动确认信任提示。
 
 Node 上游基线：macOS 13.5+；Linux kernel 4.18+、glibc 2.28+、libstdc++ 6.0.25+；Windows 受 Node 24 支持的 x64/arm64 系统。未承诺 musl/Alpine、32 位或所有旧版系统。实际 CI 系统与证据随具体提交记录，不能推断未测设备。
 

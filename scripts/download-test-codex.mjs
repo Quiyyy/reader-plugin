@@ -17,7 +17,10 @@ try { await fs.access(archive); } catch {
   await fs.writeFile(archive, Buffer.from(await response.arrayBuffer()), { flag: 'wx' });
 }
 if (createHash('sha256').update(await fs.readFile(archive)).digest('hex') !== entry.sha256) throw new Error('Official Codex archive checksum mismatch');
-await run('tar', ['-xzf', archive, '-C', dir], { timeout: 120000 });
+// Git Bash's GNU tar interprets a Windows drive colon as a remote host.
+// Windows ships bsdtar, which accepts native drive/Unicode paths directly.
+const tar = process.platform === 'win32' ? join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar';
+await run(tar, ['-xzf', archive, '-C', dir], { timeout: 120000 });
 const candidates = [];
 async function visit(path) {
   for (const item of await fs.readdir(path, { withFileTypes: true })) {

@@ -68,7 +68,8 @@ if (target.archive.endsWith('.zip')) {
   node = parts[nodeMember]; nodeLicense = parts[`${archiveRoot}/LICENSE`];
 } else {
   const extracted = await fs.mkdtemp(join(artifacts, 'node-extract-'));
-  await run('tar', ['-xzf', archive, '-C', extracted, nodeMember, `${archiveRoot}/LICENSE`], { timeout: 120000 });
+  const tar = process.platform === 'win32' ? join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar';
+  await run(tar, ['-xzf', archive, '-C', extracted, nodeMember, `${archiveRoot}/LICENSE`], { timeout: 120000 });
   node = await fs.readFile(join(extracted, nodeMember)); nodeLicense = await fs.readFile(join(extracted, archiveRoot, 'LICENSE'));
   await fs.rm(extracted, { recursive: true });
 }
