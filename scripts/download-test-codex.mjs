@@ -20,7 +20,9 @@ if (createHash('sha256').update(await fs.readFile(archive)).digest('hex') !== en
 // Git Bash's GNU tar interprets a Windows drive colon as a remote host.
 // Windows ships bsdtar, which accepts native drive/Unicode paths directly.
 const tar = process.platform === 'win32' ? join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar';
-await run(tar, ['-xzf', archive, '-C', dir], { timeout: 120000 });
+// Windows bsdtar's argv decoding also depends on the machine code page.
+// Set the Unicode cwd through Node's native API and pass only ASCII filenames.
+await run(tar, ['-xzf', 'official.tar.gz'], { cwd: dir, timeout: 120000 });
 const candidates = [];
 async function visit(path) {
   for (const item of await fs.readdir(path, { withFileTypes: true })) {
