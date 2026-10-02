@@ -40,7 +40,15 @@ else {
   await fs.writeFile(join(bin, 'git'), `#!/bin/sh\nexec '${git.replaceAll("'", "'\\''")}' "$@"\n`, { mode: 0o755 });
   env.PATH = bin;
 }
-for (const tool of ['node', 'npm', 'npm.cmd']) await assert.rejects(run(tool, ['--version'], { env, cwd }), error => error.code === 'ENOENT');
+async function assertNoSystemNode() {
+  for (const tool of ['node', 'npm', 'npm.cmd']) {
+    // execFile intentionally rejects .cmd on Windows (EINVAL), even when the
+    // file is absent. Check Windows executable resolution instead of attempting
+    // to run a batch script or accepting EINVAL as proof that npm is missing.
+    if (process.platform === 'win32') await assert.rejects(run('where.exe', [tool], { env, cwd }), error => error.code === 1);
+    else await assert.rejects(run(tool, ['--version'], { env, cwd }), error => error.code === 'ENOENT');
+  }
+}
 const json = async path => JSON.parse(await fs.readFile(path, 'utf8'));
 const catalog = join(market, '.agents/plugins/marketplace.json');
 const command = async args => JSON.parse((await run(cli, args, { env, cwd, timeout: 120000, maxBuffer: 4 * 1024 * 1024 })).stdout);
@@ -173,6 +181,7 @@ async function officialHost() {
 }
 
 test('official install preserves executable permissions and runs with no Node/npm on PATH', { timeout: 900000 }, async () => {
+  await assertNoSystemNode();
   const payload = await json(join(current, 'runtime-manifest.json'));
   if (process.env.CI) { assert.equal(payload.source.commit, process.env.GITHUB_SHA); assert.equal(payload.source.dirty, false); }
   assert.equal(payload.testFixture, false); assert.equal(payload.target, target);
