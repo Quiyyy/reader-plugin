@@ -15,6 +15,9 @@ import { zipSync, strToU8 } from 'fflate';
 const run = promisify(execFile), hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const target = `${process.platform}-${process.arch}`;
+const legacyToolNames = ['reader_open', 'reader_open_file', 'reader_list', 'reader_get', 'reader_import_begin', 'reader_import_chunk', 'reader_import_finish', 'reader_import_cancel', 'reader_progress', 'reader_settings', 'reader_bookmark_add', 'reader_bookmark_remove'];
+const onlineToolNames = ['reader_online_sources', 'reader_online_preview', 'reader_online_preview_url', 'reader_online_commit', 'reader_online_enable', 'reader_online_remove', 'reader_online_search', 'reader_online_detail', 'reader_online_add', 'reader_online_chapter', 'reader_online_refresh', 'reader_online_cancel'];
+const currentToolNames = [...legacyToolNames, ...onlineToolNames].sort();
 const id = `reader-${target}`;
 const cli = process.env.READER_TEST_CODEX;
 assert.ok(cli && resolve(cli) === cli, 'READER_TEST_CODEX must name the real official CLI executable.');
@@ -139,7 +142,9 @@ async function verify(config, version, settings, labels = ['升级前书签']) {
   try {
     assert.equal(client.getServerVersion().version, version);
     const state = await call(client, 'reader_list'); assert.equal(state.books.length, 2); assert.deepEqual(state.settings, settings);
-    const tools = (await client.listTools()).tools; assert.equal(tools.length, 12);
+    const tools = (await client.listTools()).tools;
+    assert.deepEqual(tools.map(tool => tool.name).sort(), version === '0.1.3' ? [...legacyToolNames].sort() : currentToolNames);
+    for (const tool of tools.filter(tool => tool.name.startsWith('reader_online_'))) assert.deepEqual(tool._meta.ui.visibility, ['app']);
     const uri = tools.find(tool => tool.name === 'reader_open')._meta.ui.resourceUri;
     assert.equal(uri, `ui://reader/v${version}/bookshelf.html`);
     assert.ok((await client.readResource({ uri })).contents[0].text.includes('<html'));
@@ -184,7 +189,8 @@ async function officialHost() {
     assert.ok(status.result, JSON.stringify(status));
     const reader = status.result.data.find(server => server.name === 'reader');
     assert.ok(reader, JSON.stringify(status.result));
-    assert.equal(Object.keys(reader.tools).length, 12);
+    assert.equal(Object.keys(reader.tools).length, currentToolNames.length);
+    for (const name of currentToolNames) assert.ok(JSON.stringify(reader.tools).includes(name), `Official host omitted ${name}`);
     assert.equal(reader.resources.length, 1);
     assert.ok(JSON.stringify(reader.tools).includes('reader_open'));
     return { initialized: initialized.result, status: status.result };
