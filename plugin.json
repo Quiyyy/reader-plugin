@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "reader-darwin-arm64",
+  "version": "0.1.4",
+  "description": "Local TXT and DRM-free EPUB reader; bundled runtime for macOS · Apple Silicon.",
+  "author": {
+    "name": "Quiyyy"
+  },
+  "repository": "https://github.com/Quiyyy/reader-plugin",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Reader · macOS · Apple Silicon",
+        "shortDescription": "本地阅读，无需安装 Node 或 npm。",
+        "longDescription": "Choose only the package matching this device. Book storage is separate from the plugin cache. System trust prompts may apply.",
+        "developerName": "Quiyyy",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "打开 Reader 书架"
+        ]
+      }
+    }
+  }
+}
