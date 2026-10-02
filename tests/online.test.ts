@@ -137,13 +137,13 @@ describe('online source service and durable lazy reading', () => {
     const restarted = new OnlineSourceService(new ReaderStore(dir));
     const opened = await restarted.open(book.summary.id, signal()); expect(opened.summary.locator.chapterId).toBe(locator.chapterId); expect(opened.document.chapters[2].paragraphs[1]).toBe('这是原创测试段落。');
     expect(opened.bookmarks).toHaveLength(1); await expect(restarted.chapter(book.summary.id, refreshed.document.chapters[0].id, signal())).rejects.toThrow('未启用');
-    const child = await promisify(execFile)(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', "import { ReaderStore } from './src/server/store.ts'; import { OnlineSourceService } from './src/server/online/service.ts'; const book = await new OnlineSourceService(new ReaderStore(process.argv[1])).open(process.argv[2], new AbortController().signal); console.log(JSON.stringify({ locator: book.summary.locator, bookmarks: book.bookmarks.length, text: book.document.chapters[2].paragraphs[1] }));", dir, book.summary.id]);
+    const child = await promisify(execFile)(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', "import { ReaderStore } from './src/server/store.ts'; import { OnlineSourceService } from './src/server/online/service.ts'; const book = await new OnlineSourceService(new ReaderStore(process.argv[1])).open(process.argv[2], new AbortController().signal); console.log(JSON.stringify({ locator: book.summary.locator, bookmarks: book.bookmarks.length, text: book.document.chapters[2].paragraphs[1] }));", dir, book.summary.id], { timeout: 15000, maxBuffer: 1024 * 1024 });
     expect(JSON.parse(child.stdout)).toEqual({ locator: { ...locator, chapter: 2 }, bookmarks: 1, text: '这是原创测试段落。' });
     const local = await store.importBook('Regression.txt', Buffer.from('Chapter One\n\nLocal text.'));
     expect((await service.call('reader_list', {}) as any).books).toHaveLength(2); expect((await store.open(local.summary.id)).document.format).toBe('txt');
     const record = JSON.parse(await readFile(join(dir, 'books', local.summary.id, 'record.json'), 'utf8')); expect(record.version).toBe(1); expect(record.summary.locator.chapterId).toBeUndefined();
     const reports = await online.listSources(); expect(Object.values(reports[0].stages).every(s => s.network === 'passed')).toBe(true);
-  });
+  }, 20000); // Includes a real fresh Node + tsx process on shared CI runners.
   it('reports failing field without claiming later stages passed, and never runs blocked content', async () => {
     const { online } = await setup(); const sourceId = await enable(online, { ...fixtureSource, ruleSearch: { ...fixtureSource.ruleSearch, name: '.missing@text' }, ruleContent: { content: '@js:evil' } });
     await expect(online.search(sourceId, 'q', 1, signal())).rejects.toThrow('ruleSearch.name');
