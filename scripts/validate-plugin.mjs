@@ -1,11 +1,15 @@
 import { readFile, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
-const root = resolve(new URL('../', import.meta.url).pathname);
+import { fileURLToPath } from 'node:url';
+const root = fileURLToPath(new URL('../', import.meta.url));
 const manifest = JSON.parse(await readFile(resolve(root,'.codex-plugin/plugin.json'),'utf8'));
+const pkg = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
 if (manifest.name !== 'reader-plugin' || !/^\d+\.\d+\.\d+$/.test(manifest.version)) throw new Error('Invalid plugin identity/version');
+if (manifest.version !== pkg.version) throw new Error('Plugin/package versions differ');
 if (manifest.mcpServers !== './.mcp.json') throw new Error('Missing MCP configuration');
 const mcp = JSON.parse(await readFile(resolve(root,'.mcp.json'),'utf8'));
 if (mcp.mcpServers?.reader?.command !== 'node') throw new Error('Invalid local launch command');
+if (JSON.stringify(mcp.mcpServers.reader.args) !== JSON.stringify(['${PLUGIN_ROOT}/dist/server/index.js'])) throw new Error('Invalid server argument');
 await access(resolve(root,'dist/server/index.js')); await access(resolve(root,'dist/ui/index.html'));
 const html = await readFile(resolve(root,'dist/ui/index.html'),'utf8');
 if (/<script[^>]+src=|<link[^>]+rel=["']stylesheet/i.test(html)) throw new Error('MCP UI must be self-contained');

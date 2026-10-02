@@ -1,3 +1,11 @@
+# 0.1.2 Windows-native automation scope
+
+The CI matrix now runs Windows Node 22/24, macOS Node 24 and Linux Node 24 from a checkout with spaces and Chinese characters. It runs script syntax checks, TypeScript, 37 existing unit/protocol cases, build/plugin validation, 5 platform cases (the Windows default-directory case is skipped on other systems), and 5 browser scenarios. Platform tests cover generated installation metadata, absolute paths, real stdio processes, TXT/EPUB sources and persisted reading state across restart, plus Windows/UNC containment and realpath alias rejection. Exact results are attached to each commit in [Actions](https://github.com/Quiyyy/reader-plugin/actions).
+
+These are automation targets, not a declaration that an unrun job passed. The user Windows machine was offline and unauthorised during development. Native Windows desktop global/thread/file entries, trust prompts and restart behaviour remain unverified. See [Windows acceptance checklist](WINDOWS.md). The Mac host routing issue [#50152](https://github.com/openai/codex/issues/50152) is separate and remains unresolved.
+
+The following sections preserve the previous 0.1.1 acceptance evidence.
+
 # Acceptance evidence
 
 Version: 0.1.1, verified 2026-10-01. A passed stage does not imply a neighboring stage passed.

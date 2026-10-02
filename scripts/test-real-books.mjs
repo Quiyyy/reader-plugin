@@ -8,12 +8,12 @@ import { readdir, readFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { externalDirectory } from './path-utils.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const source = process.env.READER_ACCEPTANCE_BOOKS_DIR;
 if (!source) throw new Error('Set READER_ACCEPTANCE_BOOKS_DIR to a book directory outside the repository');
-const directory = resolve(source);
-if (directory === root || directory.startsWith(root.endsWith('/') ? root : root + '/')) throw new Error('Keep acceptance books outside the repository');
+const directory = await externalDirectory(root, resolve(source));
 const files = (await readdir(directory)).filter(name => /\.(txt|epub)$/i.test(name)).sort();
 if (!files.length) throw new Error('No TXT/EPUB books found in the specified directory');
 const dataDir = await mkdtemp(join(tmpdir(), 'reader-real-books-'));

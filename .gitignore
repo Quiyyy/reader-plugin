@@ -14,3 +14,4 @@ artifacts/
 test-results/
 *.log
 .DS_Store
+.reader-local/

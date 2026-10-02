@@ -2,7 +2,7 @@
 
 一个安静、私人的小说阅读插件。React + TypeScript 阅读界面，真实 MCP Apps 协议与 OpenAI MCP Extensions 接入，书籍和进度由 Reader 服务持久保存。
 
-**当前版本：0.1.1。用户已确认 Mac 主导航 Reader 和本地 Codex 对话侧栏可用；dot 对话仍存在宿主 `thread not found` 加载错误，尚未修复。** 文件入口仍待人工验收。证据与可用入口见 [宿主排错记录](docs/HOST_ROUTING.md)。
+**当前版本：0.1.2。新增 Windows 原生安装材料生成、路径适配及 Windows/macOS CI。** [Windows 安装与验收](docs/WINDOWS.md) 不要求 WSL。此前用户已确认 Mac 主导航 Reader 和本地 Codex 对话侧栏可用；dot 对话的宿主 `thread not found` 问题 [#50152](https://github.com/openai/codex/issues/50152) 仍未修复。Windows 实际桌面及宿主文件入口仍待人工验收；CI/测试宿主通过不等于原生入口通过。见 [宿主排错记录](docs/HOST_ROUTING.md)。
 
 ## 已实现
 
@@ -54,7 +54,7 @@ READER_DATA_DIR="$HOME/.reader-test" PORT=4173 npm run preview
 npm start
 ```
 
-它在 stdin/stdout 上运行 MCP，诊断只写 stderr。**不要直接把标准输出当日志。** 本地宿主负责启动它并读取 ui://reader/v0.1.1/bookshelf.html。UI HTML 内联全部脚本和样式，不依赖 CDN；iframe 通过 App.callServerTool 与宿主通信，不假设能 fetch localhost，也不依赖 localStorage/IndexedDB 的持久性。
+它在 stdin/stdout 上运行 MCP，诊断只写 stderr。**不要直接把标准输出当日志。** 本地宿主负责启动它并读取 ui://reader/v0.1.2/bookshelf.html。UI HTML 内联全部脚本和样式，不依赖 CDN；iframe 通过 App.callServerTool 与宿主通信，不假设能 fetch localhost，也不依赖 localStorage/IndexedDB 的持久性。
 
 不同客户端对本地插件和 ${PLUGIN_ROOT} 的支持需要实际检查。若不支持占位符，运行以下命令得到此机器上真实的绝对路径配置，再按该客户端的本地 MCP 配置流程接入：
 
@@ -62,7 +62,7 @@ npm start
 node scripts/local-mcp-config.mjs
 ```
 
-该脚本只打印配置，不修改宿主设置。**本仓库不会自动注册市场、安装插件、创建令牌或打开公网隧道。** ChatGPT 开发者模式远程连接与本地 stdio 是不同接入方式；远程部署需要经过授权的认证、TLS 和独立账户隔离方案，不能直接暴露当前预览端口。
+该脚本只打印配置，不修改宿主设置。可传 `--data-dir` 固定绝对书库路径。`npm run prepare:local` 可生成带本机 Node/服务绝对路径的全新本地 marketplace wrapper，再由用户显式注册安装；完整 PowerShell 步骤见 [Windows 指南](docs/WINDOWS.md)。**本仓库不会自动注册市场、安装插件、创建令牌或打开公网隧道。** ChatGPT 开发者模式远程连接与本地 stdio 是不同接入方式；远程部署需要经过授权的认证、TLS 和独立账户隔离方案，不能直接暴露当前预览端口。
 
 ### 入口与能力协商
 
@@ -79,10 +79,12 @@ node scripts/local-mcp-config.mjs
 ## 测试
 
 ```sh
+npm run lint
 npm run typecheck
 npm test
 npm run build
 npm run validate:plugin
+npm run test:platform
 # 浏览器验收：首次安装 Playwright 官方浏览器
 npx playwright install chromium
 npm run test:e2e
@@ -94,7 +96,7 @@ READER_ACCEPTANCE_BOOKS_DIR=/path/outside/repo/books npm run test:books
 
 单元/协议测试生成原创极小 TXT/EPUB，不含用户书籍或受版权保护的作品。浏览器测试包括导入、进度恢复、书签、主题、窄屏、无远程资源、真实 AppBridge 的 opaque iframe 文件资源通信。tests/host 是测试宿主，不是 ChatGPT 兼容性证明，不打包进插件 UI。
 
-Mac 验收已通过 37 项单元/协议测试、5 项浏览器测试，以及 5 份公版样本的导入、搜索、书签、主题和真实服务进程重启恢复。测试语料、个人数据和截图均不包含在源码发布中。精确环境及剩余宿主检查见 [验收记录](docs/ACCEPTANCE.md)，语料来源和格式限制见 [真实小说记录](docs/CORPUS.md)。
+此前 0.1.1 的 Mac 验收已通过 37 项单元/协议测试、5 项浏览器测试，以及 5 份公版样本的导入、搜索、书签、主题和真实服务进程重启恢复。测试语料、个人数据和截图均不包含在源码发布中。精确环境及剩余宿主检查见 [验收记录](docs/ACCEPTANCE.md)，语料来源和格式限制见 [真实小说记录](docs/CORPUS.md)。
 
 ## 架构
 

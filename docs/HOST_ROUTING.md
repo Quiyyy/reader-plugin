@@ -26,3 +26,7 @@ Do not loosen CSP or expose the unauthenticated preview server to fix this error
 If cloud access is required independently of host local routing, the official private development route is Secure MCP Tunnel to this stdio service, with a user-approved tunnel registration and ChatGPT connector mapping. That would let the connected host transport book/tool data outside the current local-only boundary, requires keeping the Mac service available, and must be separately reviewed and authorized before setup. No tunnel or remote service was created by this update.
 
 Official references: [UI resource cache keys and CSP](https://developers.openai.com/plugins/build/chatgpt-ui), [connecting local/private MCP servers and refreshing metadata](https://developers.openai.com/plugins/deploy/connect-chatgpt).
+
+## 0.1.2 platform update
+
+Windows-native setup and cross-platform automated tests do not repair this host issue. Tracking: [openai/codex#50152](https://github.com/openai/codex/issues/50152). No host patch, private RPC, remote probe, tunnel or security-policy change is part of 0.1.2. The resource cache key is now `ui://reader/v0.1.2/bookshelf.html`. Earlier 0.1.1 observations above remain historical evidence; Windows global/thread/file desktop acceptance is pending.
