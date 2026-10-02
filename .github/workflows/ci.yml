@@ -89,6 +89,8 @@ jobs:
         if: runner.os != 'Linux'
         timeout-minutes: 5
       - run: npm run test:e2e
+      - name: Repeat settings persistence and restart checks
+        run: npm run test:e2e -- --grep "TXT import|settings persistence" --repeat-each=5
       - uses: actions/upload-artifact@v4
         if: always()
         with:

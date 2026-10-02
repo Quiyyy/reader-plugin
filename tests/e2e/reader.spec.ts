@@ -1,12 +1,43 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { zipSync, strToU8 } from 'fflate';
+import { defaultSettings, type ReaderSettings } from '../../src/shared/types';
+
+function signal() {
+  let resolve!: () => void;
+  const promise = new Promise<void>(done => { resolve = done; });
+  return { promise, resolve };
+}
+async function previewTool(request: APIRequestContext, name: string, args: object = {}) {
+  const response = await request.post('/api/tool', { headers: { 'X-Reader-Client': 'preview' }, data: { name, arguments: args } });
+  expect(response.ok()).toBe(true);
+  return (await response.json())._meta.reader;
+}
+async function importSettingsBook(page: Page, request: APIRequestContext, title: string) {
+  // Only the disposable Playwright service is reset. Repeats must start with
+  // different settings so a previous successful save cannot mask a lost write.
+  await previewTool(request, 'reader_settings', { settings: defaultSettings });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
+  await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`第一章 样式保存\n\n${title}：原创时序验收内容。`) });
+  await expect(page.getByRole('heading', { name: '第一章 样式保存', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '阅读样式', exact: true }).click();
+}
+async function expectSettingsAfterReload(page: Page, title: string, settings: ReaderSettings) {
+  await page.reload();
+  await page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) }).click();
+  await expect(page.locator('.reader-app')).toHaveClass(new RegExp(`theme-${settings.theme}`));
+  await expect(page.locator('.reader-app')).toHaveCSS('--reading-size', `${settings.fontSize}px`);
+}
 const original = `第一章 雨后的书店\n\n${Array.from({length: 35},(_,i)=>`这是第 ${i+1} 段。雨停下来的时候，街角的小书店还亮着灯。林把伞靠在门边，听见纸页翻动的声音。她找到一把靠窗的椅子，把未读完的故事重新打开。`).join('\n\n')}\n\n第二章 河边散步\n\n晚风吹过河面。桥上的灯映在水里，像一行没有写完的句子。\n\n第三章 归途\n\n她把书合上，记住了回家的路。`;
 function epub() { return Buffer.from(zipSync({ mimetype: strToU8('application/epub+zip'), 'META-INF/container.xml': strToU8('<container><rootfiles><rootfile full-path="book.opf"/></rootfiles></container>'), 'book.opf': strToU8('<package><metadata><title>纸页之间</title><creator>Reader 测试</creator></metadata><manifest><item id="one" href="one.xhtml" media-type="application/xhtml+xml"/><item id="two" href="two.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="one"/><itemref idref="two"/></spine></package>'), 'one.xhtml': strToU8('<html><body><h1>第一章 纸页</h1><p>这是 EPUB 里的第一段。</p><script>window.PWNED=true;fetch("https://attacker.invalid")</script><img src="https://attacker.invalid/track.png"/><p>文字安静地留在这里。</p></body></html>'), 'two.xhtml': strToU8('<html><body><h1>第二章 日落</h1><p>窗外的光慢慢落下。</p></body></html>') })); }
-test('TXT import, progress, bookmarks, settings and restart', async ({ page }) => {
+test('TXT import, progress, bookmarks, settings and restart', async ({ page, request }, testInfo) => {
+  const title = `雨后的书店-${testInfo.repeatEachIndex}`;
+  await previewTool(request, 'reader_settings', { settings: defaultSettings });
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
-  await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: '雨后的书店.txt', mimeType: 'text/plain', buffer: Buffer.from(original) });
+  await expect(page.getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
+  await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`${original}\n\n验收轮次 ${testInfo.repeatEachIndex}`) });
   await expect(page.getByRole('heading', { name: '第一章 雨后的书店' })).toBeVisible();
   await page.getByRole('button', { name: '目录（T）', exact: true }).click();
   await page.locator('.chapter-item').first().click();
@@ -26,9 +57,14 @@ test('TXT import, progress, bookmarks, settings and restart', async ({ page }) =
   await page.getByRole('button', {name:'增大字号'}).click();
   await page.getByRole('button', {name:'关闭阅读样式'}).click();
   await page.getByRole('button', {name:'返回书架'}).click();
+  // click() does not await the async return handler. Reload only after its
+  // progress/settings saves finish and the actual bookshelf is rendered.
+  await expect(page.getByRole('heading', { name: '书架', exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
   await page.reload();
-  await page.getByRole('button', {name:/打开 雨后的书店/}).click();
+  await page.getByRole('button', {name:new RegExp(`^打开 ${title}，`)}).click();
   await expect(page.locator('.reader-app')).toHaveClass(/theme-sepia/);
+  await expect(page.locator('.reader-app')).toHaveCSS('--reading-size', '21px');
   await expect.poll(() => scroll.evaluate(el => el.scrollTop)).toBeGreaterThan(1000);
   await page.getByRole('button', {name:'目录（T）',exact:true}).click();
   await page.getByRole('button', {name:/02 第二章 河边散步/}).click();
@@ -40,6 +76,52 @@ test('TXT import, progress, bookmarks, settings and restart', async ({ page }) =
   await page.screenshot({ path: 'artifacts/reader-bookshelf.png', fullPage: true });
   expect(errors).toEqual([]);
 });
+
+for (const inFlight of [false, true]) {
+  test(`settings persistence waits for ${inFlight ? 'an in-flight save and the latest queued edits' : 'the debounced save before returning'}`, async ({ page, request }, testInfo) => {
+    const title = `样式时序-${inFlight ? '队列' : '立即返回'}-${testInfo.repeatEachIndex}`;
+    await importSettingsBook(page, request, title);
+    const observed = signal(), release = signal();
+    const writes: ReaderSettings[] = [];
+    await page.route('**/api/tool', async route => {
+      const payload = route.request().postDataJSON();
+      if (payload.name === 'reader_settings') {
+        writes.push(payload.arguments.settings);
+        if (writes.length === 1) { observed.resolve(); await release.promise; }
+      }
+      await route.continue();
+    });
+    const expected = { ...defaultSettings, theme: inFlight ? 'dark' as const : 'sepia' as const, fontSize: 21 };
+    try {
+      await page.getByRole('button', { name: '纸色', exact: true }).click();
+      if (inFlight) {
+        await observed.promise;
+        await page.getByRole('button', { name: '深色', exact: true }).click();
+      }
+      await page.getByRole('button', { name: '增大字号' }).click();
+      await page.getByRole('button', { name: '关闭阅读样式' }).click();
+      await page.getByRole('button', { name: '返回书架', exact: true }).click();
+      await observed.promise;
+      await expect(page.locator('.returning-overlay')).toBeVisible();
+      await expect(page.getByRole('heading', { name: '书架', exact: true })).toHaveCount(0);
+      expect(writes).toHaveLength(1);
+      expect((await previewTool(request, 'reader_list')).settings).toEqual(defaultSettings);
+      release.resolve();
+      await expect(page.getByRole('heading', { name: '书架', exact: true })).toBeVisible();
+      await expect(page.getByRole('alert')).toHaveCount(0);
+      expect(writes.at(-1)).toEqual(expected);
+      if (inFlight) {
+        expect(writes.length).toBeGreaterThanOrEqual(2);
+        expect(writes[0]).toEqual({ ...defaultSettings, theme: 'sepia' });
+      }
+      expect((await previewTool(request, 'reader_list')).settings).toEqual(expected);
+      await expectSettingsAfterReload(page, title, expected);
+    } finally {
+      release.resolve();
+      await page.unrouteAll({ behavior: 'wait' });
+    }
+  });
+}
 test('EPUB strips active content and fits narrow panel', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); const external: string[] = [];
   page.on('request', request => { if (!request.url().startsWith('http://127.0.0.1:4178') && !request.url().startsWith('data:')) external.push(request.url()); });
@@ -64,6 +146,7 @@ test('Chinese hard wraps reflow, cross-line search works, and fragment bookmarks
   await page.getByRole('button', { name: '收藏当前段落（B）', exact: true }).click();
   await expect(page.locator('.save-indicator')).toHaveText('已保存');
   await page.getByRole('button', { name: '返回书架', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '书架', exact: true })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: /打开 连续中文/ }).click();
   await expect.poll(() => page.getByLabel('正文，向下滚动阅读').evaluate(element => element.scrollTop)).toBeGreaterThan(1000);
