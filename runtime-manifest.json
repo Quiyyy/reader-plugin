@@ -1,0 +1,28 @@
+{
+  "kind": "reader-bundled-runtime",
+  "version": "0.1.5",
+  "goos": "linux",
+  "goarch": "arm64",
+  "nodeVersion": "24.21.0",
+  "nodeSha256": "0f8949d1028f6d61506b2d5bc57e7e6fe893d7b1997509b7847294fc9c616584",
+  "nodeBytes": 122893672,
+  "compressedSha256": "f07967f50a15f95573eea989a0fdc6a4ae8dd9f29348de335c9bca86d8a8a554",
+  "files": {
+    "app/package.json": "d1d552a1e4d0863fc67b33abddc362227263a74d254b19f5e5944ccab1cb2f65",
+    "app/dist/server/index.js": "fb893fd337278fbd158b8bd60b555f4d152ea6dfae1acd51f5d1bfb92a2fc714",
+    "app/dist/ui/index.html": "ad5086823d83029b2332f781f5a0cafd0a1a7375c7f51b6f160504b18db3ee88",
+    "payload/node.gz": "f07967f50a15f95573eea989a0fdc6a4ae8dd9f29348de335c9bca86d8a8a554"
+  },
+  "source": {
+    "commit": "0af27059913ff322d3c4ae58f3f8a205184bfe2d",
+    "dirty": false
+  },
+  "testFixture": false,
+  "target": "linux-arm64",
+  "nodeArchive": {
+    "url": "https://nodejs.org/download/release/v24.21.0/node-v24.21.0-linux-arm64.tar.gz",
+    "sha256": "724282c3b43aec998aa9527380465b45d229e021b58035f5f4f63095eabfe5d5"
+  },
+  "goVersion": "go version go1.27.1 linux/arm64",
+  "dependencyLockSha256": "004680a238fe6ab674ef0529c13930e52ecbb1b6f4b7cb92b384f564b65675d3"
+}
