@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { parseArgs } from 'node:util';
+import { httpAuthorizationEnvironment } from '../distribution/git-http.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const { values } = parseArgs({ options: { stable: { type: 'boolean', default: false } } });
 const source = process.env.GITHUB_SHA, token = process.env.GITHUB_TOKEN;
@@ -12,8 +13,7 @@ if (process.env.GITHUB_REPOSITORY !== 'Quiyyy/reader-plugin' || !/^[a-f0-9]{40}$
 if (values.stable && process.env.GITHUB_REF !== 'refs/heads/main') throw new Error('Stable distribution requires the final main CI gates.');
 const work = await fs.mkdtemp(join(root, 'artifacts/publish-'));
 const repository = join(work, 'objects.git');
-const env = { ...process.env, GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
-  GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString('base64')}`,
+const env = { ...process.env, ...httpAuthorizationEnvironment('https://github.com/', `basic ${Buffer.from(`x-access-token:${token}`).toString('base64')}`),
   GIT_AUTHOR_NAME: 'Reader distribution CI', GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
   GIT_COMMITTER_NAME: 'Reader distribution CI', GIT_COMMITTER_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com', GIT_TERMINAL_PROMPT: '0' };
 delete env.GITHUB_TOKEN;
@@ -29,7 +29,7 @@ const remote = 'https://github.com/Quiyyy/reader-plugin.git', commands = [], pub
 async function publish(directory, branch) {
   if (!/^reader-(preview|dist)\/[a-zA-Z0-9/._-]+$/.test(branch)) throw new Error('Unexpected distribution branch');
   const ref = `refs/heads/${branch}`;
-  const existing = (await git(['ls-remote', remote, ref])).split(/\s/)[0] || null;
+  const existing = (await git([`--git-dir=${repository}`, 'ls-remote', remote, ref])).split(/\s/)[0] || null;
   if (existing) await git([`--git-dir=${repository}`, 'fetch', '--depth=1', remote, ref]);
   const local = { GIT_DIR: repository, GIT_WORK_TREE: directory, GIT_INDEX_FILE: join(work, `index-${commands.length}`) };
   await git(['add', '--all'], local, directory);

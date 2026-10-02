@@ -28,6 +28,7 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: Reader Windows 中文/package-lock.json
+      - run: node --test tests/distribution/*.test.mjs
       - run: npm ci
       - run: npm run build
       - run: npm run package:runtime
