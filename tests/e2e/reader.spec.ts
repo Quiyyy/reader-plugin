@@ -13,13 +13,27 @@ async function previewTool(request: APIRequestContext, name: string, args: objec
   expect(response.ok()).toBe(true);
   return (await response.json())._meta.reader;
 }
+async function waitForImport(page: Page, trigger: () => Promise<unknown>) {
+  // Import includes durable filesystem writes. Observe its real result within
+  // the preview API's 15-second deadline before asserting the rendered chapter.
+  const finished = page.waitForResponse(response => response.url().endsWith('/api/tool')
+    && response.request().method() === 'POST'
+    && response.request().postDataJSON().name === 'reader_import_finish', { timeout: 15000 });
+  await trigger();
+  const response = await finished;
+  expect(response.ok(), await response.text()).toBe(true);
+  expect((await response.json())._meta.reader.summary.id).toMatch(/^[a-f0-9]{64}$/);
+}
+async function importFile(page: Page, file: { name: string; mimeType: string; buffer: Buffer }) {
+  await waitForImport(page, () => page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles(file));
+}
 async function importSettingsBook(page: Page, request: APIRequestContext, title: string) {
   // Only the disposable Playwright service is reset. Repeats must start with
   // different settings so a previous successful save cannot mask a lost write.
   await previewTool(request, 'reader_settings', { settings: defaultSettings });
   await page.goto('/');
   await expect(page.getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
-  await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`第一章 样式保存\n\n${title}：原创时序验收内容。`) });
+  await importFile(page, { name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`第一章 样式保存\n\n${title}：原创时序验收内容。`) });
   await expect(page.getByRole('heading', { name: '第一章 样式保存', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '阅读样式', exact: true }).click();
 }
@@ -37,7 +51,7 @@ test('TXT import, progress, bookmarks, settings and restart', async ({ page, req
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
   await expect(page.getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
-  await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`${original}\n\n验收轮次 ${testInfo.repeatEachIndex}`) });
+  await importFile(page, { name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`${original}\n\n验收轮次 ${testInfo.repeatEachIndex}`) });
   await expect(page.getByRole('heading', { name: '第一章 雨后的书店' })).toBeVisible();
   await page.getByRole('button', { name: '目录（T）', exact: true }).click();
   await page.locator('.chapter-item').first().click();
@@ -125,7 +139,7 @@ for (const inFlight of [false, true]) {
 test('EPUB strips active content and fits narrow panel', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); const external: string[] = [];
   page.on('request', request => { if (!request.url().startsWith('http://127.0.0.1:4178') && !request.url().startsWith('data:')) external.push(request.url()); });
-  await page.goto('/'); await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({name:'纸页之间.epub',mimeType:'application/epub+zip',buffer:epub()});
+  await page.goto('/'); await importFile(page, {name:'纸页之间.epub',mimeType:'application/epub+zip',buffer:epub()});
   await expect(page.getByText('这是 EPUB 里的第一段。', {exact:true})).toBeVisible();
   expect(await page.evaluate(() => (window as any).PWNED)).toBeUndefined(); expect(external).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -136,7 +150,7 @@ test('EPUB strips active content and fits narrow panel', async ({ page }) => {
 test('Chinese hard wraps reflow, cross-line search works, and fragment bookmarks restore', async ({ page }) => {
   const paragraphs = Array.from({ length: 36 }, (_, i) => `　　这是第${i + 1}段原创测试文字，旅人沿着河岸慢慢向前走，直到他看见远\n处的小桥，还有桥边一盏温暖的灯。`);
   await page.goto('/');
-  await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: '连续中文.txt', mimeType: 'text/plain', buffer: Buffer.from('第一章 归途\n\n' + paragraphs.join('\n\n')) });
+  await importFile(page, { name: '连续中文.txt', mimeType: 'text/plain', buffer: Buffer.from('第一章 归途\n\n' + paragraphs.join('\n\n')) });
   await expect(page.locator('.reading-paragraphs p')).toHaveCount(37);
   await expect(page.locator('.reading-paragraphs p').nth(1)).toContainText('远处的小桥');
   await page.getByRole('button', { name: '搜索本书（F）', exact: true }).click();
@@ -159,8 +173,9 @@ test('Chinese hard wraps reflow, cross-line search works, and fragment bookmarks
   await page.screenshot({ path: 'artifacts/reader-chinese-reflow.png', fullPage: true });
 });
 test('a stalled progress request releases the return overlay and can be retried', async ({ page }) => {
+  test.setTimeout(45000); // One bounded import plus the deliberately stalled 15-second save.
   await page.goto('/');
-  await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: '超时恢复.txt', mimeType: 'text/plain', buffer: Buffer.from(original + '\n\n网络超时恢复测试。') });
+  await importFile(page, { name: '超时恢复.txt', mimeType: 'text/plain', buffer: Buffer.from(original + '\n\n网络超时恢复测试。') });
   await expect(page.getByRole('heading', { name: '第一章 雨后的书店' })).toBeVisible();
   await page.route('**/api/tool', route => {
     if (route.request().postDataJSON().name === 'reader_progress') return;
@@ -185,7 +200,7 @@ test('real AppBridge in opaque iframe imports host file and persists through app
   await page.route('**/__test_host', route => route.fulfill({contentType:'text/html',body:html}));
   await page.goto('/__test_host'); const frame = page.frameLocator('#reader');
   await expect(frame.getByRole('heading',{name:'书架',exact:true})).toBeVisible();
-  await page.evaluate(async ({name,blob}) => { await (window as any).__readerHarness.openFile(name,blob); },{name:'宿主文件.txt',blob:Buffer.from('第一章 宿主文件\n\n通过真正的 MCP Apps 协议打开。').toString('base64')});
+  await waitForImport(page, () => page.evaluate(async ({name,blob}) => { await (window as any).__readerHarness.openFile(name,blob); },{name:'宿主文件.txt',blob:Buffer.from('第一章 宿主文件\n\n通过真正的 MCP Apps 协议打开。').toString('base64')}));
   await expect(frame.getByRole('heading',{name:'第一章 宿主文件',exact:true})).toBeVisible();
   await expect(frame.getByText('通过真正的 MCP Apps 协议打开。',{exact:true})).toBeVisible();
   const calls = await page.evaluate(() => (window as any).__readerHarness.calls);
