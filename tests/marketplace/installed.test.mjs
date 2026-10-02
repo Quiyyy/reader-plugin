@@ -45,6 +45,7 @@ const json = async path => JSON.parse(await fs.readFile(path, 'utf8'));
 const catalog = join(market, '.agents/plugins/marketplace.json');
 const command = async args => JSON.parse((await run(cli, args, { env, cwd, timeout: 120000, maxBuffer: 4 * 1024 * 1024 })).stdout);
 const records = [];
+let firstLaunchMs;
 after(async () => {
   if (process.env.READER_KEEP_TEST_DATA) return;
   await fs.rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
@@ -92,7 +93,9 @@ function epub() {
     'one.xhtml': strToU8('<html><body><h1>第一章</h1><p>原创验收段落一。</p><p>原始字节应该保留。</p><p>更新后接着读。</p></body></html>') }));
 }
 async function seed(config) {
+  const started = Date.now();
   const client = await open(config);
+  firstLaunchMs = Date.now() - started;
   try {
     for (const [filename, bytes] of [['原创 中文.txt', Buffer.from('第一章\n\n原创验收第一段。\n\n原创验收第二段。\n\n更新之后的段落。')], ['原创 EPUB.epub', epub()]]) {
       const begin = await call(client, 'reader_import_begin', { filename, size: bytes.length });
@@ -156,7 +159,11 @@ async function officialHost() {
     child.stdin.write(JSON.stringify({ method: 'initialized', params: {} }) + '\n');
     const status = await request(2, 'mcpServerStatus/list', { serverName: 'reader', detail: 'full' });
     assert.ok(status.result, JSON.stringify(status));
-    assert.ok(JSON.stringify(status.result).includes('reader_open'), JSON.stringify(status.result));
+    const reader = status.result.data.find(server => server.name === 'reader');
+    assert.ok(reader, JSON.stringify(status.result));
+    assert.equal(Object.keys(reader.tools).length, 12);
+    assert.equal(reader.resources.length, 1);
+    assert.ok(JSON.stringify(reader.tools).includes('reader_open'));
     return { initialized: initialized.result, status: status.result };
   } finally {
     child.stdin.end();
@@ -180,7 +187,7 @@ test('official install preserves executable permissions and runs with no Node/np
   assert.equal(config.env.PLUGIN_DATA, old.env.PLUGIN_DATA, 'Host plugin data directory changed across versions.');
   const start = Date.now();
   await verify(config, payload.version, settings);
-  const coldVerificationMs = Date.now() - start;
+  const upgradedVerificationMs = Date.now() - start;
   const info = JSON.parse((await run(config.command, ['--runtime-info'], { cwd, env: { ...config.env, PATH: '' }, timeout: 30000 })).stdout);
   assert.equal(info.nodeVersion, '24.21.0'); assert.equal(info.version, payload.version);
   assert.equal(hash(await fs.readFile(info.node)), payload.nodeSha256);
@@ -209,7 +216,7 @@ test('official install preserves executable permissions and runs with no Node/np
     await assert.rejects(run(config.command, ['--runtime-info'], { cwd, env: { ...config.env, PATH: '' }, timeout: 30000 }), /damaged|not overwritten/);
     assert.equal(await fs.readFile(info.node, 'utf8'), 'unknown modified runtime');
   } finally { await fs.writeFile(info.node, original); }
-  const evidence = { target, version: payload.version, source: payload.source, transport: remote ? 'github-marketplace' : 'local-marketplace', officialCli: (await run(cli, ['--version'], { env, cwd })).stdout.trim(), coldVerificationMs, publicAppServer: host,
+  const evidence = { target, version: payload.version, source: payload.source, transport: remote ? 'github-marketplace' : 'local-marketplace', officialCli: (await run(cli, ['--version'], { env, cwd })).stdout.trim(), firstLaunchMs, upgradedVerificationMs, publicAppServer: host,
     libraryBooks: 2, originalBytesPreserved: true, upgradeRollbackRestart: 'passed', dataIndependentOfPluginCache: true, noNodePath: true, executablePermissionPreserved: true };
   await fs.mkdir(join(root, 'artifacts/marketplace-evidence'), { recursive: true });
   await fs.writeFile(join(root, 'artifacts/marketplace-evidence', `${target}${remote ? '-github' : '-local'}.json`), JSON.stringify(evidence, null, 2));

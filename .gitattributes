@@ -1,0 +1,3 @@
+* text=auto eol=lf
+# These upstream license bytes are pinned by SHA-256 and must never be converted.
+distribution/licenses/** -text
