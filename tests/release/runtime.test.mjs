@@ -29,7 +29,7 @@ async function extract(input, destination) {
   await fs.mkdir(destination);
   if (process.platform === 'win32') {
     await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-      'Expand-Archive -LiteralPath $env:READER_TEST_ARCHIVE -DestinationPath $env:READER_TEST_EXTRACT'],
+      '$ErrorActionPreference = "Stop"; Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory($env:READER_TEST_ARCHIVE, $env:READER_TEST_EXTRACT)'],
     { env: { ...environment, READER_TEST_ARCHIVE: input, READER_TEST_EXTRACT: destination }, timeout: 180000, maxBuffer: 2 * 1024 * 1024 });
   } else {
     await run('unzip', ['-q', input, '-d', destination], { timeout: 180000 });

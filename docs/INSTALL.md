@@ -12,6 +12,13 @@
 
 ## Windows 原生安装
 
+可使用资源管理器解压 ZIP；自动化已使用 Windows 自带 .NET ZIP 接口。若在 PowerShell 解压，可执行以下命令（目标目录选择新的空目录）：
+
+```powershell
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::ExtractToDirectory('C:\下载\reader-0.1.3-runtime.zip', 'C:\下载\Reader 解压')
+```
+
 在解压后的 `reader-0.1.3-runtime` 文件夹打开 PowerShell：
 
 ```powershell
