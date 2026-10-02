@@ -173,7 +173,7 @@ jobs:
             Reader 市场 中文/artifacts/*.png
             Reader 市场 中文/test-results/
   marketplace-preview:
-    if: github.event_name == 'push' && github.repository == 'Quiyyy/reader-plugin'
+    if: github.event_name == 'push' && github.repository == 'Quiyyy/reader-plugin' && !startsWith(github.ref, 'refs/heads/feature/legado-')
     needs: [check, marketplace-native]
     permissions:
       contents: write

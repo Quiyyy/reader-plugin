@@ -1,0 +1,82 @@
+# Legado 无脚本书源 MVP
+
+这是 Reader 自行实现的有限兼容子集，不是完整 Legado 引擎。未复制或依赖 GPL 上游规则代码、Rhino、WebView 或许可不明确的 `LegadoTeam/legado-rule`。没有内置第三方小说书源集合。
+
+## 使用
+
+1. 在书架点「在线书源」，展开「导入书源 JSON」。选择本地 UTF-8 JSON 文件（单个对象或数组），或明确输入一个公开 JSON URL。
+2. 预览逐源、逐阶段的语法诊断及变更字段，确认导入。每批最多 50 个源、512 KiB；总共最多保存 100 个。新建或替换版本默认停用，同版本重复导入保留启停状态。
+3. 展开源查看字段原因，启用可用的源，选择源并搜索。点结果看详情，再点「加入书架并阅读」。目录完整获取后只加载当前章节正文。
+4. 目录/上一章/下一章会按需加载；可以取消。阅读进度、书签、样式沿用 Reader。目录面板支持手动刷新。
+
+URL 导入是一次性操作，不订阅、不定时更新。变更需要再次预览确认。只使用自己有权访问的公开材料，不尝试绕过访问控制。
+
+## 状态的含义
+
+语法状态与联网状态是两条独立信息，UI 同时显示中文和英文值。
+
+| 语法 | 含义 |
+| --- | --- |
+| supported | 已识别此阶段的全部规则，尚不代表真实站点可用 |
+| partial | 部分阶段受阻，或存在已明确列出的未提取展示字段，例如封面 |
+| blocked | 有无法安全解释的字段、脚本、请求配置或未知规则，该阶段不执行 |
+| invalid | 必填字段缺失、字段类型/URL/规则无效，该阶段不执行 |
+
+`untested` 表示尚未成功执行该阶段；`passed` 表示当前版本该阶段最近一次请求与提取成功；`failed` 显示具体字段或网络原因。只做搜索不会把目录或正文标成已通过。取消和已失效版本的响应不更新验证结果。一次 passed 不保证整个网站、全部书籍或以后请求可用。
+
+## 支持的规则
+
+| 功能 | 示例与边界 |
+| --- | --- |
+| CSS | `.book a@text`、`@css:#content@text`、`div > a@href`；简单 tag/class/id 复合选择器，后代/子代关系和简单属性匹配；不支持伪类、转义和选择器列表 |
+| 经典链 | `class.books.0@tag.a.1@text`、`id.content@text`；class/tag/id 名称及单个非负索引，索引从 0 开始 |
+| 文本/属性 | `text`、`ownText`、`href`、`src`、`content`、`title`、`value`；`@text` 和 `@href` 可相对当前列表项提取 |
+| JSONPath | `$.books[*]`、`$.name`、`$['books'][0].title`；只有属性、非负数组索引和数组通配；不支持过滤、表达式、切片、递归、原型属性 |
+| URL 模板 | 仅搜索 URL 的 `{{key}}`（UTF-8 百分号编码）和 `{{page}}`（1–5）；GET，无请求选项后缀 |
+| URL | 支持相对 URL；只允许书源声明的同一 origin（协议、域、标准端口）。目录不能以 URL fragment 区分章节 |
+| 响应编码 | 复用 `normalizeEncoding`，支持 UTF-8、GB18030/GBK、Big5、UTF-16；按 BOM、HTTP charset、前 4096 字节的简单 HTML meta charset、UTF-8 的次序判断，解码失败明确报错 |
+| 分页 | 搜索手动 1–5 页；`nextTocUrl`、`nextContentUrl` 最多 5 页。拒绝循环、多个下一页链接、超限和不完整结果 |
+
+首版**不支持非 UTF-8 搜索关键词编码**（例如 Legado URL 请求选项中的 GBK charset）。响应能解码 GBK 不代表能构造 GBK 查询参数。
+
+支持的阶段字段：
+
+- `ruleSearch`: `bookList`, `name`, `author`, `bookUrl`。
+- `ruleBookInfo`: `name`, `author`, `intro`, `tocUrl`。未声明时保留搜索元数据，并把详情 URL 当作目录 URL；仍实际请求详情。
+- `ruleToc`: `chapterList`, `chapterName`, `chapterUrl`, `nextTocUrl`。
+- `ruleContent`: `content`, `nextContentUrl`。
+
+配置了的文本字段提取为空会报告字段名；可选下一页没有匹配表示分页结束。`coverUrl`、`kind`、`wordCount`、`lastChapter`、`updateTime` 明确标记为未提取。远程封面不加载。
+
+禁止 JS、Rhino、`node:vm`、WebView、登录、Cookie/Authorization/自定义请求头、POST/源内依赖、环境变量、本机文件规则、正则替换、组合/回退、未知操作字段和任意脚本执行。整条规则必须被语法识别，不能截断脚本继续执行。
+
+## 网络与资源边界
+
+所有出站请求使用 `SafeHttpClient`：
+
+- 只允许 HTTP 80 或 HTTPS 443，无 URL 用户名/密码，不继承 Cookie、认证、浏览器、环境代理或其他凭据。
+- 禁止回环、私网、链路本地、CGNAT、元数据地址、保留/文档/组播 IPv4、非全球单播 IPv6、IPv4 映射、NAT64/6to4 等转换范围及本地主机名。
+- 检查 DNS 返回的全部地址，任何一个非公网即拒绝；把批准地址固定到 Node 请求的 `lookup`，保留原域 Host/SNI/TLS 校验。每次重定向重新校验，不在校验后调用普通 fetch 再次解析 DNS。
+- 仅同源重定向，最多 3 次；单个请求（含排队和 DNS）10 秒，整个操作 45 秒；全局最多 4 个请求、16 个等待者。支持取消和操作去重。
+- 每响应 2 MiB、headers 16 KiB；首版发送 `Accept-Encoding: identity`，拒绝压缩响应，因而不解压潜在炸弹。目录最多 5000 章；搜索最多 200 项；正文每章最多 4 MiB / 50000 段。超限报错，不保存截断结果。
+- 源/正文从不执行。HTML 只在服务器解析为文本，移除活跃节点；UI 使用 React 文本节点，不插入书源 HTML，不加载远程资源。CSP 仍禁止外部连接和嵌入。
+- 不记录书源原文、查询词、URL 查询串、正文或凭据；错误不会包含底层请求选项。
+
+这是保守的网络边界；公共站点因跨域、压缩、动态页面或受限制规则无法使用时，UI 会明确报错。未提供私人网络开关或绕过参数。
+
+## 存储与兼容
+
+- 新增 `online` 格式，存储于所选 Reader 数据目录的 `online-v1`；旧 `books/*/record.json` 和 TXT/EPUB schema v1 不变，不进行破坏性迁移。
+- 在线记录存元数据、完整目录、稳定章节 ID、位置和书签；正文在独立 cache 文件按章保存。章节 ID 是规范 URL 的 SHA-256，进度附带 `chapterId`，下标仅供 renderer 使用。
+- 目录刷新按 ID 对齐位置/书签；若当前或已收藏章节消失，保留旧目录并报错。并发操作通过现有跨进程锁与原子写保护；源版本及启停 generation 防止过期网络响应更新数据。
+- 缓存按书/源版本隔离，单本缓存上限约 32 MiB，优先保留当前/续读章；更早的缓存可被回收，书签仍保留。写入/解析/分页失败不覆盖旧好缓存。
+- 已缓存续读章节在停用或移除书源后可离线打开。未缓存章节必须有启用且版本匹配的源。更新源后重新搜索添加会生成新的版本书架记录，旧缓存和进度保留，不静默套用新规则。
+- 在线进度按章节估算；本书搜索只搜索本次已加载的章节，不自动下载全书。
+
+## 验证与参考
+
+`tests/online.test.ts` 覆盖规则与导入、私网/IPv6/DNS pinning/重绑定/重定向/字节与并发限制/压缩拒绝/取消、两页目录正文、JSONPath、失败保留缓存、重启与稳定定位；`tests/e2e/online.spec.ts` 在窄屏与桌面跑导入到阅读及离线续读，检查状态与纯文本渲染。测试使用 `tests/online/fixture.ts` 的原创文本 HTTP 服务。网络例外只由测试构造器注入，测试代码打包到 `dist/test-host`，不进入发布的服务器或 UI。
+
+格式行为参考入口：[Legado 文档](https://gedoor.github.io/docs/GettingStarted)、[历史公开源码入口](https://github.com/galaxypluto/legado-book)。参考不构成完整兼容承诺；原 `gedoor/legado` 默认分支现状与第三方规则包许可争议不作为引入依赖的依据。
+
+本功能提交保留 0.1.5 UI 候选版本号，尚未作为正式版本发布；主任务负责统一版本、市场与安装协调。

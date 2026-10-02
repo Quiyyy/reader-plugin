@@ -45,7 +45,7 @@ export function createReaderApi(): ReaderApi {
   if (window.parent === window) {
     call = async (name, args) => {
       const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), PREVIEW_REQUEST_TIMEOUT_MS);
+      const timeout = window.setTimeout(() => controller.abort(), name.startsWith('reader_online_') || name === 'reader_get' ? 60000 : PREVIEW_REQUEST_TIMEOUT_MS);
       try {
         const response = await fetch('/api/tool', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Reader-Client': 'preview' }, body: JSON.stringify({ name, arguments: args }), signal: controller.signal });
         if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error ?? `Reader 服务未就绪 (${response.status})`); }
@@ -91,7 +91,20 @@ export function createReaderApi(): ReaderApi {
     onBeforeClose(listener) { beforeClose = listener; return () => { beforeClose = undefined; }; },
     list: () => call('reader_list', {}) as ReturnType<ReaderApi['list']>,
     importBook: importFile,
-    open: id => call('reader_get', { id }) as ReturnType<ReaderApi['open']>,
+    open: (id, requestId) => call('reader_get', { id, ...(requestId ? { requestId } : {}) }) as ReturnType<ReaderApi['open']>,
+    online: {
+      sources: () => call('reader_online_sources', {}) as any,
+      preview: input => call('json' in input ? 'reader_online_preview' : 'reader_online_preview_url', input) as any,
+      commit: token => call('reader_online_commit', { token }) as any,
+      setEnabled: (id, enabled) => call('reader_online_enable', { id, enabled }) as any,
+      removeSource: id => call('reader_online_remove', { id }) as any,
+      search: (sourceId, key, page, requestId) => call('reader_online_search', { sourceId, key, page, requestId }) as any,
+      detail: (result, requestId) => call('reader_online_detail', { result, requestId }) as any,
+      add: (detail, requestId) => call('reader_online_add', { detail, requestId }) as any,
+      chapter: (id, chapterId, requestId) => call('reader_online_chapter', { id, chapterId, requestId }) as any,
+      refresh: (id, requestId) => call('reader_online_refresh', { id, requestId }) as any,
+      cancel: requestId => call('reader_online_cancel', { requestId }),
+    },
     saveProgress: (id, locator) => call('reader_progress', { id, locator }) as ReturnType<ReaderApi['saveProgress']>,
     saveSettings: settings => call('reader_settings', { settings }) as ReturnType<ReaderApi['saveSettings']>,
     addBookmark: (id, locator, label) => call('reader_bookmark_add', { id, locator, label }) as ReturnType<ReaderApi['addBookmark']>,

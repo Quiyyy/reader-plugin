@@ -222,3 +222,26 @@ kbd { font-family: var(--font-sans); font-size: 10px; min-width: 24px; height: 2
 .theme-light { --bg: #fff; --surface: #f8f8f5; --surface-hover: #efefeb; --text: #282a25; --muted: #787b72; --faint: #a0a297; --border: #e8e9e3; --accent: #65734b; --accent-tint: #eef1e7; --error: #a84032; --error-bg: #fff4f0; --cover-1: #e7e8dc; --cover-2: #e4e6e5; --cover-3: #eae1d5; --cover-4: #e4e2e7; color-scheme: light; }
 
 .returning-overlay { position: absolute; inset: 0; z-index: 55; display: flex; align-items: center; justify-content: center; gap: 9px; color: var(--muted); font-size: 12px; background: color-mix(in srgb, var(--bg), transparent 12%); }
+
+/* Online-source controls stay in their own scrollable dialog. */
+.online-dialog { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; width: min(720px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; padding: 20px; font-size: 13px; overflow-wrap: anywhere; }
+.online-dialog p { margin: 8px 0; }
+.online-dialog section, .online-import { margin: 16px 0; padding: 12px; background: var(--surface); border-radius: 8px; }
+.online-dialog h3 { margin: 0 0 10px; }
+.online-dialog label { display: grid; gap: 6px; margin: 12px 0; }
+.online-dialog input, .online-dialog select { min-width: 0; max-width: 100%; width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 5px; padding: 8px; }
+.online-dialog summary { cursor: pointer; padding: 6px 0; }
+.online-dialog .text-button { white-space: normal; text-align: left; }
+.source-row { border-bottom: 1px solid var(--border); padding: 8px 0; }
+.source-status table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+.source-status th, .source-status td { padding: 6px; text-align: left; border: 1px solid var(--border); }
+.source-status small { display: block; color: var(--muted); }
+.source-status caption { text-align: left; color: var(--muted); margin: 8px 0; }
+.source-url { color: var(--muted); font-size: 12px; }
+.source-diagnostic { color: var(--error); }
+.source-actions { display: flex; gap: 20px; }
+.online-result { display: flex; gap: 12px; width: 100%; text-align: left; padding: 10px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.online-result span { color: var(--muted); }
+.online-reading-status:empty { display: none; }
+.online-reading-status { padding: 0 12px; flex: none; }
+@media (max-width: 420px) { .shelf-utilities { gap: 6px; } .shelf-utilities .book-count { display: none; } .online-dialog { padding: 12px; } }

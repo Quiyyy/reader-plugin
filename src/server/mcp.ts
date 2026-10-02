@@ -23,8 +23,8 @@ export function createMcpServer(service: ReaderService, htmlPath: string): McpSe
   }, async () => ({ content: [] }));
   for (const [name, schema] of Object.entries(actionSchemas)) {
     server.registerTool(name, {
-      title: names[name], description: 'Private Reader UI operation. Not intended for model invocation.', inputSchema: schema,
-      annotations: { readOnlyHint: name === 'reader_list', destructiveHint: name === 'reader_bookmark_remove', openWorldHint: false },
+      title: names[name] ?? name, description: 'Private Reader UI operation. Not intended for model invocation.', inputSchema: schema,
+      annotations: { readOnlyHint: name === 'reader_list' || name === 'reader_online_sources', destructiveHint: name === 'reader_bookmark_remove' || name === 'reader_online_remove', openWorldHint: name.startsWith('reader_online_') || name === 'reader_get' },
       _meta: { ui: { visibility: ['app'] } },
     }, async (args: unknown): Promise<CallToolResult> => {
       try { return { content: [], _meta: { reader: await service.call(name, args) } }; }

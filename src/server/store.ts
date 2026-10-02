@@ -18,7 +18,7 @@ type StoredBook = z.infer<typeof stateSchema> & { document: z.infer<typeof docum
 const isMissing = (error: unknown): boolean => !!error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT';
 
 /** Atomic same-directory replace; private modes; fsync contents before rename. */
-async function atomicWrite(filename: string, contents: string | Uint8Array): Promise<void> {
+export async function atomicWrite(filename: string, contents: string | Uint8Array): Promise<void> {
   const temporary = `${filename}.${randomUUID()}.tmp`;
   const handle = await fs.open(temporary, 'wx', 0o600);
   try {
@@ -72,7 +72,8 @@ export class ReaderStore {
   }
 
   /** Per-book, cross-process locks prevent two plugin clients losing each other's updates. */
-  private async locked<T>(key: string, work: () => Promise<T>): Promise<T> {
+  async locked<T>(key: string, work: () => Promise<T>): Promise<T> {
+    if (!/^[a-z0-9-]+$/.test(key)) throw new Error('Invalid lock key.');
     await this.ready;
     const lockPath = join(this.locksDir, key);
     const ownerPath = join(lockPath, 'owner.json');
@@ -202,7 +203,7 @@ export class ReaderStore {
       } catch (error) { if (!isMissing(error)) throw error; }
       const document = importDocument(filename, bytes, encoding);
       const summary: BookSummary = { id, title: document.title, author: document.author, format: document.format, addedAt: new Date().toISOString(), progress: 0, locator: { chapter: 0, paragraph: 0 }, chapterCount: document.chapters.length, wordCount: countWords(document.chapters.flatMap(chapter => chapter.paragraphs)) };
-      const record: StoredBook = { version: 1, originalFilename: filename.split(/[\\/]/).pop() ?? filename, summary, document, bookmarks: [] };
+      const record: StoredBook = { version: 1, originalFilename: filename.split(/[\\/]/).pop() ?? filename, summary: summarySchema.parse(summary), document: documentSchema.parse(document), bookmarks: [] };
       const staging = join(this.booksDir, `.import-${id}-${randomUUID()}`);
       await fs.mkdir(staging, { mode: 0o700 });
       try {
