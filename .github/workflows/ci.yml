@@ -6,8 +6,50 @@ concurrency:
   group: reader-checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  check:
+  runtime-package:
     timeout-minutes: 15
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Reader Windows 中文
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: Reader Windows 中文
+      - uses: actions/checkout@v4
+        with:
+          ref: f398d0ddffc158e6f5282e77abac9cb11f1bb37a
+          path: Reader Legacy 0.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: Reader Windows 中文/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run package:runtime
+      - run: npm ci
+        working-directory: Reader Legacy 0.1.2
+      - run: npm run build
+        working-directory: Reader Legacy 0.1.2
+      - run: npm run package:runtime -- --source "../Reader Legacy 0.1.2" --fixture
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reader-runtime-candidate
+          compression-level: 0
+          path: |
+            Reader Windows 中文/artifacts/releases/reader-0.1.3-runtime.zip
+            Reader Windows 中文/artifacts/releases/reader-0.1.3-runtime.zip.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reader-legacy-test-fixture
+          compression-level: 0
+          path: |
+            Reader Windows 中文/artifacts/releases/reader-0.1.2-test-fixture.zip
+            Reader Windows 中文/artifacts/releases/reader-0.1.2-test-fixture.zip.sha256
+  check:
+    needs: runtime-package
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -31,6 +73,15 @@ jobs:
           cache-dependency-path: Reader Windows 中文/package-lock.json
       - run: npm ci
       - run: npm run check
+      - uses: actions/download-artifact@v4
+        with:
+          name: reader-runtime-candidate
+          path: Reader Windows 中文/artifacts/releases
+      - uses: actions/download-artifact@v4
+        with:
+          name: reader-legacy-test-fixture
+          path: Reader Windows 中文/artifacts/releases
+      - run: npm run test:release
       - run: npx playwright install --with-deps chromium
         if: runner.os == 'Linux'
         timeout-minutes: 5
@@ -43,5 +94,5 @@ jobs:
         with:
           name: reader-browser-evidence-${{ matrix.os }}-node${{ matrix.node }}
           path: |
-            Reader Windows 中文/artifacts/
+            Reader Windows 中文/artifacts/*.png
             Reader Windows 中文/test-results/

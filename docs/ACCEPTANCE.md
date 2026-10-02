@@ -1,3 +1,11 @@
+# 0.1.3 prebuilt distribution scope
+
+The release build creates one runtime ZIP with the compiled service, inline UI, complete production dependencies, pinned supplemental license files and a SHA-256 inventory. Four CI jobs download that same archive: Windows Node 22/24, macOS Node 24 and Linux Node 24. Native OS extraction uses a directory with spaces and Chinese characters. Setup and actual stdio server processes run without PATH, npm or NODE_PATH and do not reference the checkout. Tests cover TXT/EPUB import/read, original bytes, progress/bookmarks/settings, process restart, removing the extracted download, repeated setup, altered-config rejection, stale-lock recovery and retained-version upgrade/rollback.
+
+The legacy test payload uses the genuine published 0.1.2 server from `f398d0ddffc158e6f5282e77abac9cb11f1bb37a`, wrapped by the current installer solely to exercise retained-version management. It is not a claim that a 0.1.2 runtime package was previously released. Actual 0.1.2 source-wrapper migration retains its old configuration and uses the same external library; see [INSTALL.md](INSTALL.md).
+
+Exact results and artifacts are attached to each commit in [Actions](https://github.com/Quiyyy/reader-plugin/actions). CI passing does not establish native desktop installation prompts, global/thread/file dispatch or desktop restart behaviour. The user's Windows machine remains offline/unverified, and host issue [#50152](https://github.com/openai/codex/issues/50152) remains unresolved. Node 26+, Windows ARM64, network drives, synchronization races and long-path system-policy changes are outside the tested matrix.
+
 # 0.1.2 Windows-native automation scope
 
 The CI matrix now runs Windows Node 22/24, macOS Node 24 and Linux Node 24 from a checkout with spaces and Chinese characters. It runs script syntax checks, TypeScript, 37 existing unit/protocol cases, build/plugin validation, 5 platform cases (the Windows default-directory case is skipped on other systems), and 5 browser scenarios. Platform tests cover generated installation metadata, absolute paths, real stdio processes, TXT/EPUB sources and persisted reading state across restart, plus Windows/UNC containment and realpath alias rejection. Exact results are attached to each commit in [Actions](https://github.com/Quiyyy/reader-plugin/actions).

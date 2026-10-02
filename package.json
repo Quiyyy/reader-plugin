@@ -1,6 +1,6 @@
 {
   "name": "reader-plugin",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "engines": {
@@ -19,7 +19,9 @@
     "validate:plugin": "node scripts/validate-plugin.mjs",
     "lint": "node scripts/check-scripts.mjs",
     "test:platform": "node --test tests/platform/*.test.mjs",
-    "prepare:local": "node scripts/prepare-local-plugin.mjs"
+    "prepare:local": "node scripts/prepare-local-plugin.mjs",
+    "package:runtime": "node scripts/package-runtime.mjs",
+    "test:release": "node --test tests/release/*.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "1.7.5",

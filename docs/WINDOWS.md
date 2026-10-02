@@ -1,6 +1,8 @@
 # Windows 原生安装与验证
 
-Reader 0.1.2 使用 Windows 原生 Node.js 和本地 stdio，不要求 WSL。Windows Codex 支持插件，不代表所有 global/thread/file 界面入口均已验收。本次开发没有连接用户的 Windows 电脑。
+**普通用户使用 0.1.3 [免编译运行包](INSTALL.md)。该流程只要求 Node，无需 Git、npm 或构建。本文以下源码流程供开发者使用。**
+
+Reader 0.1.3 使用 Windows 原生 Node.js 和本地 stdio，不要求 WSL。Windows Codex 支持插件，不代表所有 global/thread/file 界面入口均已验收。本次开发没有连接用户的 Windows 电脑。
 
 ## 前置条件
 
@@ -21,12 +23,12 @@ npm.cmd ci
 npm.cmd run check
 ```
 
-确认 `package.json` 是 0.1.2 或所需更新版本。`check` 运行脚本语法检查、TypeScript、单元/协议测试、构建、插件校验及真实子进程持久化测试。测试仅使用原创小样本与临时书库。
+确认 `package.json` 是 0.1.3 或所需更新版本。`check` 运行脚本语法检查、TypeScript、单元/协议测试、构建、插件校验及真实子进程持久化测试。测试仅使用原创小样本与临时书库。
 
 ## 生成本机安装材料
 
 ```powershell
-$marketplace = Join-Path $env:LOCALAPPDATA 'Reader Plugin\marketplace-0.1.2'
+$marketplace = Join-Path $env:LOCALAPPDATA 'Reader Plugin\marketplace-0.1.3'
 $library = Join-Path $env:LOCALAPPDATA 'Reader'
 node .\scripts\prepare-local-plugin.mjs --output "$marketplace" --data-dir "$library"
 ```
