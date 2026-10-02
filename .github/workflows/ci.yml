@@ -1,5 +1,8 @@
 name: Reader checks
-on: [push, pull_request]
+on:
+  push:
+    branches-ignore: ['reader-preview/**', 'reader-dist/**']
+  pull_request:
 permissions:
   contents: read
 concurrency:
@@ -38,8 +41,8 @@ jobs:
           name: reader-runtime-candidate
           compression-level: 0
           path: |
-            Reader Windows 中文/artifacts/releases/reader-0.1.3-runtime.zip
-            Reader Windows 中文/artifacts/releases/reader-0.1.3-runtime.zip.sha256
+            Reader Windows 中文/artifacts/releases/reader-*-runtime.zip
+            Reader Windows 中文/artifacts/releases/reader-*-runtime.zip.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: reader-legacy-test-fixture
@@ -98,3 +101,169 @@ jobs:
           path: |
             Reader Windows 中文/artifacts/*.png
             Reader Windows 中文/test-results/
+  marketplace-native:
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-15, target: darwin-arm64 }
+          - { os: macos-15-intel, target: darwin-x64 }
+          - { os: ubuntu-24.04-arm, target: linux-arm64 }
+          - { os: ubuntu-24.04, target: linux-x64 }
+          - { os: windows-11-arm, target: win32-arm64 }
+          - { os: windows-2025, target: win32-x64 }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: Reader 市场 中文
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: Reader 市场 中文
+      - uses: actions/checkout@v4
+        with:
+          ref: 81a87e9d7bb38db31cc1f755021af5b809e79169
+          path: Reader Fixture 0.1.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+          cache: npm
+          cache-dependency-path: Reader 市场 中文/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.27.1
+          cache: false
+      - run: npm ci
+      - run: npm run check
+      - run: go test ./...
+        working-directory: Reader 市场 中文/distribution/launcher
+      - run: npm ci && npm run build
+        working-directory: Reader Fixture 0.1.3
+      - run: npm run package:marketplace -- --target ${{ matrix.target }}
+      - run: npm run package:marketplace -- --target ${{ matrix.target }} --source "../Reader Fixture 0.1.3" --fixture
+      - run: node scripts/download-test-codex.mjs
+      - run: npm run test:marketplace
+      - run: node scripts/check-runtime-trust.mjs
+      - run: npx playwright install --with-deps chromium
+        if: runner.os == 'Linux'
+        timeout-minutes: 5
+      - run: npx playwright install chromium
+        if: runner.os != 'Linux'
+        timeout-minutes: 5
+      - run: npm run test:e2e
+      - run: npm run test:e2e -- --grep "TXT import|settings persistence" --repeat-each=5
+      - name: Preserve native executable permissions in tar
+        run: tar -cf "artifacts/package-${{ matrix.target }}.tar" -C artifacts/marketplace "${{ matrix.target }}" "${{ matrix.target }}-fixture"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marketplace-package-${{ matrix.target }}
+          compression-level: 0
+          path: Reader 市场 中文/artifacts/package-${{ matrix.target }}.tar
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: marketplace-native-evidence-${{ matrix.target }}
+          path: |
+            Reader 市场 中文/artifacts/marketplace-evidence/
+            Reader 市场 中文/artifacts/trust-evidence/
+            Reader 市场 中文/artifacts/test-codex/verification.json
+            Reader 市场 中文/artifacts/*.png
+            Reader 市场 中文/test-results/
+  marketplace-preview:
+    if: github.event_name == 'push' && github.repository == 'Quiyyy/reader-plugin'
+    needs: [check, marketplace-native]
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: marketplace-package-*
+          path: artifacts/package-tars
+          merge-multiple: true
+      - run: mkdir -p artifacts/marketplace; for file in artifacts/package-tars/*.tar; do tar -xf "$file" -C artifacts/marketplace; done
+      - run: node scripts/publish-marketplace.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marketplace-publication
+          path: artifacts/publication.json
+  marketplace-github:
+    needs: marketplace-preview
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-15, target: darwin-arm64 }
+          - { os: macos-15-intel, target: darwin-x64 }
+          - { os: ubuntu-24.04-arm, target: linux-arm64 }
+          - { os: ubuntu-24.04, target: linux-x64 }
+          - { os: windows-11-arm, target: win32-arm64 }
+          - { os: windows-2025, target: win32-x64 }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: Reader 市场 中文
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: Reader 市场 中文
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+          cache: npm
+          cache-dependency-path: Reader 市场 中文/package-lock.json
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: marketplace-package-${{ matrix.target }}
+          path: Reader 市场 中文/artifacts/package-tars
+      - uses: actions/download-artifact@v4
+        with:
+          name: marketplace-publication
+          path: Reader 市场 中文/artifacts
+      - run: mkdir -p artifacts/marketplace; tar -xf "artifacts/package-tars/package-${{ matrix.target }}.tar" -C artifacts/marketplace
+      - run: node scripts/download-test-codex.mjs
+      - run: npm run test:marketplace
+        env:
+          READER_TEST_REMOTE: '1'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: marketplace-github-evidence-${{ matrix.target }}
+          path: Reader 市场 中文/artifacts/marketplace-evidence/
+  marketplace-publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check, marketplace-native, marketplace-github]
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: marketplace-package-*
+          path: artifacts/package-tars
+          merge-multiple: true
+      - run: mkdir -p artifacts/marketplace; for file in artifacts/package-tars/*.tar; do tar -xf "$file" -C artifacts/marketplace; done
+      - run: node scripts/publish-marketplace.mjs --stable
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marketplace-final-publication
+          path: artifacts/stable-publication.json
