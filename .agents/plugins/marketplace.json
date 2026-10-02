@@ -1,7 +1,7 @@
 {
   "name": "reader-marketplace",
   "interface": {
-    "displayName": "Reader · choose your platform · preview"
+    "displayName": "Reader"
   },
   "plugins": [
     {

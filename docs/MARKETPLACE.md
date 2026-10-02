@@ -6,6 +6,8 @@ Reader 的平台运行包自带官方 Node 24.21.0；用户无需安装 Node、n
 
 在支持 portable Agent Plugins 的官方客户端添加 GitHub marketplace `Quiyyy/reader-plugin`，选择与设备匹配的一个 Reader。不要同时启用多个平台包。CLI 对应公开操作为：
 
+所有平台的界面名称均为 **Reader**。系统和架构保留在插件描述以及下方安装表中；内部插件 ID 和分发目标仍彼此独立，安装时须按描述选择本机平台。
+
 ```sh
 codex plugin marketplace add Quiyyy/reader-plugin
 # 示例：Windows x64。只能选择本机对应的平台。

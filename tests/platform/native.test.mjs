@@ -60,10 +60,12 @@ test('generated local marketplace preserves native paths and never overwrites an
   await run(process.execPath, [script('prepare-local-plugin.mjs'), '--output', output, '--data-dir', data], { cwd: dir, env });
   const marketplace = JSON.parse(await readFile(join(output, '.agents', 'plugins', 'marketplace.json'), 'utf8'));
   assert.equal(marketplace.name, 'reader-local');
+  assert.equal(marketplace.interface.displayName, 'Reader');
   const pluginRoot = join(output, marketplace.plugins[0].source.path);
   const manifest = JSON.parse(await readFile(join(pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8'));
   const config = JSON.parse(await readFile(join(pluginRoot, '.mcp.json'), 'utf8')).mcpServers.reader;
   assert.equal(manifest.version, pkg.version);
+  assert.equal(manifest.interface.displayName, 'Reader');
   assert.equal(config.command, process.execPath);
   assert.deepEqual(config.args, [join(root, 'dist', 'server', 'index.js')]);
   assert.equal(config.env.READER_DATA_DIR, data);
@@ -89,6 +91,9 @@ test('native stdio imports TXT/EPUB and preserves sources, progress, bookmarks a
   let settings;
   try {
     const tools = (await client.listTools()).tools;
+    assert.equal(tools.find(tool => tool.name === 'reader_open').title, 'Reader');
+    assert.equal(tools.find(tool => tool.name === 'reader_open_file').title, 'Reader');
+    assert.equal((await client.listResources()).resources[0].name, 'Reader');
     assert.deepEqual(tools.find(tool => tool.name === 'reader_open')._meta['openai/ui'].entrypoints, [{ type: 'global' }, { type: 'thread' }]);
     assert.deepEqual(tools.find(tool => tool.name === 'reader_open_file')._meta['openai/ui'].entrypoints[0].extensions, ['.txt', '.epub']);
     const resource = await client.readResource({ uri: `ui://reader/v${pkg.version}/bookshelf.html` });

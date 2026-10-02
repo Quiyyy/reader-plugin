@@ -20,7 +20,7 @@ const writeJson = (path, value) => writeFile(path, JSON.stringify(value, null, 2
 await writeJson(join(pluginDir, '.codex-plugin', 'plugin.json'), manifest);
 await writeJson(join(pluginDir, '.mcp.json'), config);
 await writeJson(join(output, '.agents', 'plugins', 'marketplace.json'), {
-  name: 'reader-local', interface: { displayName: 'Reader Local' },
+  name: 'reader-local', interface: { displayName: 'Reader' },
   plugins: [{ name: 'reader-plugin', source: { source: 'local', path: './plugins/reader-plugin' },
     policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' }, category: 'Productivity' }],
 });

@@ -200,6 +200,12 @@ test('official install preserves executable permissions and runs with no Node/np
   const payload = await json(join(current, 'runtime-manifest.json'));
   if (process.env.CI) { assert.equal(payload.source.commit, process.env.GITHUB_SHA); assert.equal(payload.source.dirty, false); }
   assert.equal(payload.testFixture, false); assert.equal(payload.target, target);
+  const publishedPlugin = await json(join(current, 'plugin.json'));
+  const targetLabel = (await json(join(root, 'distribution/node-runtime.json'))).targets[target].label;
+  assert.equal(publishedPlugin.name, `reader-${target}`);
+  assert.equal(publishedPlugin.extensions['com.openai'].interface.displayName, 'Reader');
+  assert.ok(publishedPlugin.extensions['com.openai'].interface.shortDescription.includes(targetLabel));
+  assert.ok(publishedPlugin.description.includes(targetLabel));
   const historical = await json(join(fixture, 'runtime-manifest.json'));
   assert.equal(historical.source.commit, '81a87e9d7bb38db31cc1f755021af5b809e79169'); assert.equal(historical.source.dirty, false); assert.equal(historical.testFixture, true);
   if (!remote) { await stage(fixture, 'legacy'); await stage(current, 'current'); }
