@@ -178,6 +178,9 @@ describe('online source service and durable lazy reading', () => {
     body = '{"books":[]}';
     expect(await online.search(sourceId, 'none', 2, signal())).toEqual([]);
     expect((await online.listSources())[0].stages.search).toMatchObject({ network: 'passed', lastError: undefined });
+    const indexedId = await enable(online, { ...fixtureSource, bookSourceUrl: 'https://reader.example.com/indexed', ruleSearch: { bookList: '$.books[0]', name: '$.title', bookUrl: '$.url' } });
+    expect(await online.search(indexedId, 'none', 1, signal())).toEqual([]);
+    expect((await online.listSources()).find(source => source.id === indexedId)!.stages.search.network).toBe('passed');
   });
   it('keeps invalid list selectors blocked instead of converting them to empty search results', async () => {
     const { online, requests } = await setup();

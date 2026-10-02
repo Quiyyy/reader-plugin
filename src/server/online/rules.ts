@@ -224,7 +224,7 @@ export function select(rule: Rule, context: Context, options: { strictJson?: boo
           if (Array.isArray(node)) for (const value of node) add(value);
           else if (options.strictJson) throw new Error('JSONPath 列表通配符需要数组');
         } else if (node !== null && typeof node === 'object' && Object.hasOwn(node, key)) add(node[key]);
-        else if (options.strictJson) throw new Error(`JSONPath 列表路径缺少字段或索引：${key}`);
+        else if (options.strictJson && !(typeof key === 'number' && Array.isArray(node))) throw new Error(`JSONPath 列表路径缺少字段或索引：${key}`);
       }
       nodes = next;
     }
