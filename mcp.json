@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "reader": {
+      "type": "stdio",
+      "command": "./reader-launcher.exe",
+      "args": [],
+      "env": {
+        "NODE_OPTIONS": "",
+        "NODE_PATH": ""
+      }
+    }
+  }
+}
