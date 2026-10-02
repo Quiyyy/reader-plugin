@@ -108,6 +108,8 @@ await fs.writeFile(join(stage, 'DEPENDENCIES.json'), json(dependencies));
 await fs.writeFile(join(stage, 'THIRD_PARTY_NOTICES.md'), '# Reader bundled runtime notices\n\nNode.js and the Go runtime retain their upstream licenses in licenses/. JavaScript dependency licenses and pinned supplemental notices are listed in DEPENDENCIES.json. Reader uses text-only EPUB rendering; native canvas is not included. The upstream Node executable is compressed without modification; startup verifies and restores its exact bytes. This package does not claim Apple notarization or Windows publisher signing.\n');
 const id = `reader-${values.target}`;
 const executable = target.goos === 'windows' ? 'reader-launcher.exe' : 'reader-launcher';
+// Git-backed installs must preserve the exact checksummed bytes on Windows too.
+await fs.writeFile(join(stage, '.gitattributes'), '* -text\n');
 await fs.writeFile(join(stage, 'plugin.json'), json({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: id, version: pkg.version,
   description: `Local TXT and DRM-free EPUB reader; bundled runtime for ${target.label}.`, author: { name: 'Quiyyy' }, repository: 'https://github.com/Quiyyy/reader-plugin',
   extensions: { 'com.openai': { interface: { displayName: `Reader · ${target.label}`, shortDescription: '本地阅读，无需安装 Node 或 npm。', longDescription: 'Choose only the package matching this device. Book storage is separate from the plugin cache. System trust prompts may apply.', developerName: 'Quiyyy', category: 'Productivity', capabilities: ['Interactive', 'Write'], defaultPrompt: ['打开 Reader 书架'] } } } }));

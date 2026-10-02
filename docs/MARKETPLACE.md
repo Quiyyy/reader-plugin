@@ -50,7 +50,7 @@ Node 上游基线：macOS 13.5+；Linux kernel 4.18+、glibc 2.28+、libstdc++ 6
 
 启动器使用 Go 1.27.1 标准库，没有第三方 Go 依赖。服务由锁定的生产依赖打成单一 ESM，所有非 Node 内置依赖必须被打包；UI 是无 CDN 的内联 HTML。EPUB 文本路径保留 linkedom 自带的非 canvas 回退，不引入原生 canvas。
 
-包内 `runtime-manifest.json` 记录源提交、依赖锁哈希、目标平台、上游归档/二进制哈希；`PACKAGE-SHA256.json` 提供全部文件清单。Node、Go、JavaScript 依赖和补充声明保留于 `licenses/`、`DEPENDENCIES.json`、`THIRD_PARTY_NOTICES.md`。哈希用于完整性验证，不是发布者签名的替代品。
+包内 `runtime-manifest.json` 记录源提交、依赖锁哈希、目标平台、上游归档/二进制哈希；`PACKAGE-SHA256.json` 提供全部文件清单。包内 `.gitattributes` 禁止 Git 换行转换，远程安装 CI 逐文件比对宿主缓存和原始构建产物。Node、Go、JavaScript 依赖和补充声明保留于 `licenses/`、`DEPENDENCIES.json`、`THIRD_PARTY_NOTICES.md`。哈希用于完整性验证，不是发布者签名的替代品。
 
 ## 维护和验证
 

@@ -54,6 +54,7 @@ const catalog = join(market, '.agents/plugins/marketplace.json');
 const command = async args => JSON.parse((await run(cli, args, { env, cwd, timeout: 120000, maxBuffer: 4 * 1024 * 1024 })).stdout);
 const records = [];
 let firstLaunchMs;
+let previousRemoteSource;
 after(async () => {
   if (process.env.READER_KEEP_TEST_DATA) return;
   await fs.rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
@@ -71,9 +72,21 @@ async function stage(packageRoot, name) {
 }
 async function activate(name, expectedVersion) {
   if (!remote) await fs.writeFile(catalog, JSON.stringify({ name: 'reader-test-marketplace', plugins: [{ name: id, source: { source: 'local', path: `./${name}` }, policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' }, category: 'Productivity' }] }));
-  await command(['plugin', 'marketplace', 'add', remote ? publication.catalogs[name === 'legacy' ? 'fixture' : 'current'].source : market, '--json']);
+  const source = remote ? publication.catalogs[name === 'legacy' ? 'fixture' : 'current'].source : market;
+  if (remote && previousRemoteSource && previousRemoteSource !== source) {
+    // The CLI protects an existing marketplace name from a different Git source.
+    // Switch only this disposable test home through its documented remove/add.
+    await command(['plugin', 'marketplace', 'remove', 'reader-marketplace', '--json']);
+  }
+  await command(['plugin', 'marketplace', 'add', source, '--json']);
+  if (remote) previousRemoteSource = source;
   const installed = await command(['plugin', 'add', `${id}@${remote ? 'reader-marketplace' : 'reader-test-marketplace'}`, '--json']);
   assert.equal(installed.version, expectedVersion);
+  if (remote && process.env.CI) {
+    const original = name === 'legacy' ? fixture : current;
+    const inventory = await json(join(original, 'PACKAGE-SHA256.json'));
+    for (const [file, expected] of Object.entries(inventory)) assert.equal(hash(await fs.readFile(join(installed.installedPath, file))), expected, `Git checkout changed package bytes: ${file}`);
+  }
   const config = (await command(['mcp', 'list', '--json'])).find(item => item.name === 'reader').transport;
   assert.ok(config.command.startsWith(installed.installedPath));
   assert.equal(config.env.PLUGIN_ROOT, installed.installedPath);
@@ -85,8 +98,10 @@ async function activate(name, expectedVersion) {
 }
 async function open(config) {
   const transport = new StdioClientTransport({ ...config, env: { ...defaults, ...config.env, PATH: '', NODE_PATH: '', NODE_OPTIONS: '' }, stderr: 'pipe' });
+  let diagnostics = '';
+  transport.stderr?.on('data', bytes => { diagnostics = (diagnostics + bytes).slice(-16000); });
   const client = new Client({ name: 'reader-installed-marketplace-test', version: '1.0.0' });
-  try { await client.connect(transport); } catch (error) { await transport.close(); throw error; }
+  try { await client.connect(transport); } catch (error) { await transport.close(); throw new Error(`Reader startup failed: ${diagnostics}`, { cause: error }); }
   return client;
 }
 async function call(client, name, args = {}) {
