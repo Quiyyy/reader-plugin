@@ -203,4 +203,17 @@ describe('online source service and durable lazy reading', () => {
     await expect(service.call('reader_online_search', { sourceId: 'a'.repeat(64), key: 'q', page: 6, requestId: randomUUID() })).rejects.toThrow();
     await expect(service.call('constructor', {})).rejects.toThrow('未知');
   });
+  it('reports malicious document complexity as a failed stage and keeps the same service usable', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'reader-bounded-service-')); cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    let hostile = true;
+    const server = await fixture((_req, res) => res.end(hostile ? '<div>'.repeat(5000) + 'hello' + '</div>'.repeat(5000) : '<div class="book"><a href="/book">Healthy</a><span class="author">Test</span></div>'));
+    const store = new ReaderStore(dir), online = new OnlineSourceService(store, server.client), service = new ReaderService(store, online);
+    const sourceId = await enable(online);
+    await expect(service.call('reader_online_search', { sourceId, key: 'test', page: 1, requestId: randomUUID() })).rejects.toThrow('深度');
+    expect((await online.listSources())[0].stages.search.network).toBe('failed');
+    expect((await service.call('reader_list', {}) as any).books).toEqual([]);
+    hostile = false;
+    expect((await service.call('reader_online_search', { sourceId, key: 'test', page: 1, requestId: randomUUID() }) as any)[0].title).toBe('Healthy');
+    expect((await online.listSources())[0].stages.search.network).toBe('passed');
+  });
 });
