@@ -9,8 +9,8 @@ export async function fixtureServer(handler?: RequestListener) {
     requests.push(req.url!);
     if (handler) return handler(req, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    const path = new URL(req.url!, 'http://fixture.local').pathname;
-    if (path === '/search') res.end('<div class="book"><a href="/book">原创河岸故事</a><span class="author">Reader 测试作者</span></div>');
+    const url = new URL(req.url!, 'http://fixture.local'), path = url.pathname;
+    if (path === '/search') res.end(url.searchParams.get('q') === '不存在的书' || Number(url.searchParams.get('page')) > 1 ? '<main><p>没有更多结果</p></main>' : '<div class="book"><a href="/book">原创河岸故事</a><span class="author">Reader 测试作者</span></div>');
     else if (path === '/book') res.end('<h1>原创河岸故事</h1><div class="author">Reader 测试作者</div><div class="intro">这是合成的原创测试文本，不来自外部书库。</div><a class="toc" href="/toc">目录</a>');
     else if (path === '/toc') res.end(`<div class="chapters">${inserted ? '<a href="/chapter/zero">新增序章</a>' : ''}<a href="/chapter/one">第一章 河岸</a><a href="/chapter/two">第二章 灯光</a></div>`);
     else if (path.startsWith('/chapter/')) res.end(`<div id="content"><p>${path.endsWith('two') ? '夜色里亮起一盏灯。' : '河水缓慢流过石桥。'}</p><p>这是原创测试段落。</p><script>window.PWNED=true</script><img src="http://127.0.0.1/private" onerror="window.PWNED=true"><p>&lt;img onerror=alert(1)&gt;</p></div>`);

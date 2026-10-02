@@ -149,6 +149,43 @@ describe('online source service and durable lazy reading', () => {
     await expect(online.search(sourceId, 'q', 1, signal())).rejects.toThrow('ruleSearch.name');
     const report = (await online.listSources())[0]; expect(report.stages.search.network).toBe('failed'); expect(report.stages.detail.network).toBe('untested'); expect(report.stages.content.syntax).toBe('blocked');
   });
+  it('returns an empty successful search for no matches and the final page, then allows another query', async () => {
+    const { online, requests } = await setup(), sourceId = await enable(online);
+    expect(await online.search(sourceId, '不存在的书', 1, signal())).toEqual([]);
+    expect((await online.listSources())[0].stages.search).toMatchObject({ network: 'passed', lastError: undefined });
+    expect(await online.search(sourceId, '原创', 1, signal())).toHaveLength(1);
+    expect(await online.search(sourceId, '原创', 2, signal())).toEqual([]);
+    const report = (await online.listSources())[0];
+    expect(report.stages.search).toMatchObject({ network: 'passed', lastError: undefined });
+    expect(report.stages.detail.network).toBe('untested');
+    expect(requests).toHaveLength(3);
+    expect(await online.search(sourceId, '原创', 1, signal())).toHaveLength(1);
+  });
+  it('distinguishes empty JSON arrays from missing/wrong list structure and malformed responses', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'reader-empty-json-')); cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    let body = '{"books":[]}';
+    const server = await fixture((_req, res) => res.end(body));
+    const online = new OnlineSourceService(new ReaderStore(dir), server.client);
+    const sourceId = await enable(online, { ...fixtureSource, ruleSearch: { bookList: '$.books[*]', name: '$.title', bookUrl: '$.url' } });
+    expect(await online.search(sourceId, 'none', 1, signal())).toEqual([]);
+    expect((await online.listSources())[0].stages.search.network).toBe('passed');
+    for (const [invalid, reason] of [['{"error":"wrong schema"}', '缺少字段'], ['{"books":null}', '需要数组'], ['{"books":{}}', '需要数组'], ['<p>not JSON</p>', '需要 JSON 响应'], ['{"books":', '响应解析失败']] as const) {
+      body = invalid;
+      await expect(online.search(sourceId, 'none', 1, signal())).rejects.toThrow(`ruleSearch.bookList：`);
+      const report = (await online.listSources())[0].stages.search;
+      expect(report.network).toBe('failed'); expect(report.lastError).toContain(reason);
+    }
+    body = '{"books":[]}';
+    expect(await online.search(sourceId, 'none', 2, signal())).toEqual([]);
+    expect((await online.listSources())[0].stages.search).toMatchObject({ network: 'passed', lastError: undefined });
+  });
+  it('keeps invalid list selectors blocked instead of converting them to empty search results', async () => {
+    const { online, requests } = await setup();
+    const sourceId = await enable(online, { ...fixtureSource, ruleSearch: { ...fixtureSource.ruleSearch, bookList: 'div[' } });
+    await expect(online.search(sourceId, 'q', 1, signal())).rejects.toThrow('ruleSearch：该阶段语法');
+    expect((await online.listSources())[0].stages.search).toMatchObject({ syntax: 'blocked', network: 'untested' });
+    expect(requests).toEqual([]);
+  });
   it('deduplicates in-flight jobs; last subscriber cancellation aborts; stale results cannot complete', async () => {
     const { online } = await setup(); let resolve!: (value: string) => void; let received!: AbortSignal;
     const work = vi.fn((s: AbortSignal) => { received = s; return new Promise<string>(done => { resolve = done; }); });

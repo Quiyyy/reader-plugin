@@ -119,8 +119,8 @@ export class OnlineSourceService {
       return values;
     } catch (error) { throw new Error(`${stageKeys[stage]}.${field}：${err(error)}`); }
   }
-  private rows(source: Source, stage: Stage, field: string, context: any): any[] {
-    try { const result = select(compileRule(this.rule(source, stage, field)!, true), context); if (!result.length) throw new Error('没有匹配到列表'); return result; }
+  private rows(source: Source, stage: Stage, field: string, context: any, allowEmpty = false): any[] {
+    try { const result = select(compileRule(this.rule(source, stage, field)!, true), context, { strictJson: true }); if (!allowEmpty && !result.length) throw new Error('没有匹配到列表'); return result; }
     catch (error) { throw new Error(`${stageKeys[stage]}.${field}：${err(error)}`); }
   }
   private url(source: Source, value: string, base: string, field: string): string {
@@ -136,8 +136,11 @@ export class OnlineSourceService {
       if (page > 1 && !source.raw.searchUrl.includes('{{page}}')) throw new Error('searchUrl：该源未声明 {{page}}，不支持搜索翻页');
       const url = this.url(source, template(source.raw.searchUrl, key, page), source.report.url, 'searchUrl');
       const response = await this.http.get(url, signal, new URL(source.report.url).origin);
-      const context = documentContext(response.text), results = new Map<string, OnlineResult>();
-      for (const row of this.rows(source, 'search', 'bookList', context)) {
+      let context: any;
+      try { context = documentContext(response.text); }
+      catch (error) { throw new Error(`ruleSearch.bookList：响应解析失败：${err(error)}`); }
+      const results = new Map<string, OnlineResult>();
+      for (const row of this.rows(source, 'search', 'bookList', context, true)) {
         const url = this.url(source, this.values(source, 'search', 'bookUrl', row, true)[0]!, response.url, 'ruleSearch.bookUrl');
         results.set(url, { sourceId, revision: source.report.revision, url, title: cleanTitle(this.values(source, 'search', 'name', row, true)[0]!), author: cleanTitle(this.values(source, 'search', 'author', row)[0] ?? '') });
         if (results.size > 200) throw new Error('ruleSearch.bookList：结果超过 200 项');
@@ -199,7 +202,7 @@ export class OnlineSourceService {
   }
   private async asDetail(book: RecordBook, chapterId = book.locator.chapterId): Promise<BookDetail> {
     const paragraphs = await this.cached(book, chapterId);
-    return { summary: this.summary(book), bookmarks: book.bookmarks, document: { id: book.id, title: book.title, author: book.author, format: 'online', warnings: ['Legado 无脚本兼容子集；正文按章加载，在线进度按目录章节估算。搜索本书仅搜索本次已加载章节。'], chapters: book.chapters.map(chapter => ({ id: chapter.id, title: chapter.title, paragraphs: chapter.id === chapterId ? paragraphs ?? [] : [], loaded: chapter.id === chapterId && !!paragraphs })) } };
+    return { summary: this.summary(book), bookmarks: book.bookmarks, document: { id: book.id, title: book.title, author: book.author, format: 'online', warnings: ['Legado 无脚本兼容子集；正文按章加载，在线进度按目录章节估算。搜索仅限当前章节，不包含其他已缓存章节，不自动下载全书。'], chapters: book.chapters.map(chapter => ({ id: chapter.id, title: chapter.title, paragraphs: chapter.id === chapterId ? paragraphs ?? [] : [], loaded: chapter.id === chapterId && !!paragraphs })) } };
   }
   async add(detail: OnlineDetail, signal: AbortSignal): Promise<BookDetail> {
     const source = await this.source(detail.sourceId, detail.revision);

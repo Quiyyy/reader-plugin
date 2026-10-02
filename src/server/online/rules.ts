@@ -210,16 +210,21 @@ function plain(node: Context, budget: Budget, own = false): string {
   }
   return chunks.join('').replace(/\r/g, '').trim();
 }
-export function select(rule: Rule, context: Context, budget = budgetFor(context)): Context[] {
+export function select(rule: Rule, context: Context, options: { strictJson?: boolean } = {}): Context[] {
+  const budget = budgetFor(context);
   let nodes: Context[] = [context];
   if (rule.kind === 'json') {
+    if (options.strictJson && isDomNode(context)) throw new Error('JSONPath 列表规则需要 JSON 响应');
     for (const key of rule.path) {
       const next: Context[] = [];
       const add = (value: Context) => { budget.spend(); if (next.length >= RULE_LIMITS.results) throw new Error('规则结果超过 10000 项'); next.push(value); };
       for (const node of nodes) {
         budget.spend();
-        if (key === '*') { if (Array.isArray(node)) for (const value of node) add(value); }
-        else if (node !== null && typeof node === 'object' && Object.hasOwn(node, key)) add(node[key]);
+        if (key === '*') {
+          if (Array.isArray(node)) for (const value of node) add(value);
+          else if (options.strictJson) throw new Error('JSONPath 列表通配符需要数组');
+        } else if (node !== null && typeof node === 'object' && Object.hasOwn(node, key)) add(node[key]);
+        else if (options.strictJson) throw new Error(`JSONPath 列表路径缺少字段或索引：${key}`);
       }
       nodes = next;
     }
@@ -247,7 +252,7 @@ export function select(rule: Rule, context: Context, budget = budgetFor(context)
 }
 export function extract(rule: Rule, context: Context): string[] {
   const budget = budgetFor(context), values: string[] = [];
-  for (const node of select(rule, context, budget)) {
+  for (const node of select(rule, context)) {
     let text: string;
     if (rule.kind === 'json') { text = typeof node === 'string' || typeof node === 'number' ? String(node) : ''; budget.output(text.length); }
     else if (rule.output === 'text' || rule.output === 'ownText') text = plain(node, budget, rule.output === 'ownText');
