@@ -1,0 +1,28 @@
+{
+  "kind": "reader-bundled-runtime",
+  "version": "0.1.4",
+  "goos": "darwin",
+  "goarch": "amd64",
+  "nodeVersion": "24.21.0",
+  "nodeSha256": "7abcf39bd37ab251015337ff75304d7555f0d8e88c6e0fbf04bce8ce34636f49",
+  "nodeBytes": 125270960,
+  "compressedSha256": "64b481682a755ee7ba8a7c4d8894eb813ac3108483d81eac29932460d56c2ae5",
+  "files": {
+    "app/package.json": "518b8aba352918ddeecc79d3dee27175b06e61610d6fad2152858e75ec724bfe",
+    "app/dist/server/index.js": "3b530b472701003b5381190d018d232c1964dd7eede9082b630a6bc4d95ffa36",
+    "app/dist/ui/index.html": "36598930f5089661be42d4b9e2f77d3e171b49efe988de8e452d770b2e3934ef",
+    "payload/node.gz": "64b481682a755ee7ba8a7c4d8894eb813ac3108483d81eac29932460d56c2ae5"
+  },
+  "source": {
+    "commit": "016290435543beae349e07afc74f0ce1bd72824e",
+    "dirty": false
+  },
+  "testFixture": false,
+  "target": "darwin-x64",
+  "nodeArchive": {
+    "url": "https://nodejs.org/download/release/v24.21.0/node-v24.21.0-darwin-x64.tar.gz",
+    "sha256": "1462cb3b3046b815cf8ea436d3da450ec1a9f11dac7e5a46b0ada5305d7e8097"
+  },
+  "goVersion": "go version go1.27.1 darwin/amd64",
+  "dependencyLockSha256": "74248dab4f06e62e881ef7a15f8d428df3f61a9bae658269cbe461fe9a20a267"
+}
