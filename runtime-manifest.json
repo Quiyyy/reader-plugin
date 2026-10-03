@@ -1,0 +1,28 @@
+{
+  "kind": "reader-bundled-runtime",
+  "version": "0.1.6",
+  "goos": "windows",
+  "goarch": "amd64",
+  "nodeVersion": "24.21.0",
+  "nodeSha256": "ba4e6d110e8c1592a1ecd390f6b05f3da124b13871a5be62b341a07a853c6c32",
+  "nodeBytes": 93580104,
+  "compressedSha256": "83121e51f1810c396f42bc42ac22f32a1385a907c7ffd61d70cf3de83bfa5a94",
+  "files": {
+    "app/package.json": "616505650c48d369aa772a197502e812f18f7d7e28f14c1ba1f4dbd3ce05db4e",
+    "app/dist/server/index.js": "cbbce329c8a137e473161cd6c415a436391c2b47bd989fd19b77e0e87fa796b9",
+    "app/dist/ui/index.html": "13fffd62e810f4aa78379cf8e0ae32023571a6743b0d0ad12eeb182cbab9bfb8",
+    "payload/node.gz": "83121e51f1810c396f42bc42ac22f32a1385a907c7ffd61d70cf3de83bfa5a94"
+  },
+  "source": {
+    "commit": "2faa0b8ea29a986297d1c1eeefd08231dbc24dbd",
+    "dirty": false
+  },
+  "testFixture": false,
+  "target": "win32-x64",
+  "nodeArchive": {
+    "url": "https://nodejs.org/download/release/v24.21.0/node-v24.21.0-win-x64.zip",
+    "sha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541"
+  },
+  "goVersion": "go version go1.27.1 windows/amd64",
+  "dependencyLockSha256": "4b6e2fee2eee8891915fdef051243e589f0bfcfed32f77b5a61fefbb7805871c"
+}
