@@ -1,0 +1,28 @@
+{
+  "kind": "reader-bundled-runtime",
+  "version": "0.1.5",
+  "goos": "linux",
+  "goarch": "amd64",
+  "nodeVersion": "24.21.0",
+  "nodeSha256": "7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c",
+  "nodeBytes": 126595440,
+  "compressedSha256": "4b883734f09a8cab5708030c6a175de89d6d841016c07dae114ba3fa5f960181",
+  "files": {
+    "app/package.json": "d1d552a1e4d0863fc67b33abddc362227263a74d254b19f5e5944ccab1cb2f65",
+    "app/dist/server/index.js": "757f80f84d85338e50e8102248483c8abb04c3f54fc3d1cda3302b9b63576f35",
+    "app/dist/ui/index.html": "ecf7b54172e506e70d626b4167559451c4851a3545f7f9ac47abb59f430059d1",
+    "payload/node.gz": "4b883734f09a8cab5708030c6a175de89d6d841016c07dae114ba3fa5f960181"
+  },
+  "source": {
+    "commit": "e7f6f65e736d7daca61c6b80c613ba265af62f3c",
+    "dirty": false
+  },
+  "testFixture": false,
+  "target": "linux-x64",
+  "nodeArchive": {
+    "url": "https://nodejs.org/download/release/v24.21.0/node-v24.21.0-linux-x64.tar.gz",
+    "sha256": "6e1db87ef58b8819e5d5402eff1536491b18edd8eb7bee5ef7897876e88dc5ff"
+  },
+  "goVersion": "go version go1.27.1 linux/amd64",
+  "dependencyLockSha256": "66986e5d0425c2d37b5d752f245ce2df4f1284322909f55b817a56461954787e"
+}
