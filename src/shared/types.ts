@@ -6,9 +6,9 @@ export interface ReaderSettings { theme: Theme; fontSize: number; lineHeight: nu
 export const defaultSettings: ReaderSettings = { theme: 'system', fontSize: 20, lineHeight: 1.9, lineWidth: 680, fontFamily: 'serif' };
 export interface Locator { chapter: number; paragraph: number; chapterId?: string; }
 export interface Bookmark { id: string; locator: Locator; label: string; createdAt: string; }
-export interface BookSummary { id: string; title: string; author: string; format: BookFormat; addedAt: string; lastReadAt?: string; progress: number; locator: Locator; chapterCount: number; wordCount: number; }
+export interface BookSummary { tocComplete?: boolean; id: string; title: string; author: string; format: BookFormat; addedAt: string; lastReadAt?: string; progress: number; locator: Locator; chapterCount: number; wordCount: number; }
 export interface Chapter { id: string; title: string; paragraphs: string[]; paragraphStarts?: number[]; loaded?: boolean; }
-export interface BookDocument { id: string; title: string; author: string; format: BookFormat; chapters: Chapter[]; encoding?: string; warnings: string[]; layoutVersion?: number; }
+export interface BookDocument { tocComplete?: boolean; id: string; title: string; author: string; format: BookFormat; chapters: Chapter[]; encoding?: string; warnings: string[]; layoutVersion?: number; }
 export interface BookDetail { summary: BookSummary; document: BookDocument; bookmarks: Bookmark[]; }
 export interface LibraryState { books: BookSummary[]; settings: ReaderSettings; storage: { mode: 'server'; description: string }; }
 export interface TrashEntry { version: 1; summary: BookSummary; trashedAt: string; }

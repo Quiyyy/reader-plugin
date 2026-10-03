@@ -14,14 +14,15 @@ import { ScriptSession, type ScriptGlobals } from './script.js';
 import { parseRate } from './rate.js';
 import { parseCatalogPackage, catalogReceiptSchema, type CatalogReceipt } from './catalog.js';
 import { SCRIPT_LIMITS } from './script-syntax.js';
-import { PaginationDraft, PaginationBoundaryError, PAGINATION_LIMITS, type PaginationCheckpoint, type RuleState } from './pagination.js';
+import { PaginationDraft, PaginationBoundaryError, PAGINATION_LIMITS, checkpointSchema, type PaginationCheckpoint, type RuleState } from './pagination.js';
 
 const idSchema = z.string().regex(/^[a-f0-9]{64}$/);
 const chapterSchema = z.object({ id: idSchema, title: z.string().max(500), url: z.string().max(4096) });
 const locatorSchema = z.object({ chapter: z.number().int().nonnegative(), paragraph: z.number().int().nonnegative(), chapterId: idSchema });
-const recordSchema = z.object({ version: z.literal(1), id: idSchema, sourceId: idSchema, revision: idSchema, url: z.string(), tocUrl: z.string(), title: z.string(), author: z.string(), chapters: z.array(chapterSchema).min(1).max(SOURCE_LIMITS.chapters), locator: locatorSchema, bookmarks: z.array(z.object({ id: z.string(), locator: locatorSchema, label: z.string(), createdAt: z.string() })).max(1000), addedAt: z.string(), lastReadAt: z.string().optional() });
+const recordSchema = z.object({ version: z.literal(1), id: idSchema, sourceId: idSchema, revision: idSchema, url: z.string(), tocUrl: z.string(), tocCheckpoint: checkpointSchema.optional(), tocGeneration: z.string().optional(), title: z.string(), author: z.string(), chapters: z.array(chapterSchema).min(1).max(SOURCE_LIMITS.chapters), locator: locatorSchema, bookmarks: z.array(z.object({ id: z.string(), locator: locatorSchema, label: z.string(), createdAt: z.string() })).max(1000), addedAt: z.string(), lastReadAt: z.string().optional() });
 type RecordBook = z.infer<typeof recordSchema>;
 type Toc = RecordBook['chapters'];
+interface TocContinuation { checkpoint?: PaginationCheckpoint; accept(state: PaginationCheckpoint): void; }
 interface RuleControl {
   signal: AbortSignal;
   restore(state?: RuleState): void;
@@ -268,9 +269,9 @@ export class OnlineSourceService {
       return { ...result, url: response.url, title: cleanTitle((await this.values(rules, source, 'detail', 'name', context, !!this.rule(source, 'detail', 'name')))[0] ?? result.title), author: cleanTitle((await this.values(rules, source, 'detail', 'author', context))[0] ?? result.author), intro: (await this.values(rules, source, 'detail', 'intro', context)).join('\n').slice(0, 10000), tocUrl: this.url(source, toc, response.url, 'ruleBookInfo.tocUrl') };
     }, { book: { origin: new URL(source.report.url).origin, bookUrl: result.url, name: result.title, author: result.author } });
   }
-  private async pages<T>(rules: RuleEvaluator, fetchPage: (input: string) => Promise<{ text: string; url: string }>, control: RuleControl, source: Source, stage: 'toc' | 'content', start: string, identity: unknown, schema: z.ZodType<T[]>, visit: (context: any, url: string) => Promise<T[]>, merge: (previous: T[], page: T[]) => T[]): Promise<T[]> {
+  private async pages<T>(rules: RuleEvaluator, fetchPage: (input: string) => Promise<{ text: string; url: string }>, control: RuleControl, source: Source, stage: 'toc' | 'content', start: string, identity: unknown, schema: z.ZodType<T[]>, visit: (context: any, url: string) => Promise<T[]>, merge: (previous: T[], page: T[]) => T[], continuation?: TocContinuation): Promise<T[]> {
     const draft = new PaginationDraft(this.directory, [source.report.id, source.report.revision, source.generation, stage, start, identity]);
-    let checkpoint = await draft.read();
+    let checkpoint = continuation?.checkpoint ?? await draft.read();
     const loaded = checkpoint ? schema.safeParse(checkpoint.payload) : undefined;
     if (loaded && !loaded.success) { await draft.remove(); throw Error('分页续点损坏，已清除临时续点；原书籍不变，请重试'); }
     let items: T[] = loaded?.success ? loaded.data : [];
@@ -309,7 +310,11 @@ export class OnlineSourceService {
         items = combined;
         Object.assign(state, { pages: state.pages + 1, next: links[0] ?? '', payload: items, visited: [...visited], fingerprints: [...fingerprints], rules: snapshot });
         await save();
+        // The caller commits one complete TOC page and its continuation with the
+        // book. Opening a known chapter never waits for the remaining directory.
+        if (continuation) { continuation.accept(state); return items; }
       }
+      continuation?.accept(state);
       return items;
     } catch (error) {
       // Only complete pages are checkpointed. A failed current page is retried,
@@ -320,7 +325,7 @@ export class OnlineSourceService {
       throw new IncompleteLoadError(`${label}尚未完成${state.pages ? `（已保留 ${state.pages} 页续点）` : ''}：${err(error)}。原书籍、缓存和进度未改动；可重试继续，规则错误请更新书源。`, progress());
     }
   }
-  private async toc(source: Source, url: string, signal: AbortSignal, book: Record<string, unknown>, identity: unknown): Promise<Toc> {
+  private async toc(source: Source, url: string, signal: AbortSignal, book: Record<string, unknown>, identity: unknown, continuation?: TocContinuation): Promise<Toc> {
     return this.tracked(source, 'toc', signal, async (rules, fetchPage, control) => {
       return this.pages(rules, fetchPage, control, source, 'toc', this.url(source, url, source.report.url, 'tocUrl'), identity, z.array(chapterSchema).max(SOURCE_LIMITS.chapters), async (context, base) => {
         const rows = await this.rows(rules, source, 'toc', 'chapterList', context), bookVariables = { ...rules.script.variables }, page: Toc = [];
@@ -338,7 +343,7 @@ export class OnlineSourceService {
         for (const chapter of page) if (!chapters.has(chapter.id)) chapters.set(chapter.id, chapter);
         if (chapters.size > SOURCE_LIMITS.chapters) throw new PaginationBoundaryError('目录超过 20000 章总预算');
         return [...chapters.values()];
-      });
+      }, continuation);
     }, { book });
   }
   private async clearPages(source: Source, stage: 'toc' | 'content', start: string, identity: unknown) {
@@ -347,7 +352,7 @@ export class OnlineSourceService {
   async has(id: string) { try { await fs.access(this.path(id)); return true; } catch (error) { if (missing(error)) return false; throw error; } }
   private async read(id: string): Promise<RecordBook> { await this.store.assertActive(id); const book = recordSchema.parse(JSON.parse(await fs.readFile(this.path(id), 'utf8'))); if (book.id !== id) throw new Error('在线书籍 ID 不一致'); return book; }
   private async write(book: RecordBook) { await this.ready(); await atomicWrite(this.path(book.id), JSON.stringify(recordSchema.parse(book))); }
-  private summary(book: RecordBook): BookSummary { return { id: book.id, title: book.title, author: book.author, format: 'online', addedAt: book.addedAt, lastReadAt: book.lastReadAt, chapterCount: book.chapters.length, wordCount: 0, progress: book.chapters.length <= 1 ? 0 : book.locator.chapter / (book.chapters.length - 1), locator: book.locator }; }
+  private summary(book: RecordBook): BookSummary { return { id: book.id, title: book.title, author: book.author, format: 'online', tocComplete: !book.tocCheckpoint?.next, addedAt: book.addedAt, lastReadAt: book.lastReadAt, chapterCount: book.chapters.length, wordCount: 0, progress: book.chapters.length <= 1 ? 0 : book.locator.chapter / (book.chapters.length - 1), locator: book.locator }; }
   async trashBook(id: string) { return this.store.locked(`online-${id}`, async () => this.store.markTrashed(this.summary(await this.read(id)))); }
   async listBooks(): Promise<BookSummary[]> {
     await this.ready(); const books: BookSummary[] = [];
@@ -361,7 +366,7 @@ export class OnlineSourceService {
   }
   private async asDetail(book: RecordBook, chapterId = book.locator.chapterId): Promise<BookDetail> {
     const paragraphs = await this.cached(book, chapterId);
-    return { summary: this.summary(book), bookmarks: book.bookmarks, document: { id: book.id, title: book.title, author: book.author, format: 'online', warnings: ['Legado 有界规则兼容；正文按章加载，在线进度按目录章节估算。搜索仅限当前章节，不包含其他已缓存章节，不自动下载全书。'], chapters: book.chapters.map(chapter => ({ id: chapter.id, title: chapter.title, paragraphs: chapter.id === chapterId ? paragraphs ?? [] : [], loaded: chapter.id === chapterId && !!paragraphs })) } };
+    return { summary: this.summary(book), bookmarks: book.bookmarks, document: { id: book.id, title: book.title, author: book.author, format: 'online', tocComplete: !book.tocCheckpoint?.next, warnings: ['Legado 有界规则兼容；正文按章加载，在线进度按目录章节估算。搜索仅限当前章节，不包含其他已缓存章节，不自动下载全书。'], chapters: book.chapters.map(chapter => ({ id: chapter.id, title: chapter.title, paragraphs: chapter.id === chapterId ? paragraphs ?? [] : [], loaded: chapter.id === chapterId && !!paragraphs })) } };
   }
   async add(detail: OnlineDetail, signal: AbortSignal): Promise<BookDetail> {
     const source = await this.source(detail.sourceId, detail.revision);
@@ -370,8 +375,9 @@ export class OnlineSourceService {
     if (!['supported', 'partial'].includes(source.report.stages.content.syntax)) throw new Error('ruleContent：正文语法不可用，请查看书源字段诊断');
     if (await this.has(id)) return this.open(id, signal);
     await this.store.assertActive(id);
-    const chapters = await this.toc(source, detail.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: detail.url, name: detail.title, author: detail.author }, ['add', id, await this.store.lifecycle(id)]);
-    const book: RecordBook = { version: 1, id, sourceId: detail.sourceId, revision: detail.revision, url: canonicalUrl, tocUrl: detail.tocUrl, title: detail.title, author: detail.author, chapters, locator: { chapter: 0, paragraph: 0, chapterId: chapters[0]!.id }, bookmarks: [], addedAt: new Date().toISOString() };
+    let tocCheckpoint: PaginationCheckpoint | undefined;
+    const chapters = await this.toc(source, detail.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: detail.url, name: detail.title, author: detail.author }, ['add', id, await this.store.lifecycle(id)], { accept: state => { tocCheckpoint = state; } });
+    const book: RecordBook = { version: 1, id, sourceId: detail.sourceId, revision: detail.revision, url: canonicalUrl, tocUrl: detail.tocUrl, title: detail.title, author: detail.author, chapters, tocCheckpoint: tocCheckpoint?.next ? tocCheckpoint : undefined, tocGeneration: source.generation, locator: { chapter: 0, paragraph: 0, chapterId: chapters[0]!.id }, bookmarks: [], addedAt: new Date().toISOString() };
     await this.store.locked('online-sources', () => this.store.locked(`online-${id}`, async () => { signal.throwIfAborted(); await this.source(source.report.id, source.report.revision, source.generation); if (!await this.has(id)) await this.write(book); }));
     await this.clearPages(source, 'toc', detail.tocUrl, ['add', id, await this.store.lifecycle(id)]);
     return this.open(id, signal);
@@ -420,13 +426,18 @@ export class OnlineSourceService {
   }
   async refresh(id: string, signal: AbortSignal): Promise<BookDetail> {
     const lifecycle = await this.store.lifecycle(id);
-    const book = await this.read(id), source = await this.source(book.sourceId, book.revision), chapters = await this.toc(source, book.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author }, ['refresh', id, lifecycle]);
+    const book = await this.read(id), source = await this.source(book.sourceId, book.revision);
+    let tocCheckpoint: PaginationCheckpoint | undefined;
+    const continuing = !!book.tocCheckpoint?.next;
+    const chapters = await this.toc(source, book.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author }, ['refresh', id, lifecycle], continuing ? { checkpoint: book.tocGeneration === source.generation ? book.tocCheckpoint : undefined, accept: state => { tocCheckpoint = state; } } : undefined);
     return this.store.locked('online-sources', () => this.store.locked(`online-${id}`, async () => {
       signal.throwIfAborted(); await this.source(book.sourceId, book.revision, source.generation);
       const current = await this.read(id);
       if (await this.store.lifecycle(id) !== lifecycle) throw new Error('书籍已移入或恢复自回收站，过期目录已丢弃');
+      // A re-enabled source restarts its rules, but known chapters stay usable.
+      if (continuing) { const known = new Set(chapters.map(c => c.id)); for (const chapter of current.chapters) if (!known.has(chapter.id)) chapters.push(chapter); }
       const align = (loc: RecordBook['locator']) => { const chapter = chapters.findIndex(c => c.id === loc.chapterId); if (chapter < 0) throw new Error('新目录缺少进度或书签章节；旧目录已保留'); return { ...loc, chapter }; };
-      current.locator = align(current.locator); current.bookmarks = current.bookmarks.map(b => ({ ...b, locator: align(b.locator) })); current.chapters = chapters;
+      current.locator = align(current.locator); current.bookmarks = current.bookmarks.map(b => ({ ...b, locator: align(b.locator) })); current.chapters = chapters; current.tocCheckpoint = tocCheckpoint?.next ? tocCheckpoint : undefined; current.tocGeneration = source.generation;
       await this.write(current); await this.clearPages(source, 'toc', book.tocUrl, ['refresh', id, lifecycle]); return this.asDetail(current);
     }));
   }
@@ -444,7 +455,7 @@ export class OnlineSourceService {
   run<T>(requestId: string, key: string, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
     if (this.jobs.has(requestId)) throw new Error('请求 ID 已在使用');
     if (this.jobs.size >= 20) throw new Error('在线请求过多');
-    let job = [...this.jobs.values()].find(j => j.key === key);
+    let job = [...this.jobs.values()].find(j => j.key === key && !j.controller.signal.aborted);
     if (!job) {
       const controller = new AbortController(), users = new Set<string>();
       const timer = setTimeout(() => controller.abort(new Error('在线操作超过 45 秒')), 45000);

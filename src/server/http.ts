@@ -31,7 +31,7 @@ export function createReaderHttpServer(service: ReaderService, htmlPath: string)
         response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self'; frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(await readFile(htmlPath)); return;
       }
-      if (request.method === 'GET' && pathname === '/health') { json(response, 200, { status: 'ok', mode: 'loopback-preview', version: '0.1.9' }); return; }
+      if (request.method === 'GET' && pathname === '/health') { json(response, 200, { status: 'ok', mode: 'loopback-preview', version: '0.1.10' }); return; }
       if (request.method === 'POST' && (pathname === '/api/tool' || pathname === '/mcp')) {
         if (!request.headers['content-type']?.startsWith('application/json')) { json(response, 415, { error: '需要 application/json' }); return; }
         const body = await readBody(request);

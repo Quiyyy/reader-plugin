@@ -9,6 +9,7 @@ import type { TrashEntry } from '../shared/types';
 import { OnlinePanel } from './OnlinePanel';
 import { IncompleteLoadError, type IncompleteLoad } from '../shared/online';
 import './styles.css';
+import { mergeOnlineChapters } from './online-cache';
 
 type Panel = 'contents' | 'bookmarks' | 'appearance' | 'search' | null;
 type SaveState = 'saved' | 'pending' | 'saving' | 'error';
@@ -88,6 +89,9 @@ export function App({ api }: { api: ReaderApi }) {
   const [onlineError, setOnlineError] = useState('');
   const [onlineIncomplete, setOnlineIncomplete] = useState<IncompleteLoad | null>(null);
   const onlineRetryRef = useRef<(() => void) | null>(null);
+  const prefetchRef = useRef<{ id: string; chapterId: string; requestId: string; promise: Promise<BookDetail> } | null>(null);
+  const navigatingRef = useRef<{ key: string } | null>(null);
+  const refreshingRef = useRef(false);
   const onlineRequestRef = useRef<string | null>(null);
   const [libraryQuery, setLibraryQuery] = useState('');
   const [bookQuery, setBookQuery] = useState('');
@@ -287,34 +291,74 @@ export function App({ api }: { api: ReaderApi }) {
   const navigate = useCallback(async (requested: Locator) => {
     let activeBook = bookRef.current;
     if (!activeBook) return;
+    const targetKey = `${activeBook.document.id}:${requested.chapterId ?? requested.chapter}`;
+    if (navigatingRef.current?.key === targetKey) return;
+    const flight = { key: targetKey }; navigatingRef.current = flight;
     const request = ++openRequestRef.current;
     if (onlineRequestRef.current) void api.online?.cancel(onlineRequestRef.current);
     setOnlineBusy(false);
-    await flushProgress();
+    void flushProgress();
     if (!mountedRef.current || request !== openRequestRef.current) return;
-    if (activeBook.document.format === 'online' && api.online) {
-      const target = requested.chapterId ? activeBook.document.chapters.find(c => c.id === requested.chapterId) : activeBook.document.chapters[requested.chapter];
-      if (!target) { setOnlineError('章节已不在目录中'); return; }
-      if (!target.loaded) {
-        const requestId = crypto.randomUUID(); onlineRequestRef.current = requestId;
-        setOnlineBusy(true); setOnlineError(''); setOnlineIncomplete(null);
-        try {
-          const loaded = await api.online.chapter(activeBook.document.id, target.id, requestId);
-          if (!mountedRef.current || request !== openRequestRef.current) return;
-          activeBook = loaded; bookRef.current = loaded; setBook(loaded);
-        } catch (reason) { if (mountedRef.current && request === openRequestRef.current) { setOnlineError(messageOf(reason)); setOnlineIncomplete(reason instanceof IncompleteLoadError ? reason.incomplete : null); onlineRetryRef.current = () => { void navigate(requested); }; } return; }
-        finally { if (mountedRef.current && request === openRequestRef.current) { setOnlineBusy(false); onlineRequestRef.current = null; } }
+    try {
+      if (activeBook.document.format === 'online' && api.online) {
+        const target = requested.chapterId ? activeBook.document.chapters.find(c => c.id === requested.chapterId) : activeBook.document.chapters[requested.chapter];
+        if (!target) { setOnlineError('章节已不在目录中'); return; }
+        const prefetch = prefetchRef.current;
+        if (prefetch && (prefetch.id !== activeBook.document.id || prefetch.chapterId !== target.id)) { void api.online.cancel(prefetch.requestId); prefetchRef.current = null; }
+        if (!target.loaded) {
+          const shared = prefetch?.id === activeBook.document.id && prefetch.chapterId === target.id ? prefetch : null;
+          const requestId = shared?.requestId ?? crypto.randomUUID(); onlineRequestRef.current = requestId;
+          setOnlineBusy(true); setOnlineError(''); setOnlineIncomplete(null);
+          try {
+            const loaded = await (shared?.promise ?? api.online.chapter(activeBook.document.id, target.id, requestId));
+            if (!mountedRef.current || request !== openRequestRef.current) return;
+            activeBook = mergeOnlineChapters(bookRef.current, { ...loaded, bookmarks: bookRef.current?.bookmarks ?? loaded.bookmarks }, target.id); bookRef.current = activeBook; setBook(activeBook);
+          } catch (reason) { if (mountedRef.current && request === openRequestRef.current) { setOnlineError(messageOf(reason)); setOnlineIncomplete(reason instanceof IncompleteLoadError ? reason.incomplete : null); onlineRetryRef.current = () => { void navigate(requested); }; } return; }
+          finally { if (mountedRef.current && request === openRequestRef.current) { setOnlineBusy(false); onlineRequestRef.current = null; } }
+        }
       }
-    }
-    if (request !== openRequestRef.current) return;
-    const next = clampLocator(activeBook, requested);
-    restoreRef.current = true;
-    currentLocatorRef.current = next;
-    setLocator(next); setChapterIndex(next.chapter);
-    setNavigation({ locator: next, token: ++navTokenRef.current });
-    queueProgress(activeBook.document.id, next);
-    setPanel(null);
+      if (request !== openRequestRef.current) return;
+      const next = clampLocator(activeBook, requested);
+      restoreRef.current = true;
+      currentLocatorRef.current = next;
+      setLocator(next); setChapterIndex(next.chapter);
+      setNavigation({ locator: next, token: ++navTokenRef.current });
+      queueProgress(activeBook.document.id, next);
+      setPanel(null);
+    } finally { if (navigatingRef.current === flight) navigatingRef.current = null; }
   }, [api, flushProgress, queueProgress]);
+
+  useEffect(() => {
+    if (!book || book.document.format !== 'online' || !api.online || onlineBusy || returning) return;
+    const id = book.document.id, next = book.document.chapters[chapterIndex + 1];
+    if (!next || next.loaded) return;
+    let pending: typeof prefetchRef.current = null;
+    const timer = setTimeout(() => {
+      if (bookRef.current?.document.id !== id || currentLocatorRef.current.chapter !== chapterIndex) return;
+      const requestId = crypto.randomUUID();
+      const promise = api.online!.chapter(id, next.id, requestId);
+      pending = { id, chapterId: next.id, requestId, promise }; prefetchRef.current = pending;
+      void promise.then(loaded => {
+        const current = bookRef.current;
+        if (!mountedRef.current || !current || current.document.id !== id || currentLocatorRef.current.chapter !== chapterIndex) return;
+        // A speculative reply supplies text only; concurrent progress/bookmarks
+        // and directory changes remain authoritative in the visible book.
+        const incoming = { ...current, document: { ...current.document, chapters: current.document.chapters.map(chapter => chapter.id === next.id ? loaded.document.chapters.find(item => item.id === next.id) ?? chapter : chapter) } };
+        const merged = mergeOnlineChapters(current, incoming, current.document.chapters[chapterIndex].id);
+        bookRef.current = merged; setBook(merged);
+      }).catch(() => { /* Foreground navigation can retry; speculative errors stay quiet. */ }).finally(() => {
+        if (prefetchRef.current?.requestId === requestId) prefetchRef.current = null;
+      });
+    }, 900);
+    return () => {
+      clearTimeout(timer);
+      // A foreground next-chapter click takes ownership of the same request.
+      if (pending && onlineRequestRef.current !== pending.requestId) {
+        void api.online!.cancel(pending.requestId);
+        if (prefetchRef.current?.requestId === pending.requestId) prefetchRef.current = null;
+      }
+    };
+  }, [api, book?.document.id, chapterIndex, book?.document.chapters[chapterIndex + 1]?.id, onlineBusy, returning]);
 
   useLayoutEffect(() => {
     if (!book || !navigation || !readingRef.current) return;
@@ -509,16 +553,22 @@ export function App({ api }: { api: ReaderApi }) {
 
   const refreshOnline = async () => {
     const active = bookRef.current;
-    if (!active || !api.online) return;
+    if (!active || !api.online || refreshingRef.current) return;
+    refreshingRef.current = true;
+    if (prefetchRef.current) { void api.online.cancel(prefetchRef.current.requestId); prefetchRef.current = null; }
     const request = ++openRequestRef.current, requestId = crypto.randomUUID();
     if (onlineRequestRef.current) void api.online.cancel(onlineRequestRef.current);
     onlineRequestRef.current = requestId; setOnlineBusy(true); setOnlineError(''); setOnlineIncomplete(null);
     await flushProgress();
     try {
       const refreshed = await api.online.refresh(active.document.id, requestId);
-      if (mountedRef.current && request === openRequestRef.current) showBook(refreshed);
+      if (mountedRef.current && request === openRequestRef.current) {
+        const current = bookRef.current;
+        const merged = mergeOnlineChapters(current, refreshed, currentLocatorRef.current.chapterId ?? refreshed.document.chapters[0].id);
+        bookRef.current = merged; setBook(merged); updateSummary(merged.summary);
+      }
     } catch (reason) { if (mountedRef.current && request === openRequestRef.current) { setOnlineError(messageOf(reason)); setOnlineIncomplete(reason instanceof IncompleteLoadError ? reason.incomplete : null); onlineRetryRef.current = () => { void refreshOnline(); }; } }
-    finally { if (mountedRef.current && request === openRequestRef.current) { setOnlineBusy(false); onlineRequestRef.current = null; } }
+    finally { refreshingRef.current = false; if (mountedRef.current && request === openRequestRef.current) { setOnlineBusy(false); onlineRequestRef.current = null; } }
   };
 
   const visibleBooks = useMemo(() => {
@@ -574,7 +624,7 @@ export function App({ api }: { api: ReaderApi }) {
         <div className="shelf-controls"><label className="search-field"><Search size={17} aria-hidden="true" /><input type="search" value={libraryQuery} onChange={event => setLibraryQuery(event.target.value)} placeholder="搜索书架" aria-label="搜索书名或作者" /></label><div className="shelf-utilities"><IconButton label={shelfLayout === 'cards' ? '切换列表' : '切换卡片'} onClick={() => setShelfLayout(value => value === 'cards' ? 'list' : 'cards')}><List size={18}/></IconButton><IconButton label="回收站" disabled={trashBusy} onClick={() => { if (trashBusyRef.current) return; setTrashOpen(true); void api.trashList().then(setTrashEntries).catch(reason => setError(messageOf(reason))); }}><Trash2 size={18}/></IconButton><span className="book-count">{books.length ? `${books.length} 本书` : 'TXT · EPUB'}</span><IconButton label="键盘快捷键" onClick={() => setHelpOpen(true)}><HelpCircle size={18} /></IconButton></div></div>
         {openingId && <button className="text-button" onClick={() => { openRequestRef.current++; if (onlineRequestRef.current) void api.online?.cancel(onlineRequestRef.current); setOpeningId(null); }}>取消打开</button>}{loading ? <div className="loading-library" aria-label="正在读取书架" role="status"><LoaderCircle size={23} className="spin" /><p>正在打开你的书架…</p></div> : books.length === 0 ? <section className="empty-library"><div className="empty-book" aria-hidden="true"><div className="empty-book-spine"/><BookOpen size={32} strokeWidth={1.2} /><span>下一页，从这里开始</span><div className="empty-book-line" /></div><h2>把想读的书，放在这里</h2><p>拖入 TXT 或 EPUB 文件，<br className="mobile-break" />或者选择一本书开始阅读。</p><button type="button" className="secondary-button" disabled={importing} onClick={() => fileInputRef.current?.click()}><FileUp size={16} />选择文件</button><div className="empty-format-note">自动记住阅读位置 · 随手收藏喜欢的段落</div></section> : visibleBooks.length === 0 ? <div className="no-search-results"><Search size={24} strokeWidth={1.5} /><h2>没有找到这本书</h2><p>试试其他书名或作者</p><button className="text-button" onClick={() => setLibraryQuery('')}>清除搜索</button></div> : <section className={`book-grid shelf-${shelfLayout}`} aria-label="书架中的书籍">{visibleBooks.map((item, index) => <div className="book-entry" key={item.id}><button type="button" className="book-card" onClick={() => void openBook(item.id)} disabled={openingId !== null || importing} aria-label={`打开 ${item.title}，${item.progress > 0 ? `已读 ${Math.round(item.progress * 100)}%` : '尚未开始'}`}>
           <div className={`book-cover cover-${index % 4}`}><div className="cover-top"><span>{item.format.toUpperCase()}</span><BookOpen size={16} strokeWidth={1.25} /></div><div className="cover-title">{item.title}</div><div className="cover-author">{item.author || '佚名'}</div><span className="cover-bottom">READER LIBRARY</span>{openingId === item.id && <div className="cover-loading"><LoaderCircle size={23} className="spin" /><span>正在打开</span></div>}</div>
-          <div className="book-card-info"><h2 title={item.title}>{item.title}</h2><p>{item.author || '佚名'}<span>·</span>{item.format === 'online' ? `${item.chapterCount} 章 · 按需读取` : formatWords(item.wordCount)}</p><div className="book-progress-row"><span>{item.progress > 0 ? `已读 ${Math.round(item.progress * 100)}%` : '未开始'}</span><ArrowRight size={14} /></div><div className="book-progress-track"><span style={{ width: `${Math.max(0, Math.min(100, item.progress * 100))}%` }} /></div></div>
+          <div className="book-card-info"><h2 title={item.title}>{item.title}</h2><p>{item.author || '佚名'}<span>·</span>{item.format === 'online' ? `${item.chapterCount} 章${item.tocComplete === false ? ' · 目录未完' : ' · 按需读取'}` : formatWords(item.wordCount)}</p><div className="book-progress-row"><span>{item.tocComplete === false ? `第 ${item.locator.chapter + 1} 章 · 目录未完` : item.progress > 0 ? `已读 ${Math.round(item.progress * 100)}%` : '未开始'}</span><ArrowRight size={14} /></div><div className="book-progress-track"><span style={{ width: `${Math.max(0, Math.min(100, item.progress * 100))}%` }} /></div></div>
         </button><details className="book-more"><summary aria-label={`更多：${item.title}`}>•••</summary><div><button disabled={trashBusy || importing || openingId !== null} onClick={() => void trashBook(item.id)}>移到回收站</button></div></details></div>)}</section>}
         <details className="import-options"><summary>导入选项 <ChevronDown size={13} /></summary><div><label htmlFor="reader-encoding">TXT 文件编码</label><select id="reader-encoding" value={encoding} onChange={event => setEncoding(event.target.value)} disabled={importing}><option value="auto">自动识别（推荐）</option><option value="utf-8">UTF-8</option><option value="gb18030">GB18030 / GBK</option><option value="big5">Big5</option><option value="utf-16le">UTF-16 LE</option></select><p>如果已知 TXT 编码，可在首次导入前手动选择。</p></div></details>
       </main><footer className="shelf-footer"><span><Library size={13} />书籍保存在 Reader 服务中</span><span>支持 TXT 与无 DRM 的 EPUB</span></footer>
@@ -585,16 +635,16 @@ export function App({ api }: { api: ReaderApi }) {
       {(saveError || bookmarkError || settingsError || importError) && <div className="reading-errors">{importError && <ErrorNotice text={importError} onClose={() => setImportError('')} />}{saveError && <ErrorNotice text={saveError} onRetry={() => void flushProgress()} />}{bookmarkError && <ErrorNotice text={bookmarkError} onClose={() => setBookmarkError('')} />}{settingsError && <ErrorNotice text={settingsError} onRetry={flushSettings} />}</div>}
       <div className="online-reading-status">{onlineBusy && <span role="status">正在读取章节… <button className="text-button" onClick={() => { openRequestRef.current++; if (onlineRequestRef.current) void api.online?.cancel(onlineRequestRef.current); setOnlineBusy(false); }}>取消联网</button></span>}{onlineError && <div className={onlineIncomplete?.paused ? "online-notice pagination-notice" : "error-notice"} role={onlineIncomplete?.paused ? "status" : "alert"}><span>{onlineError}</span><button className="text-button" disabled={onlineBusy} onClick={() => onlineRetryRef.current?.()}>{onlineIncomplete?.resumable ? onlineIncomplete.stage === "toc" ? "继续加载目录" : "继续加载章节" : "重试"}</button><IconButton label="关闭提示" onClick={() => setOnlineError('')}><X size={15} /></IconButton></div>}</div><div className="reading-layout">
         {panel && <><button type="button" className="panel-scrim" aria-label="关闭侧栏" onClick={() => setPanel(null)} /><aside className="reader-panel" ref={node => { if (!helpOpen) overlayRef.current = node; }} aria-label={panelTitle}><div className="panel-heading"><h2>{panelTitle}</h2><IconButton label={`关闭${panelTitle}`} onClick={() => setPanel(null)}><X size={18} /></IconButton></div>
-          {panel === 'contents' && <><p className="panel-caption">{book.document.chapters.length} 个章节</p>{book.document.format === 'online' && <button type="button" className="text-button" disabled={onlineBusy} onClick={() => void refreshOnline()}>刷新在线目录</button>}<nav className="chapter-list" aria-label="章节目录">{book.document.chapters.map((chapter, index) => <button type="button" key={chapter.id || index} className={index === chapterIndex ? 'chapter-item selected' : 'chapter-item'} aria-current={index === chapterIndex ? 'location' : undefined} onClick={() => navigate({ chapter: index, paragraph: 0 })}><span className="chapter-number">{String(index + 1).padStart(2, '0')}</span><span>{chapter.title}</span>{index === chapterIndex && <span className="current-dot" />}</button>)}</nav></>}
+          {panel === 'contents' && <><p className="panel-caption">{book.document.chapters.length} 个已知章节{book.document.tocComplete === false ? ' · 目录尚未加载完' : ''}</p>{book.document.format === 'online' && <button type="button" className="text-button" disabled={onlineBusy} onClick={() => void refreshOnline()}>{book.document.tocComplete === false ? '加载更多目录' : '刷新在线目录'}</button>}<nav className="chapter-list" aria-label="章节目录">{book.document.chapters.map((chapter, index) => <button type="button" key={chapter.id || index} className={index === chapterIndex ? 'chapter-item selected' : 'chapter-item'} aria-current={index === chapterIndex ? 'location' : undefined} onClick={() => navigate({ chapter: index, paragraph: 0 })}><span className="chapter-number">{String(index + 1).padStart(2, '0')}</span><span>{chapter.title}</span>{index === chapterIndex && <span className="current-dot" />}</button>)}</nav></>}
           {panel === 'bookmarks' && <><button className="bookmark-current secondary-button" disabled={bookmarkBusy} onClick={() => void toggleBookmark()}>{bookmarkBusy ? <LoaderCircle size={16} className="spin" /> : <BookmarkIcon size={16} fill={bookmarked ? 'currentColor' : 'none'} />}{bookmarked ? '移除当前段落书签' : '收藏当前段落'}</button>{book.bookmarks.length ? <ul className="bookmark-list">{book.bookmarks.map(item => <li key={item.id}><button className="bookmark-jump" onClick={() => navigate(item.locator)}><span>{book.document.chapters[item.locator.chapter]?.title || '章节'}</span><p>{item.label}</p><small>第 {item.locator.paragraph + 1} 段</small></button><IconButton label={`移除书签：${item.label.slice(0, 20)}`} disabled={bookmarkBusy} onClick={() => void removeBookmark(item.id)}><Trash2 size={15} /></IconButton></li>)}</ul> : <EmptyHint title="留住值得再读的地方">阅读时按 B，或点上方按钮收藏当前段落。</EmptyHint>}</>}
           {panel === 'search' && <><label className="search-field panel-search"><Search size={16} /><input type="search" aria-label={`${searchLabel}内容`} placeholder="输入想找的文字" value={bookQuery} onChange={event => setBookQuery(event.target.value)} /></label>{book.document.format === 'online' && <p className="panel-caption">仅搜索当前章节「{activeChapter?.title}」；不包含其他已缓存章节，不自动下载全书。</p>}{bookQuery.trim() ? <><p className="panel-caption">{searchResults.length === 100 ? '显示前 100 条结果' : `${searchResults.length} 处匹配`}</p>{searchResults.length ? <div className="search-results">{searchResults.map(result => <button key={`${result.chapter}-${result.paragraph}`} onClick={() => navigate(result)}><span>{result.title}</span><p>{result.text}</p></button>)}</div> : <EmptyHint title="没有找到匹配的文字">试试更短的关键词</EmptyHint>}</> : <EmptyHint title="找回书中的一句话">{book.document.format === 'online' ? '输入文字，在当前章节中查找。' : '搜索会涵盖这本书的全部章节。'}</EmptyHint>}</>}
           {panel === 'appearance' && <div className="appearance-settings">{error && <ErrorNotice text={error} onClose={() => setError('')}/>}<fieldset><legend>颜色</legend><div className="theme-options">{themes.map(({ value, label, Icon }) => <button type="button" key={value} className={`theme-option theme-swatch-${value} ${settings.theme === value ? 'selected' : ''}`} aria-pressed={settings.theme === value} onClick={() => changeSettings({ theme: value })}><Icon size={18} /><span>{label}</span></button>)}</div></fieldset><fieldset><legend>字体</legend><div className="segmented"><button aria-pressed={settings.fontFamily === 'serif'} className={settings.fontFamily === 'serif' ? 'selected serif-option' : 'serif-option'} onClick={() => changeSettings({ fontFamily: 'serif' })}>宋体 / 衬线</button><button aria-pressed={settings.fontFamily === 'sans'} className={settings.fontFamily === 'sans' ? 'selected' : ''} onClick={() => changeSettings({ fontFamily: 'sans' })}>黑体 / 无衬线</button></div></fieldset><fieldset><legend>字号 <span>{settings.fontSize}px</span></legend><div className="size-control"><IconButton label="缩小字号" disabled={settings.fontSize <= 14} onClick={() => changeSettings({ fontSize: Math.max(14, settings.fontSize - 1) })}><Minus size={16} /></IconButton><span className="size-preview">字</span><IconButton label="增大字号" disabled={settings.fontSize >= 32} onClick={() => changeSettings({ fontSize: Math.min(32, settings.fontSize + 1) })}><Plus size={16} /></IconButton></div></fieldset><fieldset><legend><label htmlFor="reader-line-height">行间距</label><span>{settings.lineHeight.toFixed(1)}</span></legend><input id="reader-line-height" type="range" min="1.4" max="2.4" step="0.1" value={settings.lineHeight} onChange={event => changeSettings({ lineHeight: Number(event.target.value) })} /><div className="range-labels"><span>紧凑</span><span>舒展</span></div></fieldset><fieldset><legend><label htmlFor="reader-line-width">正文宽度</label><span>{settings.lineWidth}px</span></legend><input id="reader-line-width" type="range" min="460" max="960" step="20" value={settings.lineWidth} onChange={event => changeSettings({ lineWidth: Number(event.target.value) })} /><div className="range-labels"><span>窄</span><span>宽</span></div></fieldset><button type="button" className="text-button restore-settings" onClick={() => changeSettings(defaultSettings)}><RotateCcw size={13} />恢复默认样式</button><div className="reading-preferences"><button type="button" className="settings-action" aria-label="键盘快捷键设置" onClick={() => setHelpOpen(true)}><Keyboard size={16} aria-hidden="true" /><span>键盘快捷键</span><ChevronRight size={15} aria-hidden="true" /></button><details className="reading-more"><summary className="settings-action"><BookOpen size={16} aria-hidden="true" /><span>本书操作</span><ChevronDown size={15} aria-hidden="true" /></summary><div className="reading-more-content"><button type="button" className="text-button" disabled={trashBusy || bookmarkBusy} onClick={() => void trashBook(book.document.id)}><Trash2 size={14} />移到回收站</button><p>保留进度和书签，可随时恢复。</p></div></details></div></div>}
         </aside></>}
-        <div className="reading-column"><div className="reading-scroll" ref={readingRef} onScroll={onReadingScroll} tabIndex={0} aria-label="正文，向下滚动阅读"><article className="reading-content"><div className="chapter-kicker">{book.document.author || '佚名'}<span>/</span>第 {chapterIndex + 1} 节，共 {book.document.chapters.length} 节</div><div className="chapter-heading"><h1>{activeChapter?.title || book.document.title}</h1></div>
+        <div className="reading-column"><div className="reading-scroll" ref={readingRef} onScroll={onReadingScroll} tabIndex={0} aria-label="正文，向下滚动阅读"><article className="reading-content"><div className="chapter-kicker">{book.document.author || '佚名'}<span>/</span>第 {chapterIndex + 1} 节，{book.document.tocComplete === false ? '已载入' : '共'} {book.document.chapters.length} 节</div><div className="chapter-heading"><h1>{activeChapter?.title || book.document.title}</h1></div>
           {book.document.warnings.length > 0 && chapterIndex === 0 && <details className="book-warnings"><summary><CircleAlert size={14} />导入提示（{book.document.warnings.length}）<ChevronDown size={13} /></summary><ul>{book.document.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}
           <div className="reading-paragraphs">{activeChapter && readingBlocks(activeChapter).map(block => <p key={`${chapterIndex}-${block.start}`} className={book.bookmarks.some(item => item.locator.chapter === chapterIndex && item.locator.paragraph >= block.start && item.locator.paragraph < block.end) ? 'has-bookmark' : ''}>{block.pieces.map(piece => <span id={`reader-paragraph-${chapterIndex}-${piece.index}`} data-chapter={chapterIndex} data-reader-paragraph={piece.index} key={piece.index}>{piece.text}</span>)}</p>)}</div>
-          <nav className="chapter-navigation" aria-label="前后章节"><button type="button" className="chapter-navigation-button" disabled={chapterIndex === 0} onClick={() => navigate({ chapter: chapterIndex - 1, paragraph: 0 })}><ChevronLeft size={17} /><span><small>上一章</small><strong>{book.document.chapters[chapterIndex - 1]?.title || '已是第一章'}</strong></span></button>{chapterIndex < book.document.chapters.length - 1 ? <button type="button" className="chapter-navigation-button next" onClick={() => navigate({ chapter: chapterIndex + 1, paragraph: 0 })}><span><small>下一章</small><strong>{book.document.chapters[chapterIndex + 1]?.title}</strong></span><ChevronRight size={17} /></button> : <div className="end-of-book"><span>本书完</span><button type="button" className="text-button" onClick={() => void returnToShelf()} disabled={returning}>{onlineOpen ? '回到找书' : '回到书架'} <ArrowRight size={14} /></button></div>}</nav>
-        </article></div><footer className="reading-footer"><button type="button" className="current-chapter-label" onClick={() => togglePanel('contents')} title={activeChapter?.title}>{activeChapter?.title}</button><div className="reading-footer-right"><span className={`save-indicator ${saveState}`} title={saveState === 'saved' ? '阅读位置已保存在 Reader 服务中' : saveState === 'error' ? '阅读位置尚未保存' : '正在保存阅读位置'}>{saveState === 'saving' ? <LoaderCircle size={12} className="spin" /> : saveState === 'error' ? <CircleAlert size={12} /> : <span className="save-dot" />}<span>{saveState === 'saved' ? '已保存' : saveState === 'error' ? '未保存' : '保存中'}</span></span><span className="reading-percent">{progress}%</span><IconButton label="键盘快捷键（?）" className="footer-help" onClick={() => setHelpOpen(true)}><HelpCircle size={14} /></IconButton></div></footer><div className="reading-progress-line" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div></div>
+          <nav className="chapter-navigation" aria-label="前后章节"><button type="button" className="chapter-navigation-button" disabled={chapterIndex === 0} onClick={() => navigate({ chapter: chapterIndex - 1, paragraph: 0 })}><ChevronLeft size={17} /><span><small>上一章</small><strong>{book.document.chapters[chapterIndex - 1]?.title || '已是第一章'}</strong></span></button>{chapterIndex < book.document.chapters.length - 1 ? <button type="button" className="chapter-navigation-button next" onClick={() => navigate({ chapter: chapterIndex + 1, paragraph: 0 })}><span><small>下一章</small><strong>{book.document.chapters[chapterIndex + 1]?.title}</strong></span><ChevronRight size={17} /></button> : book.document.tocComplete === false ? <button type="button" className="chapter-navigation-button next" disabled={onlineBusy} onClick={() => void refreshOnline()}><span><small>目录尚未加载完</small><strong>加载更多章节</strong></span><ChevronRight size={17} /></button> : <div className="end-of-book"><span>本书完</span><button type="button" className="text-button" onClick={() => void returnToShelf()} disabled={returning}>{onlineOpen ? '回到找书' : '回到书架'} <ArrowRight size={14} /></button></div>}</nav>
+        </article></div><footer className="reading-footer"><button type="button" className="current-chapter-label" onClick={() => togglePanel('contents')} title={activeChapter?.title}>{activeChapter?.title}</button><div className="reading-footer-right"><span className={`save-indicator ${saveState}`} title={saveState === 'saved' ? '阅读位置已保存在 Reader 服务中' : saveState === 'error' ? '阅读位置尚未保存' : '正在保存阅读位置'}>{saveState === 'saving' ? <LoaderCircle size={12} className="spin" /> : saveState === 'error' ? <CircleAlert size={12} /> : <span className="save-dot" />}<span>{saveState === 'saved' ? '已保存' : saveState === 'error' ? '未保存' : '保存中'}</span></span><span className="reading-percent">{book.document.tocComplete === false ? `第 ${chapterIndex + 1} 章 · 目录未完` : `${progress}%`}</span><IconButton label="键盘快捷键（?）" className="footer-help" onClick={() => setHelpOpen(true)}><HelpCircle size={14} /></IconButton></div></footer><div className="reading-progress-line" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div></div>
       </div>
     </div>}
     {api.online && <OnlinePanel api={api.online} active={onlineOpen && !book} onClose={() => { setOnlineOpen(false); requestAnimationFrame(() => document.querySelector<HTMLElement>('.shelf-main .library-navigation button:nth-child(2)')?.focus()); }} onOpen={next => showBook(next)} />}

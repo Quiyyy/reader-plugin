@@ -10,7 +10,7 @@ const variables = z.record(z.string(), z.string());
 export const ruleStateSchema = z.object({ variables, scopes: z.record(z.string(), variables) });
 export type RuleState = z.infer<typeof ruleStateSchema>;
 export class PaginationBoundaryError extends Error {}
-const checkpointSchema = z.object({ version: z.literal(1), updatedAt: z.number(), pages: z.number().int().min(0).max(PAGINATION_LIMITS.pages), next: z.string().max(4096), visited: z.array(z.string().max(4096)).max(PAGINATION_LIMITS.pages * 2), fingerprints: z.array(z.string()).max(PAGINATION_LIMITS.pages), requests: z.number().int().min(0).max(PAGINATION_LIMITS.requests + 1), bytes: z.number().int().min(0), rules: ruleStateSchema.optional(), payload: z.unknown() });
+export const checkpointSchema = z.object({ version: z.literal(1), updatedAt: z.number(), pages: z.number().int().min(0).max(PAGINATION_LIMITS.pages), next: z.string().max(4096), visited: z.array(z.string().max(4096)).max(PAGINATION_LIMITS.pages * 2), fingerprints: z.array(z.string()).max(PAGINATION_LIMITS.pages), requests: z.number().int().min(0).max(PAGINATION_LIMITS.requests + 1), bytes: z.number().int().min(0), rules: ruleStateSchema.optional(), payload: z.unknown() });
 export type PaginationCheckpoint = z.infer<typeof checkpointSchema>;
 
 /** Private disposable drafts. Complete books/caches are committed separately. */

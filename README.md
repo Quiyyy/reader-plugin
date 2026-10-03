@@ -2,11 +2,11 @@
 
 一个安静、私人的小说阅读插件。React + TypeScript 阅读界面，真实 MCP Apps 协议与 OpenAI MCP Extensions 接入，书籍和进度由 Reader 服务持久保存。
 
-**Reader 0.1.9：精简设置与书源界面，修复常见 EPUB 声明及公开网页误判。** 保留 0.1.8 的回收站、焦点内键盘操作和清单导入；接受不含内部子集的惰性 EPUB DOCTYPE，准确区分普通页面中的 Cloudflare 检测脚本与真实挑战。详见 [0.1.9 说明](docs/RELEASE_0.1.9.md)。
+**Reader 0.1.10：目录第一页完成即可开读，邻章缓存加快切换。** 已知章节可读，剩余目录按需加载并持久保存续点；最多保留当前及相邻章节的有限内存正文，空闲时预取下一章，切章不等待进度写盘。详见 [0.1.10 说明](docs/RELEASE_0.1.10.md)。
 
-正式平台目录由 main CI 完成六平台原生及远程安装验证后推进；以目录的版本、来源提交和摘要为准。Windows/Linux 平台包自带官方 Node，用户无需 Node/npm 或手动 setup，见 [marketplace 指南](docs/MARKETPLACE.md)。本版保留有界规则、隔离 QuickJS 和 SafeHTTP 网络边界；第三方网站兼容范围见 [兼容性说明](docs/ISOLATED_COMPATIBILITY.md)。
+本次按维护者明确授权，完成针对验证后手动发布，跳过远端 CI；平台分发仍使用 `reader-dist/<平台>`，以版本、来源提交和文件摘要为准。Windows/Linux 平台包自带官方 Node，见 [marketplace 指南](docs/MARKETPLACE.md)。本版保留有界规则、隔离 QuickJS 和 SafeHTTP 网络边界。
 
-真实 ChatGPT 侧栏关闭尚未验证：仅调用公开宿主关闭请求，界面明确区分请求已发送、不支持和失败，不隐藏 iframe、不拦截宿主全局快捷键。Mac 正常目录的签名/公证限制维持不变；本批 Windows 升级不授权或触发 Mac 安装。测试宿主或 CI 通过不等同于真实 global/thread/file 入口通过，见 [宿主验收边界](docs/HOST_ROUTING.md)。
+Mac 沿用 Node 支持的安装路线，签名/公证及自包含包限制不变。本次只升级已授权的 Mac；Windows 设备未升级。真实 ChatGPT 侧栏关闭仍遵循公开宿主能力，见 [宿主验收边界](docs/HOST_ROUTING.md)。
 
 ## 已实现
 
@@ -62,7 +62,7 @@ READER_DATA_DIR="$HOME/.reader-test" PORT=4173 npm run preview
 npm start
 ```
 
-它在 stdin/stdout 上运行 MCP，诊断只写 stderr。**不要直接把标准输出当日志。** 本地宿主负责启动它并读取 ui://reader/v0.1.9/bookshelf.html。UI HTML 内联全部脚本和样式，不依赖 CDN；iframe 通过 App.callServerTool 与宿主通信，不假设能 fetch localhost，也不依赖 localStorage/IndexedDB 的持久性。发行平台包使用根目录 portable `plugin.json`/`mcp.json`；这里的兼容 wrapper 仅用于开发。
+它在 stdin/stdout 上运行 MCP，诊断只写 stderr。**不要直接把标准输出当日志。** 本地宿主负责启动它并读取 ui://reader/v0.1.10/bookshelf.html。UI HTML 内联全部脚本和样式，不依赖 CDN；iframe 通过 App.callServerTool 与宿主通信，不假设能 fetch localhost，也不依赖 localStorage/IndexedDB 的持久性。发行平台包使用根目录 portable `plugin.json`/`mcp.json`；这里的兼容 wrapper 仅用于开发。
 
 不同客户端对本地插件和 ${PLUGIN_ROOT} 的支持需要实际检查。若不支持占位符，运行以下命令得到此机器上真实的绝对路径配置，再按该客户端的本地 MCP 配置流程接入：
 

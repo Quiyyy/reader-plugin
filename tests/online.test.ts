@@ -276,7 +276,10 @@ describe('online source service and durable lazy reading', () => {
     });
     const online = new OnlineSourceService(new ReaderStore(dir), f.client);
     const sourceId = await enable(online, { ...fixtureSource, ruleSearch: { bookList: '$.books[*]', name: '$.title', bookUrl: '$.url' }, ruleBookInfo: { tocUrl: 'a.toc@href' } });
-    const found = await online.search(sourceId, 'test', 1, signal()), detail = await online.detail(found[0], signal()), book = await online.add(detail, signal());
+    const found = await online.search(sourceId, 'test', 1, signal()), detail = await online.detail(found[0], signal());
+    const first = await online.add(detail, signal());
+    expect(first.document.chapters).toHaveLength(1); expect(first.document.tocComplete).toBe(false);
+    const book = await online.refresh(first.summary.id, signal());
     expect(book.document.chapters).toHaveLength(2); expect(book.document.chapters[0].paragraphs).toEqual(['First page.', 'Second page.']);
     const cacheFile = join(dir, 'online-v1', 'cache', book.summary.id, detail.revision, `${book.document.chapters[0].id}.json`), cached = await readFile(cacheFile, 'utf8');
     await expect(online.chapter(book.summary.id, book.document.chapters[1].id, signal())).rejects.toThrow('HTTP 403');

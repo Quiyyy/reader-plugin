@@ -1,5 +1,6 @@
+import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { ReaderStore } from '../src/server/store.js';
@@ -40,11 +41,12 @@ const signal = () => {
   if (tearingDown) controller.abort();
   return controller.signal;
 };
-async function setup(options: { pages?: number; rows?: number; contentPages?: number; mode?: string; script?: boolean } = {}) {
+async function setup(options: { pages?: number; rows?: number; contentPages?: number; mode?: string; script?: boolean; delayMs?: number } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'reader-pagination-'));
   cleanups.push(() => rm(dir, { recursive: true, force: true }));
-  const state = { pages: 18, rows: 2, contentPages: 1, mode: '', script: false, ...options };
-  const server = await fixtureServer((req, res) => {
+  const state = { pages: 18, rows: 2, contentPages: 1, mode: '', script: false, delayMs: 0, ...options };
+  const server = await fixtureServer(async (req, res) => {
+    if (state.delayMs) await delay(state.delayMs);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     const url = new URL(req.url!, 'https://reader.example.com'), page = Number(url.searchParams.get('p') ?? 1);
     if (url.pathname === '/toc') {
@@ -76,14 +78,49 @@ async function complete<T>(work: () => Promise<T>) {
 }
 
 describe('bounded, resumable long directories and chapters', () => {
+  it('opens a slow 15-page directory after two requests; failed/cancelled continuation preserves reading state', async () => {
+    const f = await setup({ pages: 15, rows: 97, delayMs: 120 });
+    const began = performance.now();
+    const book = await f.online.add(f.detail, signal());
+    console.log(JSON.stringify({ fixture: 'slow-15-page-directory', firstReadableMs: Math.round(performance.now() - began), requests: [...f.requests], knownChapters: book.document.chapters.length }));
+    expect(f.requests).toEqual(['/toc', '/chapter/0']);
+    const second = book.document.chapters[1];
+    await f.online.chapter(book.summary.id, second.id, signal());
+    const count = f.requests.length;
+    await f.online.chapter(book.summary.id, book.document.chapters[0].id, signal());
+    expect(f.requests).toHaveLength(count);
+    const locator = { chapter: 1, paragraph: 0, chapterId: second.id };
+    await f.online.saveProgress(book.summary.id, locator); await f.online.addBookmark(book.summary.id, locator, 'keep');
+    await f.online.refresh(book.summary.id, signal());
+    const path = join(f.dir, 'online-v1', `${book.summary.id}.json`), before = await readFile(path, 'utf8');
+    const controller = new AbortController(); controllers.add(controller);
+    const pending = f.online.refresh(book.summary.id, controller.signal);
+    const rejected = expect(pending).rejects.toThrow();
+    await delay(25); controller.abort(); await rejected;
+    expect(await readFile(path, 'utf8')).toBe(before);
+    f.state.mode = 'failure';
+    await expect(f.online.refresh(book.summary.id, signal())).rejects.toThrow('503');
+    expect(await readFile(path, 'utf8')).toBe(before);
+    f.state.mode = ''; const requests = f.requests.length;
+    const resumed = await f.online.refresh(book.summary.id, signal());
+    expect(f.requests.slice(requests)).toEqual(['/toc?p=3']);
+    expect(resumed.summary.locator).toEqual(locator); expect(resumed.bookmarks[0].label).toBe('keep');
+  });
+
   it('loads 8000 unique chapters across 40 pages and a process restart without downloading the book', async () => {
     const f = await setup({ pages: 40, rows: 200 });
-    await expect(f.online.add(f.detail, signal())).rejects.toMatchObject({ incomplete: { stage: 'toc', pages: 8, items: 1600, paused: true, resumable: true } });
-    expect(await f.online.listBooks()).toEqual([]);
-    expect((await f.online.listSources())[0].stages.toc.network).toBe('untested');
-    expect(f.requests.filter(path => path.startsWith('/chapter/'))).toEqual([]);
+    const first = await f.online.add(f.detail, signal());
+    expect(first.document.tocComplete).toBe(false);
+    expect(first.document.chapters).toHaveLength(200);
+    expect(f.requests).toEqual(['/toc', '/chapter/0']);
+    const recordPath = join(f.dir, 'online-v1', `${first.summary.id}.json`);
+    const record = JSON.parse(await readFile(recordPath, 'utf8'));
+    // Book-owned continuation survives disposable draft eviction and TTL expiry.
+    record.tocCheckpoint.updatedAt = 0; await writeFile(recordPath, JSON.stringify(record));
+    await rm(join(f.dir, 'online-v1/pagination-v1'), { recursive: true });
     const restarted = trackOnline(new OnlineSourceService(new ReaderStore(f.dir), f.client));
-    const book = await complete(() => restarted.add(f.detail, signal()));
+    let book = await restarted.open(first.summary.id, signal());
+    while (book.document.tocComplete === false) book = await restarted.refresh(book.summary.id, signal());
     expect(book.document.chapters).toHaveLength(8000);
     expect(book.document.chapters[200].title).toBe('Original chapter 200');
     expect(new Set(f.requests.filter(path => path.startsWith('/toc'))).size).toBe(40);
@@ -121,11 +158,14 @@ describe('bounded, resumable long directories and chapters', () => {
     expect(refreshed.summary.locator).toEqual(locator);
   });
 
-  it.each(['cycle', 'redirect', 'duplicate'])('rejects %s loops and does not promote an incomplete directory', async mode => {
+  it.each(['cycle', 'redirect', 'duplicate'])('rejects %s loops while retaining readable known chapters', async mode => {
     const f = await setup({ mode });
-    await expect(f.online.add(f.detail, signal())).rejects.toMatchObject({ incomplete: { resumable: false, paused: false } });
-    expect(await f.online.listBooks()).toEqual([]);
-    expect(f.requests.length).toBeLessThanOrEqual(3);
+    const book = await f.online.add(f.detail, signal());
+    const before = await readFile(join(f.dir, 'online-v1', `${book.summary.id}.json`), 'utf8');
+    await expect(f.online.refresh(book.summary.id, signal())).rejects.toMatchObject({ incomplete: { resumable: false, paused: false } });
+    expect(await readFile(join(f.dir, 'online-v1', `${book.summary.id}.json`), 'utf8')).toBe(before);
+    expect((await f.online.open(book.summary.id, signal())).document.chapters[0].loaded).toBe(true);
+    expect(f.requests.length).toBeLessThanOrEqual(4);
     expect(await readdir(join(f.dir, 'online-v1/pagination-v1'))).toEqual([]);
   });
 
@@ -141,16 +181,10 @@ describe('bounded, resumable long directories and chapters', () => {
     // guest evaluation retain their production deadlines. The separate 600-row
     // case retains per-row script/worker recycling coverage.
     const f = await setup({ pages: 18, rows: 8, script: true });
-    const checkpoint = await f.online.add(f.detail, signal()).then(
-      () => { throw Error('expected a continuation checkpoint'); },
-      error => { expect(error).toBeInstanceOf(IncompleteLoadError); return error.incomplete; },
-    );
-    // A busy runner may reach the 20 s batch wall before the eight-page cap.
-    expect(checkpoint).toMatchObject({ stage: 'toc', paused: true, resumable: true });
-    expect(checkpoint.pages).toBeGreaterThanOrEqual(1);
-    expect(checkpoint.pages).toBeLessThanOrEqual(8);
-    expect(checkpoint.items).toBe(checkpoint.pages * 8);
-    const book = await complete(() => f.online.add(f.detail, signal()));
+    let book = await f.online.add(f.detail, signal());
+    expect(book.document.tocComplete).toBe(false);
+    expect(book.document.chapters).toHaveLength(8);
+    while (book.document.tocComplete === false) book = await f.online.refresh(book.summary.id, signal());
     expect(book.document.chapters).toHaveLength(144);
     expect(book.document.chapters[80].title).toBe('Original chapter 80 / 11');
     const vars = JSON.parse(await readFile(join(f.dir, 'online-v1', `variables-${f.detail.sourceId}-${f.detail.revision}.json`), 'utf8'));
@@ -159,10 +193,11 @@ describe('bounded, resumable long directories and chapters', () => {
 
   it('does not reuse an interrupted directory after source disable/re-enable', async () => {
     const f = await setup();
-    await expect(f.online.add(f.detail, signal())).rejects.toMatchObject({ incomplete: { paused: true } });
+    const book = await f.online.add(f.detail, signal());
     await f.online.manage(f.detail.sourceId, false); await f.online.manage(f.detail.sourceId, true);
     const before = f.requests.length;
-    await expect(f.online.add(f.detail, signal())).rejects.toMatchObject({ incomplete: { pages: 8, paused: true } });
+    const restarted = await f.online.refresh(book.summary.id, signal());
+    expect(restarted.document.tocComplete).toBe(false);
     expect(f.requests[before]).toBe('/toc');
   });
 
@@ -175,8 +210,10 @@ describe('bounded, resumable long directories and chapters', () => {
 
   it('stops an endless changing directory at the cumulative page budget across continuations', async () => {
     const f = await setup({ pages: 1000, rows: 1 });
-    await expect(complete(() => f.online.add(f.detail, signal()))).rejects.toMatchObject({ incomplete: { pages: 256, resumable: false } });
-    expect(f.requests).toHaveLength(256);
-    expect(await f.online.listBooks()).toEqual([]);
+    let book = await f.online.add(f.detail, signal());
+    for (let page = 1; page < 256; page++) book = await f.online.refresh(book.summary.id, signal());
+    await expect(f.online.refresh(book.summary.id, signal())).rejects.toMatchObject({ incomplete: { pages: 256, resumable: false } });
+    expect(f.requests).toHaveLength(257); // 256 TOC pages + just the first body.
+    expect((await f.online.listBooks())[0].chapterCount).toBe(256);
   }, 30_000);
 });
