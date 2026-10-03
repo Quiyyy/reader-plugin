@@ -1,6 +1,6 @@
 {
   "kind": "reader-bundled-runtime",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "goos": "darwin",
   "goarch": "amd64",
   "nodeVersion": "24.21.0",
@@ -8,9 +8,9 @@
   "nodeBytes": 125270960,
   "compressedSha256": "64b481682a755ee7ba8a7c4d8894eb813ac3108483d81eac29932460d56c2ae5",
   "files": {
-    "app/dist/server/index.js": "be84fe7afaefef5e67771c0b13d9a5da96b41c451dcb4a5d43218970c5f3df9d",
+    "app/dist/server/index.js": "80c68eb42b366b4fdaad4a25cc28d4d4685d9d64dd7cd15596738d697372cd01",
     "app/dist/server/script-worker.js": "c72f394d15f0a2402af7ac33a6a90e3fd36d5fa0fb3b41de0f952bac76b5ada4",
-    "app/dist/ui/index.html": "66907d05c6de57243ac14ad9f12e5e1ba430de81e0c7a8998bb3190b8b878d19",
+    "app/dist/ui/index.html": "cb86eebf13af81898cbd8e79e38f18c7a1b968d6b39f1511ac47351f853e02f3",
     "app/node_modules/@jitl/quickjs-ffi-types/LICENSE": "3c6040aa318612a234cc951609b640c0c63d85ae5a98a9330d3116f1553a79db",
     "app/node_modules/@jitl/quickjs-ffi-types/README.md": "808124bff16606acac21b74e72017c201200b370f62064dcd61baefbaa5470d6",
     "app/node_modules/@jitl/quickjs-ffi-types/dist/index.d.mts": "89d6886dc16653c9e3372b255d3967ca756babe1f82ba07ed7d32af269c1b21e",
@@ -150,11 +150,11 @@
     "app/node_modules/quickjs-emscripten/dist/variants.mjs": "e3f70bc7cb4591c875997b8d1b570d1f2c03531f4b2f59c046b2965672e8209c",
     "app/node_modules/quickjs-emscripten/dist/variants.mjs.map": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3",
     "app/node_modules/quickjs-emscripten/package.json": "0feb2558c02e41fc9b8ab20c674edfa84af70d21d1189b55ec6455fe133ad9f6",
-    "app/package.json": "81981b7c7ef50ea587c63fc3ecb6832241a0cf5d83430947ea33805dc7cabe00",
+    "app/package.json": "3332522283911a840a5b10d54ee8d6dbe3baa838344d7858d5959634f7e7c089",
     "payload/node.gz": "64b481682a755ee7ba8a7c4d8894eb813ac3108483d81eac29932460d56c2ae5"
   },
   "source": {
-    "commit": "d7da13d98e2847bd580af3b848dfa24033f2cb09",
+    "commit": "297720f3e0ddf0f2c4878d0e94ba515410c63376",
     "dirty": false
   },
   "testFixture": false,
@@ -164,5 +164,5 @@
     "sha256": "1462cb3b3046b815cf8ea436d3da450ec1a9f11dac7e5a46b0ada5305d7e8097"
   },
   "goVersion": "go version go1.27.1 darwin/amd64",
-  "dependencyLockSha256": "db31d6f865f995395357651b9f52163a28de6deeffe0a12fffec10ede8013c71"
+  "dependencyLockSha256": "637bab43a8f427975e6021bf999223f172a1cceedcc681597246b243b86a476f"
 }
