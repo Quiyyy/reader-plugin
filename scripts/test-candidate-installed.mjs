@@ -120,14 +120,16 @@ try {
     await frame.getByRole('button', { name: '目录（T）' }).click(); const chapters = frame.getByRole('navigation', { name: '章节目录' }).getByRole('button'); await expect(chapters).toHaveCount(20);
     await chapters.nth(5).click(); await expect(frame.locator('.reading-paragraphs')).toContainText('rabbit', { timeout: 45000, ignoreCase: true });
     live.chapterOneHash = hash(await frame.locator('.reading-paragraphs').innerText());
-    await frame.getByRole('button', { name: '目录（T）' }).click(); await chapters.nth(6).click(); await expect(frame.locator('[data-reader-paragraph="1"]')).toBeVisible({ timeout: 45000 });
+    live.chapterOneParagraphs = await frame.locator('[data-reader-paragraph]').count();
+    await frame.getByRole('button', { name: '目录（T）' }).click(); const secondTitle = await chapters.nth(6).locator('span').nth(1).textContent(); await chapters.nth(6).click();
+    await frame.getByRole('heading', { name: secondTitle, exact: true }).waitFor({ timeout: 45000 }); await expect(frame.locator('[data-reader-paragraph="1"]')).toBeVisible();
     await frame.locator('[data-reader-paragraph="1"]').evaluate(element => element.scrollIntoView({ block: 'start' }));
     await expect(frame.locator('.save-indicator')).toContainText('已保存'); await frame.getByRole('button', { name: '收藏当前段落（B）' }).click();
     await page.screenshot({ path: join(runRoot, 'installed-standardebooks-reading-390.png'), fullPage: true });
     await frame.getByRole('button', { name: '返回找书', exact: true }).click(); await frame.getByRole('button', { name: '书架', exact: true }).click();
     const summary = (await nativeCall('reader_list')).books.find(book => book.format === 'online'); const before = await nativeCall('reader_get', { id: summary.id });
     assert.equal(before.document.chapters.length, 20); assert.equal(before.summary.locator.chapter, 6); assert.ok(before.summary.progress > 0); assert.equal(before.bookmarks.length, 1);
-    live.before = { id: summary.id, locator: before.summary.locator, progress: before.summary.progress, bookmarks: before.bookmarks, chapterOneParagraphs: before.document.chapters[5].paragraphs.length, chapterTwoParagraphs: before.document.chapters[6].paragraphs.length, chapterTwoHash: hash(JSON.stringify(before.document.chapters[6].paragraphs)) };
+    live.before = { id: summary.id, locator: before.summary.locator, progress: before.summary.progress, bookmarks: before.bookmarks, chapterTwoParagraphs: before.document.chapters[6].paragraphs.length, chapterTwoHash: hash(JSON.stringify(before.document.chapters[6].paragraphs)) };
     const oldPid = transport.pid; await client.close(); assert.throws(() => process.kill(oldPid, 0), { code: 'ESRCH' }); await connect(); assert.notEqual(transport.pid, oldPid);
     await page.reload(); await frame.getByRole('button', { name: /^打开 Alice/ }).click(); await frame.getByRole('button', { name: '我的书签', exact: true }).click(); await expect(frame.locator('.bookmark-list li')).toHaveCount(1);
     const after = await nativeCall('reader_get', { id: summary.id }); assert.deepEqual(after.summary.locator, before.summary.locator); assert.deepEqual(after.bookmarks, before.bookmarks); assert.equal(hash(JSON.stringify(after.document.chapters[6].paragraphs)), live.before.chapterTwoHash);
@@ -135,7 +137,7 @@ try {
     live.sourceReport = (await nativeCall('reader_online_sources')).find(source => source.name.startsWith('Standard Ebooks CC0')); live.passed = true; live.finishedAt = new Date().toISOString();
   }
   const artifacts = await Promise.all((await fs.readdir(runRoot)).filter(name => name.endsWith('.png')).map(async name => ({ path: join(runRoot, name), sha256: hash(await fs.readFile(join(runRoot, name))) })));
-  const evidence = { installed, packageManifestHash: checked.manifestHash, installedReaderEntrySha256: hash(await fs.readFile(config.args[0])), source: checked.manifest.source, externalCatalogs, live, artifacts, nativeStdioMcp: true, ui: 'AppBridge test harness, not ChatGPT', realHostCloseVerified: false, sourceReadabilityVerified: live.passed, actualProcessRestart: true, pids, calls, errors };
+  const evidence = { installed, node: process.version, platform: process.platform, arch: process.arch, packageManifestHash: checked.manifestHash, installedReaderEntrySha256: hash(await fs.readFile(config.args[0])), source: checked.manifest.source, externalCatalogs, live, artifacts, nativeStdioMcp: true, ui: 'AppBridge test harness, not ChatGPT', realHostCloseVerified: false, sourceReadabilityVerified: live.passed, actualProcessRestart: true, pids, calls, errors };
   await fs.writeFile(join(runRoot, 'evidence.json'), JSON.stringify(evidence, null, 2)); console.log(JSON.stringify({ passed: true, runRoot, ...evidence }));
 } catch (error) { await page.screenshot({ path: join(runRoot, 'failure.png'), fullPage: true }); await fs.writeFile(join(runRoot, 'failure.json'), JSON.stringify({ error: error.stack, externalCatalogs, live, calls, pids, errors }, null, 2)); console.error(JSON.stringify({ runRoot, failed: true, error: error.message })); throw error;
 } finally { await browser.close(); await client.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

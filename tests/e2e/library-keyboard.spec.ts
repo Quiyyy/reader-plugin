@@ -4,11 +4,11 @@ import { catalogPackage } from '../catalog-fixture';
 import { fixtureSource } from '../online/source';
 const original = `第一章 键盘\n\n${Array.from({ length: 35 }, (_, i) => `第${i}段，这是为键盘验收写的原创段落。文字沿着纸页展开，读者可以安静地继续阅读。`).join('\n\n')}\n\n第二章 回收\n\n进度和书签应当被保留。`;
 for (const width of [320, 390, 1280]) {
-  test(`library keyboard, editing, trash and restoration at ${width}`, async ({ page, request }) => {
+  test(`library keyboard, editing, trash and restoration at ${width}`, async ({ page, request }, testInfo) => {
     await request.post('/api/tool', { headers: { 'X-Reader-Client': 'preview' }, data: { name: 'reader_keyboard_reset', arguments: {} } });
     await page.setViewportSize({ width, height: 844 }); await page.goto('/');
-    const title = `键盘-${width}`;
-    await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(original + width) });
+    const title = `键盘-${width}-${testInfo.repeatEachIndex}`;
+    await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(original + title) });
     const reading = page.getByLabel('正文，向下滚动阅读'); await expect(reading).toBeVisible(); await reading.focus();
     await page.keyboard.press('ArrowDown'); await expect.poll(() => reading.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
     await page.keyboard.press('ArrowRight'); await expect(page.getByRole('heading', { name: '第二章 回收', exact: true })).toBeVisible();

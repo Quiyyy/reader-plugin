@@ -475,7 +475,17 @@ export function App({ api }: { api: ReaderApi }) {
     }
     if (bookRef.current && action) {
       event.preventDefault();
-      if (action === 'scrollUp' || action === 'scrollDown') readingRef.current?.scrollBy({ top: action === 'scrollUp' ? -80 : 80, behavior: 'instant' });
+      if (action === 'scrollUp' || action === 'scrollDown') {
+        // Opening/restoring a book takes two animation frames. Preserve the
+        // first key press instead of letting the pending restoration erase it.
+        const id = bookRef.current.document.id, token = navTokenRef.current;
+        const scroll = () => {
+          if (!mountedRef.current || bookRef.current?.document.id !== id || navTokenRef.current !== token) return;
+          if (restoreRef.current) { requestAnimationFrame(scroll); return; }
+          readingRef.current?.scrollBy({ top: action === 'scrollUp' ? -80 : 80, behavior: 'instant' });
+        };
+        scroll();
+      }
       else if (!event.repeat) void navigate({ chapter: Math.max(0, Math.min(bookRef.current.document.chapters.length - 1, currentLocatorRef.current.chapter + (action === 'previousChapter' ? -1 : 1))), paragraph: 0 });
       return;
     }
