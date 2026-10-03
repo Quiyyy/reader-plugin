@@ -2,9 +2,9 @@
   ".gitattributes": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
   "DEPENDENCIES.json": "dcf6f6939e06ccc14bf4585f92f478ca03c420ba0b8299730734fef4a32c48f7",
   "THIRD_PARTY_NOTICES.md": "0c760b5f4e9c34274754843fde8761aed2e6aeb06c869b5a8f17ea485c23a148",
-  "app/dist/server/index.js": "3b530b472701003b5381190d018d232c1964dd7eede9082b630a6bc4d95ffa36",
-  "app/dist/ui/index.html": "36598930f5089661be42d4b9e2f77d3e171b49efe988de8e452d770b2e3934ef",
-  "app/package.json": "518b8aba352918ddeecc79d3dee27175b06e61610d6fad2152858e75ec724bfe",
+  "app/dist/server/index.js": "757f80f84d85338e50e8102248483c8abb04c3f54fc3d1cda3302b9b63576f35",
+  "app/dist/ui/index.html": "ecf7b54172e506e70d626b4167559451c4851a3545f7f9ac47abb59f430059d1",
+  "app/package.json": "d1d552a1e4d0863fc67b33abddc362227263a74d254b19f5e5944ccab1cb2f65",
   "licenses/GO-LICENSE": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
   "licenses/NODE-LICENSE": "ed34dd8e3f0a78dbaf00d0444ce8e285b015b765379c2e17880455f70370f8e9",
   "licenses/dependency-0-0.txt": "117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76",
@@ -362,7 +362,7 @@
   "licenses/upstream/theKashey-react-remove-scroll-bar-LICENSE": "a79aae0c0f21990d9d963bb3c5a79cdcea9a46f8523ba55c58d7fe776b6ebc84",
   "mcp.json": "cb0cea23f613ebf893d57386d4809f3f23d598675549175892532245f8ada4be",
   "payload/node.gz": "83121e51f1810c396f42bc42ac22f32a1385a907c7ffd61d70cf3de83bfa5a94",
-  "plugin.json": "a908060a6b1832d1aa60dc1027d400170d57dd69ef6adcc98981a5798506ab00",
-  "reader-launcher.exe": "6a64587c12c8b88426b69ef9c0d0b9c992bb866befd3a67212ffadb8ef53bdd7",
-  "runtime-manifest.json": "56bb065f53392acab07d3c0288ab67c23e67e4048c6e26d243ef805d4d683a2f"
+  "plugin.json": "62dcef2a51cf5cb96b4bb420216940f0f040ac5a04074db8d25367c389cb7034",
+  "reader-launcher.exe": "221dcee159bd890b58d2538716af6ef3962ba8ff11f019a3479dc1cb5562198e",
+  "runtime-manifest.json": "81c896299e16be187f2490242818934a471f25a8a52b0bf0473983472e3c6f6d"
 }
