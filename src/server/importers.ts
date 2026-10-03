@@ -104,9 +104,45 @@ function importTxt(filename: string, bytes: Uint8Array, override?: string): Omit
   return { title: filenameTitle(filename), author: '', format: 'txt', chapters, encoding: decoded.encoding, warnings: decoded.warnings, layoutVersion: 2 };
 }
 
+/** Discard inert document types before either parser sees them. Never load a DTD. */
+function withoutDocumentType(source: string, label: string): string {
+  const tokens = /<!--|<!\[CDATA\[|<!DOCTYPE|<!ENTITY/gi;
+  const parts: string[] = [];
+  let copied = 0, seen = false;
+  for (let token; (token = tokens.exec(source));) {
+    const start = token.index;
+    if (token[0] === '<!--' || token[0] === '<![CDATA[') {
+      const endMarker = token[0] === '<!--' ? '-->' : ']]>';
+      const end = source.indexOf(endMarker, tokens.lastIndex);
+      if (end < 0) throw new Error(`${label}: malformed XML comment or CDATA.`);
+      tokens.lastIndex = end + endMarker.length;
+      continue;
+    }
+    if (token[0].toUpperCase() === '<!ENTITY') throw new Error(`${label}: XML custom entities are unsupported.`);
+    let end = tokens.lastIndex, quote = '';
+    for (; end < source.length; end++) {
+      const char = source[end]!;
+      if (quote) { if (char === quote) quote = ''; }
+      else if (char === '"' || char === "'") quote = char;
+      else if (char === '[') throw new Error(`${label}: XML custom entities and internal DTD subsets are unsupported.`);
+      else if (char === '>') break;
+    }
+    // Only a name plus an optional SYSTEM/PUBLIC identifier is inert. Quoted
+    // '>' and '[' belong to identifiers, not markup. Reject malformed/duplicate
+    // declarations instead of feeding any DTD syntax to the downstream parsers.
+    const declaration = source.slice(start, end + 1);
+    if (seen || !/^<!DOCTYPE[\t\r\n ]+[a-z_:][\w:.-]*(?:[\t\r\n ]+(?:SYSTEM[\t\r\n ]+(?:"[^"]*"|'[^']*')|PUBLIC[\t\r\n ]+(?:"[^"]*"|'[^']*')[\t\r\n ]+(?:"[^"]*"|'[^']*')))?[\t\r\n ]*>$/i.test(declaration)) {
+      throw new Error(`${label}: malformed XML document type.`);
+    }
+    seen = true;
+    parts.push(source.slice(copied, start));
+    copied = tokens.lastIndex = end + 1;
+  }
+  parts.push(source.slice(copied));
+  return parts.join('');
+}
 function parseXml(bytes: Uint8Array, label: string): any {
-  const text = textDecoder('utf-8', bytes);
-  if (/<!DOCTYPE|<!ENTITY/i.test(text)) throw new Error(`${label}: XML document types and custom entities are unsupported.`);
+  const text = withoutDocumentType(textDecoder('utf-8', bytes), label);
   const valid = XMLValidator.validate(text);
   if (valid !== true) throw new Error(`${label}: malformed XML.`);
   return new XMLParser({ ignoreAttributes: false, removeNSPrefix: true, parseTagValue: false, parseAttributeValue: false, processEntities: true }).parse(text);
@@ -126,8 +162,7 @@ const localTag = (element: Element) => element.tagName.toLowerCase().split(':').
 const BLOCKED_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea', 'select', 'svg', 'math', 'canvas', 'video', 'audio', 'link', 'meta', 'noscript', 'template']);
 const BLOCK_TAGS = new Set(['p', 'div', 'section', 'article', 'main', 'aside', 'header', 'footer', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'li', 'ul', 'ol', 'dl', 'dt', 'dd', 'pre', 'address', 'table', 'tr', 'td', 'th', 'hr']);
 function htmlDocument(bytes: Uint8Array): Document {
-  const source = textDecoder('utf-8', bytes);
-  if (/<!ENTITY/i.test(source) || /<!DOCTYPE[^>]*\[/i.test(source)) throw new Error('EPUB custom entities are unsupported.');
+  const source = withoutDocumentType(textDecoder('utf-8', bytes), 'EPUB content');
   // linkedom has no browsing context: it never fetches resources or executes scripts.
   const document = new DOMParser().parseFromString(source, 'text/html') as unknown as Document;
   for (const node of Array.from(document.querySelectorAll('*'))) {
