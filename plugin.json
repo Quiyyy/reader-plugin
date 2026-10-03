@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "reader-darwin-x64",
+  "version": "0.1.3",
+  "description": "Local TXT and DRM-free EPUB reader; bundled runtime for macOS · Intel.",
+  "author": {
+    "name": "Quiyyy"
+  },
+  "repository": "https://github.com/Quiyyy/reader-plugin",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Reader",
+        "shortDescription": "macOS · Intel。本地阅读，无需 Node 或 npm。",
+        "longDescription": "Bundled runtime for macOS · Intel. Choose only the package matching this device. Book storage is separate from the plugin cache. System trust prompts may apply.",
+        "developerName": "Quiyyy",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "打开 Reader 书架"
+        ]
+      }
+    }
+  }
+}
