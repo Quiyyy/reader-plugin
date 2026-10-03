@@ -141,7 +141,9 @@ const blocks = new Set(['p', 'div', 'li', 'h1', 'h2', 'h3', 'section', 'article'
 
 /** Pointer walk with O(depth) state, never childNodes/querySelectorAll arrays. */
 function* walk(root: Context, budget: Budget, skip: (node: Context) => boolean = () => false): Generator<{ node: Context; exit: boolean }> {
-  let node = root.firstChild, depth = 1;
+  // linkedom's DocumentType has no sibling/parent links. Start document walks
+  // at the element root so an HTML doctype cannot hide the entire page.
+  let node = root.nodeType === 9 ? root.documentElement ?? root.firstChild : root.firstChild, depth = 1;
   while (node) {
     budget.spend();
     if (depth > RULE_LIMITS.depth) throw new Error('DOM 深度超过 128 层');

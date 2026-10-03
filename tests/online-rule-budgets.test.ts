@@ -4,6 +4,13 @@ import { promisify } from 'node:util';
 import { compileRule, documentContext, extract, select } from '../src/server/online/rules.js';
 
 describe('synchronous rule resource budgets', () => {
+  it('walks real HTML documents with a doctype without unbounded DOM queries', () => {
+    const context = documentContext('<!doctype html><html><head><title>Example</title></head><body><div class="book"><a href="book.html">Story</a></div></body></html>');
+    expect(select(compileRule('.book', true), context)).toHaveLength(1);
+    expect(extract(compileRule('.book a@text'), context)).toEqual(['Story']);
+    expect(extract(compileRule('.book a@href'), context)).toEqual(['book.html']);
+    expect(extract(compileRule('@text'), documentContext('Plain text'))).toEqual(['Plain text']);
+  });
   it('rejects deep HTML, huge attributes, entity fanout and JSON before DOM/object allocation', () => {
     expect(() => documentContext('<div>'.repeat(5000) + 'hello' + '</div>'.repeat(5000))).toThrow('深度');
     expect(() => documentContext(`<div ${Array.from({ length: 129 }, (_, i) => `a${i}`).join(' ')}></div>`)).toThrow('属性');

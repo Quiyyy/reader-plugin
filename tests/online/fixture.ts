@@ -1,15 +1,24 @@
 import { createServer, request, type RequestListener, type RequestOptions } from 'node:http';
 import { SafeHttpClient } from '../../src/server/online/http.js';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 export { fixtureSource } from './source.js';
 export async function fixtureServer(handler?: RequestListener) {
   const requests: string[] = [], options: RequestOptions[] = [];
-  let inserted = false;
-  const server = createServer((req, res) => {
+  let inserted = false, offline = false;
+  const server = createServer(async (req, res) => {
     requests.push(req.url!);
+    if (offline) { res.destroy(); return; }
     if (handler) return handler(req, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     const url = new URL(req.url!, 'http://fixture.local'), path = url.pathname;
+    const example = path.split('/examples/online/')[1];
+    if (example && /^(?:reader-demo(?:-array)?\.json|demo\/(?:search-[12]|book|toc-[12]|chapter-(?:1[ab]|2))\.html)$/.test(example)) {
+      try { res.end(await readFile(resolve('examples/online', example))); }
+      catch { res.statusCode = 404; res.end('Missing test sample'); }
+      return;
+    }
     if (path === '/search') res.end(url.searchParams.get('q') === '不存在的书' || Number(url.searchParams.get('page')) > 1 ? '<main><p>没有更多结果</p></main>' : '<div class="book"><a href="/book">原创河岸故事</a><span class="author">Reader 测试作者</span></div>');
     else if (path === '/book') res.end('<h1>原创河岸故事</h1><div class="author">Reader 测试作者</div><div class="intro">这是合成的原创测试文本，不来自外部书库。</div><a class="toc" href="/toc">目录</a>');
     else if (path === '/toc') res.end(`<div class="chapters">${inserted ? '<a href="/chapter/zero">新增序章</a>' : ''}<a href="/chapter/one">第一章 河岸</a><a href="/chapter/two">第二章 灯光</a></div>`);
@@ -27,5 +36,5 @@ export async function fixtureServer(handler?: RequestListener) {
       return request({ ...config, hostname: '127.0.0.1', port: address.port, path: url.pathname + url.search, protocol: 'http:', headers: { ...config.headers, Host: url.host } }, response);
     },
   });
-  return { client, requests, options, insertChapter: () => { inserted = true; }, close: () => new Promise<void>((resolve, reject) => { server.closeAllConnections(); server.close(error => error ? reject(error) : resolve()); }) };
+  return { client, requests, options, setOffline: (value: boolean) => { offline = value; }, insertChapter: () => { inserted = true; }, close: () => new Promise<void>((resolve, reject) => { server.closeAllConnections(); server.close(error => error ? reject(error) : resolve()); }) };
 }

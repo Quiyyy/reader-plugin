@@ -1,0 +1,10 @@
+{
+  "bookSourceName": "Reader 原创公开示例",
+  "bookSourceUrl": "https://raw.githubusercontent.com/Quiyyy/reader-plugin/refs/heads/main/examples/online/demo/",
+  "bookSourceType": 0,
+  "searchUrl": "search-{{page}}.html?key={{key}}",
+  "ruleSearch": { "bookList": ".book", "name": "a@text", "author": ".author@text", "bookUrl": "a@href" },
+  "ruleBookInfo": { "name": "h1@text", "author": ".author@text", "intro": ".intro@text", "tocUrl": "a.toc@href" },
+  "ruleToc": { "chapterList": ".chapters a", "chapterName": "@text", "chapterUrl": "@href", "nextTocUrl": "a.next@href" },
+  "ruleContent": { "content": "#content@text", "nextContentUrl": "a.next@href" }
+}

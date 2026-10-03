@@ -78,6 +78,8 @@ URL 导入是一次性操作，不订阅、不定时更新。变更需要再次�
 
 ## 验证与参考
 
+可直接试用的原创公开样例及文件/URL 导入步骤见 [examples/online/README.md](../examples/online/README.md)。浏览器测试覆盖单源/数组的两个导入入口、目录和正文分页、真实子进程重启与断网缓存。测试控制端口只由 `scripts/start-test-server.mjs` 创建，不进入正式服务器或发布包。
+
 `tests/online.test.ts` 覆盖规则与导入、私网/IPv6/DNS pinning/重绑定/重定向/字节与并发限制/压缩拒绝/取消、两页目录正文、JSONPath、失败保留缓存、重启与稳定定位；`tests/online-rule-budgets.test.ts` 用 128 MiB heap 独立子进程验证 55005 字节、5000 层嵌套攻击不会导致 OOM，以及重叠祖先去重、同步预算、解析前拒绝和同进程后续读取；服务测试验证恶意页面失败后原服务仍可搜索。`tests/e2e/online.spec.ts` 在窄屏与桌面跑导入到阅读及离线续读，检查状态与纯文本渲染。测试使用 `tests/online/fixture.ts` 的原创文本 HTTP 服务。网络例外只由测试构造器注入，测试代码打包到 `dist/test-host`，不进入发布的服务器或 UI。
 
 格式行为参考入口：[Legado 文档](https://gedoor.github.io/docs/GettingStarted)、[历史公开源码入口](https://github.com/galaxypluto/legado-book)。参考不构成完整兼容承诺；原 `gedoor/legado` 默认分支现状与第三方规则包许可争议不作为引入依赖的依据。
