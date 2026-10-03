@@ -71910,10 +71910,10 @@ var OpenAIFileEntrypointInputSchema = external_exports2.object({
 });
 
 // src/server/mcp.ts
-var UI_URI = "ui://reader/v0.1.5/bookshelf.html";
+var UI_URI = "ui://reader/v0.1.6/bookshelf.html";
 var names = { reader_list: "\u8BFB\u53D6\u4E66\u67B6", reader_get: "\u6253\u5F00\u4E66\u7C4D", reader_import_begin: "\u5F00\u59CB\u5BFC\u5165\u4E66\u7C4D", reader_import_chunk: "\u4F20\u8F93\u4E66\u7C4D\u5206\u5757", reader_import_finish: "\u5B8C\u6210\u4E66\u7C4D\u5BFC\u5165", reader_import_cancel: "\u53D6\u6D88\u4E66\u7C4D\u5BFC\u5165", reader_progress: "\u4FDD\u5B58\u9605\u8BFB\u8FDB\u5EA6", reader_settings: "\u4FDD\u5B58\u9605\u8BFB\u8BBE\u7F6E", reader_bookmark_add: "\u6DFB\u52A0\u4E66\u7B7E", reader_bookmark_remove: "\u79FB\u9664\u4E66\u7B7E" };
 function createMcpServer(service2, htmlPath) {
-  const server = new McpServer({ name: "reader-plugin", version: "0.1.5" });
+  const server = new McpServer({ name: "reader-plugin", version: "0.1.6" });
   new OpenAIExtensions(server);
   const meta5 = { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] }, prefersBorder: false }, "openai/ui": { preferredDisplayMode: "fullscreen", availableDisplayModes: ["inline", "fullscreen"] } };
   N3(server, "Reader", UI_URI, { _meta: meta5 }, async () => ({ contents: [{ uri: UI_URI, mimeType: p, text: await readFile3(htmlPath, "utf8"), _meta: meta5 }] }));
@@ -74113,7 +74113,7 @@ function createReaderHttpServer(service2, htmlPath) {
         return;
       }
       if (request.method === "GET" && pathname === "/health") {
-        json4(response, 200, { status: "ok", mode: "loopback-preview", version: "0.1.5" });
+        json4(response, 200, { status: "ok", mode: "loopback-preview", version: "0.1.6" });
         return;
       }
       if (request.method === "POST" && (pathname === "/api/tool" || pathname === "/mcp")) {
