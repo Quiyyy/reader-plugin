@@ -71,7 +71,27 @@ for (const width of [320, 390, 1280]) {
     await result.click();
     await expect(page.getByRole('button', { name: '返回搜索结果' })).toBeFocused();
     await page.screenshot({ path: `artifacts/redesign-detail-${width}.png` });
+    // Cold Windows filesystem writes can outlive the default 5 s DOM assertion.
+    // Keep the actual tool result visible to the test, rather than treating a
+    // still-running add as a missing chapter. The narrow case also holds a real
+    // successful response beyond that old boundary to exercise the loading UI.
+    if (width === 320) await page.route('**/api/tool', async route => {
+      if (route.request().postDataJSON()?.name !== 'reader_online_add') return route.continue();
+      const response = await route.fetch();
+      await new Promise(resolve => setTimeout(resolve, 5500));
+      await route.fulfill({ response });
+    });
+    const opened = page.waitForResponse(response => response.url().endsWith('/api/tool') && response.request().postDataJSON()?.name === 'reader_online_add', { timeout: 15000 });
     await page.getByRole('button', { name: '开始阅读' }).click();
+    if (width === 320) {
+      const loading = page.locator('.online-progress');
+      await expect(loading).toContainText('正在打开目录和首章');
+      await expect(page.getByRole('button', { name: '开始阅读' })).toBeDisabled();
+      await expect(loading.getByRole('button', { name: '取消', exact: true })).toBeVisible();
+    }
+    const openedResponse = await opened;
+    expect(openedResponse.ok()).toBe(true);
+    expect((await openedResponse.json()).isError).not.toBe(true);
     await expect(page.getByRole('heading', { name: '第一章 河岸', exact: true })).toBeVisible();
     await page.getByRole('button', { name: '返回找书', exact: true }).click();
     await expect(page.getByRole('region', { name: '在线书籍详情' })).toBeVisible();

@@ -50,6 +50,19 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const url = `http://127.0.0.1:${server.address().port}/host`;
 const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+const screenshot = async path => {
+  // Opaque-origin iframe compositing can lag behind its DOM assertions in Edge.
+  // Wait for frame painting and reject a blank capture instead of retaining it
+  // as evidence. The populated acceptance screens are all well above 8 KiB.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const appFrame = page.frames().find(frame => frame !== page.mainFrame());
+    assert.ok(appFrame);
+    await appFrame.evaluate(async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
+    const bytes = await page.locator('#reader').screenshot({ path, animations: 'disabled' });
+    if (bytes.length > 8192) return;
+  }
+  throw new Error(`Blank or unexpectedly small screenshot: ${path}`);
+};
 const errors = []; page.on('pageerror', error => errors.push(error.message));
 const externalCatalogs = [], live = { requested: process.argv.includes('--live-standardebooks'), passed: false };
 const hash = text => createHash('sha256').update(text).digest('hex');
@@ -64,7 +77,7 @@ try {
   await frame.getByLabel('选择书源 JSON').setInputFiles({ name: 'installed.reader-catalog.json', mimeType: 'application/json', buffer: Buffer.from(packageJson) });
   await frame.getByRole('button', { name: '确认导入', exact: true }).click(); await frame.getByRole('button', { name: '查看书源', exact: true }).click();
   assert.equal(await frame.getByRole('switch').first().getAttribute('aria-checked'), 'false');
-  await page.screenshot({ path: join(runRoot, 'installed-catalog-390.png'), fullPage: true });
+  await screenshot(join(runRoot, 'installed-catalog-390.png'));
   // Optional independent project packages: exercise the exact file-import UI,
   // receipt persistence and disabled defaults without asserting live readability.
   for (const filename of process.argv.slice(3).filter(name => !name.startsWith('--'))) {
@@ -73,7 +86,7 @@ try {
     await frame.getByLabel('选择书源 JSON').setInputFiles({ name: 'independent.reader-catalog.json', mimeType: 'application/json', buffer: bytes });
     const preview = frame.getByRole('region', { name: '导入预览' }); await preview.waitFor();
     assert.ok((await preview.textContent()).includes(catalog.catalogId));
-    await page.screenshot({ path: join(runRoot, `installed-independent-${catalog.channel}-preview-390.png`), fullPage: true });
+    await screenshot(join(runRoot, `installed-independent-${catalog.channel}-preview-390.png`));
     const confirm = frame.getByRole('button', { name: '确认导入', exact: true });
     if (!catalog.sources.length) assert.equal(await confirm.isDisabled(), true);
     else {
@@ -85,7 +98,7 @@ try {
       await confirm.click(); await frame.getByRole('button', { name: '查看书源', exact: true }).click();
     }
     externalCatalogs.push({ filename, packageSha256: hash(bytes), manifestSha256: envelope.manifestSha256, channel: catalog.channel, sources: catalog.sources.map(source => ({ id: source.id, version: source.version, sha256: source.sha256 })), sourceCount: catalog.sources.length, uiPreview: true, committed: !!catalog.sources.length, readabilityVerified: false });
-    await page.screenshot({ path: join(runRoot, `installed-independent-${catalog.channel}-390.png`), fullPage: true });
+    await screenshot(join(runRoot, `installed-independent-${catalog.channel}-390.png`));
     if (!catalog.sources.length) await frame.getByRole('button', { name: '关闭导入', exact: true }).click();
   }
   await frame.getByRole('button', { name: '书架', exact: true }).click();
@@ -103,7 +116,7 @@ try {
   await page.reload(); await frame.getByRole('button', { name: '回收站', exact: true }).click(); await frame.getByRole('button', { name: '恢复', exact: true }).click(); await frame.getByRole('button', { name: '关闭回收站' }).click();
   await frame.getByRole('button', { name: /^打开 安装包回收测试，/ }).click(); await frame.getByRole('heading', { name: '第二章 恢复', exact: true }).waitFor();
   await frame.getByRole('button', { name: '我的书签', exact: true }).click(); assert.equal(await frame.locator('.bookmark-list li').count(), 1);
-  await page.screenshot({ path: join(runRoot, 'installed-restored-390.png'), fullPage: true });
+  await screenshot(join(runRoot, 'installed-restored-390.png'));
   const saved = JSON.parse(await fs.readFile(join(installed.dataDir, 'online-v1', 'sources.json'), 'utf8'));
   assert.equal(saved.catalogReceipts.length, 1 + externalCatalogs.filter(item => item.committed).length); assert.ok(saved.sources.every(source => !source.report.enabled)); assert.deepEqual(errors, []);
   if (live.requested) {
@@ -125,7 +138,7 @@ try {
     await frame.getByRole('heading', { name: secondTitle, exact: true }).waitFor({ timeout: 45000 }); await expect(frame.locator('[data-reader-paragraph="1"]')).toBeVisible();
     await frame.locator('[data-reader-paragraph="1"]').evaluate(element => element.scrollIntoView({ block: 'start' }));
     await expect(frame.locator('.save-indicator')).toContainText('已保存'); await frame.getByRole('button', { name: '收藏当前段落（B）' }).click();
-    await page.screenshot({ path: join(runRoot, 'installed-standardebooks-reading-390.png'), fullPage: true });
+    await screenshot(join(runRoot, 'installed-standardebooks-reading-390.png'));
     await frame.getByRole('button', { name: '返回找书', exact: true }).click(); await frame.getByRole('button', { name: '书架', exact: true }).click();
     const summary = (await nativeCall('reader_list')).books.find(book => book.format === 'online'); const before = await nativeCall('reader_get', { id: summary.id });
     assert.equal(before.document.chapters.length, 20); assert.equal(before.summary.locator.chapter, 6); assert.ok(before.summary.progress > 0); assert.equal(before.bookmarks.length, 1);
@@ -133,7 +146,7 @@ try {
     const oldPid = transport.pid; await client.close(); assert.throws(() => process.kill(oldPid, 0), { code: 'ESRCH' }); await connect(); assert.notEqual(transport.pid, oldPid);
     await page.reload(); await frame.getByRole('button', { name: /^打开 Alice/ }).click(); await frame.getByRole('button', { name: '我的书签', exact: true }).click(); await expect(frame.locator('.bookmark-list li')).toHaveCount(1);
     const after = await nativeCall('reader_get', { id: summary.id }); assert.deepEqual(after.summary.locator, before.summary.locator); assert.deepEqual(after.bookmarks, before.bookmarks); assert.equal(hash(JSON.stringify(after.document.chapters[6].paragraphs)), live.before.chapterTwoHash);
-    await page.screenshot({ path: join(runRoot, 'installed-standardebooks-restart-390.png'), fullPage: true });
+    await screenshot(join(runRoot, 'installed-standardebooks-restart-390.png'));
     live.sourceReport = (await nativeCall('reader_online_sources')).find(source => source.name.startsWith('Standard Ebooks CC0')); live.passed = true; live.finishedAt = new Date().toISOString();
   }
   const artifacts = await Promise.all((await fs.readdir(runRoot)).filter(name => name.endsWith('.png')).map(async name => ({ path: join(runRoot, name), sha256: hash(await fs.readFile(join(runRoot, name))) })));
