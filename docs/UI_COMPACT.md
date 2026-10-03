@@ -4,13 +4,17 @@
 
 ChatGPT 顶部应用标题及插件内容上方的独立入口标题由宿主绘制，不属于 Reader HTML。公开 [MCP Extensions 规范](https://github.com/openai/mcp-extensions/blob/main/docs/spec.md#titles) 要求入口呈现标题和图标，标题会依次回退到工具 title、annotations.title 或 name；当前 SDK 没有隐藏该宿主栏的公开字段。`ui.prefersBorder: false` 已存在，它是边框提示，并非标题开关。本次不清空入口名称、不修改宿主二进制或越过 iframe 边界。插件内容截图不能证明宿主标题已消失。
 
+## 0.1.6 找书改版与升级
+
+0.1.6 保留本节的紧凑标题和正文工具栏，增加书架 / 找书导航，独立管理书源。导入摘要、错误恢复和返回状态见 [设计说明](DISCOVERY_DESIGN.md)。UI 资源更新为 `ui://reader/v0.1.6/bookshelf.html`，避免沿用 0.1.5 资源缓存。
+
 ## 已有 Node 安装的升级
 
 Mac 自包含包继续在正常目录中保持 `NOT_AVAILABLE`。已有 0.1.3 的本地 Node 安装使用同一路径升级，无需启用自包含 Mac 包：
 
 1. 等待当前阅读位置显示已保存，备份完整书库和 Reader 当前 marketplace/wrapper 配置。
-2. 核验与最终通过 CI 的提交对应的 `reader-0.1.5-runtime.zip` 及配套 SHA-256，解压到新的目录。
-3. 使用原 wrapper 的同一个 Node 可执行文件运行新包的 `setup.mjs --install-dir "原程序目录" --data-dir "原书库绝对路径"`。setup 将新版本写入 `versions/0.1.5`，保留旧版本，并原子切换本地目录；不会写书库。
+2. 核验与最终通过 CI 的提交对应的 `reader-0.1.6-runtime.zip` 及配套 SHA-256，解压到新的目录。
+3. 使用原 wrapper 的同一个 Node 可执行文件运行新包的 `setup.mjs --install-dir "原程序目录" --data-dir "原书库绝对路径"`。setup 将新版本写入 `versions/0.1.6`，保留旧版本，并原子切换本地目录；不会写书库。
 4. 通过官方 CLI 或客户端刷新 `reader-plugin@reader-local`。重新打开 Reader 才会使用新的服务和 UI；不强制终止有待保存进度的旧进程。
 
 若需回退，用新包的 setup 指向同一程序目录并显式 `--rollback 0.1.3`，随后通过官方插件管理刷新。仅回退程序，不以旧书库快照覆盖继续阅读后的数据。版本、源提交与文件清单都保留在运行包的 `package-manifest.json` 中。

@@ -33,6 +33,6 @@ Official references: [UI resource cache keys and CSP](https://developers.openai.
 
 Windows-native setup and cross-platform automated tests do not repair this host issue. Tracking: [openai/codex#50152](https://github.com/openai/codex/issues/50152). No host patch, private RPC, remote probe, tunnel or security-policy change is part of 0.1.2. The resource cache key is now `ui://reader/v0.1.2/bookshelf.html`. Earlier 0.1.1 observations above remain historical evidence; Windows global/thread/file desktop acceptance is pending.
 
-## 0.1.5 validation boundary
+## 0.1.6 validation boundary
 
-The current resource is `ui://reader/v0.1.5/bookshelf.html`. Online-source HTTP access is confined to the local server's safe public-network client; it does not add browser CSP origins or change host routing. Browser preview, AppBridge harness, official app-server discovery and installed-package tests each cover their stated surface. They do not prove native ChatGPT global/thread/file panels work, or that #50152 is fixed. The remote-probe observation above is diagnostic context, not a remote service or tunnel shipped by Reader 0.1.5.
+The current resource is `ui://reader/v0.1.6/bookshelf.html`. Online-source HTTP access is confined to the local server's safe public-network client; it does not add browser CSP origins or change host routing. Browser preview, AppBridge harness, official app-server discovery and installed-package tests each cover their stated surface. They do not prove native ChatGPT global/thread/file panels work, or that #50152 is fixed. The remote-probe observation above is diagnostic context, not a remote service or tunnel shipped by Reader 0.1.6.
