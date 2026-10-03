@@ -106,10 +106,13 @@ describe('bounded, resumable long directories and chapters', () => {
   });
 
   it('retains script variables and page number across batches without relaxing the isolated runtime', async () => {
-    const f = await setup({ pages: 18, rows: 80, script: true });
+    // This case needs three batches, not a second large-row stress workload.
+    // The separate 600-row case retains per-row script/worker recycling coverage.
+    const f = await setup({ pages: 18, rows: 8, script: true });
+    await expect(f.online.add(f.detail, signal())).rejects.toMatchObject({ incomplete: { pages: 8, items: 64, paused: true } });
     const book = await complete(() => f.online.add(f.detail, signal()));
-    expect(book.document.chapters).toHaveLength(1440);
-    expect(book.document.chapters[800].title).toBe('Original chapter 800 / 11');
+    expect(book.document.chapters).toHaveLength(144);
+    expect(book.document.chapters[80].title).toBe('Original chapter 80 / 11');
     const vars = JSON.parse(await readFile(join(f.dir, 'online-v1', `variables-${f.detail.sourceId}-${f.detail.revision}.json`), 'utf8'));
     expect(vars['book:https://reader.example.com/book'].counter).toBe('18');
   }, 30_000);
