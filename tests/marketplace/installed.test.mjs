@@ -227,6 +227,15 @@ test('official install preserves executable permissions and runs with no Node/np
   const info = JSON.parse((await run(config.command, ['--runtime-info'], { cwd, env: { ...config.env, PATH: '' }, timeout: 30000 })).stdout);
   assert.equal(info.nodeVersion, '24.21.0'); assert.equal(info.version, payload.version);
   assert.equal(hash(await fs.readFile(info.node)), payload.nodeSha256);
+  const worker = join(config.cwd, 'app/dist/server/script-worker.js');
+  const isolated = JSON.parse((await run(info.node, [join(root, 'scripts/verify-isolated-package.mjs'), worker], { cwd, env: { ...config.env, PATH: '', NODE_PATH: '', NODE_OPTIONS: '' }, timeout: 20000 })).stdout);
+  assert.equal(isolated.packagedWorker, 'passed');
+  const engineAsset = Object.keys(payload.files).find(name => name.endsWith('.wasm'));
+  assert.ok(engineAsset, 'WASM assets must be included in the launcher integrity manifest.');
+  const enginePath = join(config.cwd, engineAsset), engineBytes = await fs.readFile(enginePath);
+  await fs.appendFile(enginePath, 'corrupted');
+  try { await assert.rejects(run(config.command, ['--runtime-info'], { cwd, env: { ...config.env, PATH: '' }, timeout: 30000 }), /checksum mismatch/); }
+  finally { await fs.writeFile(enginePath, engineBytes); }
   const changed = { ...settings, theme: 'dark', fontSize: 25 };
   const client = await open(config);
   try {
@@ -253,7 +262,7 @@ test('official install preserves executable permissions and runs with no Node/np
     assert.equal(await fs.readFile(info.node, 'utf8'), 'unknown modified runtime');
   } finally { await fs.writeFile(info.node, original); }
   const evidence = { target, version: payload.version, source: payload.source, transport: remote ? 'github-marketplace' : 'local-marketplace', officialCli: (await run(cli, ['--version'], { env, cwd })).stdout.trim(), firstLaunchMs, upgradedVerificationMs, publicAppServer: host,
-    libraryBooks: 2, originalBytesPreserved: true, upgradeRollbackRestart: 'passed', dataIndependentOfPluginCache: true, noNodePath: true, executablePermissionPreserved: true };
+    libraryBooks: 2, originalBytesPreserved: true, upgradeRollbackRestart: 'passed', dataIndependentOfPluginCache: true, noNodePath: true, executablePermissionPreserved: true, isolatedWorker: isolated, engineIntegrityTamperRejected: true };
   await fs.mkdir(join(root, 'artifacts/marketplace-evidence'), { recursive: true });
   await fs.writeFile(join(root, 'artifacts/marketplace-evidence', `${target}${remote ? '-github' : '-local'}.json`), JSON.stringify(evidence, null, 2));
 });

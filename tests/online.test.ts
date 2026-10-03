@@ -38,13 +38,13 @@ describe('complete no-script grammar and source diagnostics', () => {
     expect(extract(compileRule('#body@text'), documentContext('<div id="body">Safe<script>SECRET</script><img onerror="evil()"></div>'))).toEqual(['Safe']);
     expect(template('/s?q={{key}}&p={{page}}', '中文 /&', 2)).toBe('/s?q=%E4%B8%AD%E6%96%87%20%2F%26&p=2');
   });
-  it.each(['$.x[?(@.secret)]', '$..name', '$.constructor', '$[0:2]', '@js:java.readFile("secret")', 'a@text||b@text', 'a:nth-child(2)@text', '{{java.get()}}', 'a@text@js:evil'])('rejects all of an unsupported rule: %s', rule => { expect(() => compileRule(rule)).toThrow(); });
+  it.each(['$.x[?(@.secret)]', '$..name', '$.constructor', '$[0:2]', '@js:java.readFile("secret")', 'a:nth-child(2)@text', '{{java.get()}}', 'a@text@js:evil'])('rejects all of an unsupported rule: %s', rule => { expect(() => compileRule(rule)).toThrow(); });
   it('imports single/array JSON; separates syntax from untested network; reports every stage and unknown field', () => {
     const [source] = importSources(JSON.stringify(fixtureSource));
     expect(source.report.syntax).toBe('supported');
     expect(Object.values(source.report.stages).every(s => s.network === 'untested')).toBe(true);
     expect(source.report.enabled).toBe(false);
-    const partial = importSources(JSON.stringify({ ...fixtureSource, ruleContent: { content: '@js:evil()' } }))[0];
+    const partial = importSources(JSON.stringify({ ...fixtureSource, ruleContent: { content: '@js:eval("evil()")' } }))[0];
     expect(partial.report.syntax).toBe('partial'); expect(partial.report.stages.content.syntax).toBe('blocked');
     expect(partial.report.stages.content.diagnostics[0].field).toBe('ruleContent.content');
     const blocked = importSources(JSON.stringify({ ...fixtureSource, loginUrl: '/login', header: '{"Cookie":"secret"}' }))[0];
@@ -53,7 +53,7 @@ describe('complete no-script grammar and source diagnostics', () => {
     expect(() => importSources('{"__proto__": {"polluted":true}}')).toThrow('原型');
     expect(() => importSources(JSON.stringify([fixtureSource, fixtureSource]))).toThrow('重复');
     expect(() => importSources(' '.repeat(512 * 1024 + 1))).toThrow('512');
-    expect(importSources(JSON.stringify({ ...fixtureSource, searchUrl: '/search, {"charset":"gbk"}' }))[0].report.stages.search.syntax).toBe('blocked');
+    expect(importSources(JSON.stringify({ ...fixtureSource, searchUrl: '/search, {"charset":"unsupported"}' }))[0].report.stages.search.syntax).toBe('blocked');
   });
 });
 
@@ -195,7 +195,7 @@ describe('online source service and durable lazy reading', () => {
     const reports = await online.listSources(); expect(Object.values(reports[0].stages).every(s => s.network === 'passed')).toBe(true);
   }, 20000); // Includes a real fresh Node + tsx process on shared CI runners.
   it('reports failing field without claiming later stages passed, and never runs blocked content', async () => {
-    const { online } = await setup(); const sourceId = await enable(online, { ...fixtureSource, ruleSearch: { ...fixtureSource.ruleSearch, name: '.missing@text' }, ruleContent: { content: '@js:evil' } });
+    const { online } = await setup(); const sourceId = await enable(online, { ...fixtureSource, ruleSearch: { ...fixtureSource.ruleSearch, name: '.missing@text' }, ruleContent: { content: '@js:eval("evil")' } });
     await expect(online.search(sourceId, 'q', 1, signal())).rejects.toThrow('ruleSearch.name');
     const report = (await online.listSources())[0]; expect(report.stages.search.network).toBe('failed'); expect(report.stages.detail.network).toBe('untested'); expect(report.stages.content.syntax).toBe('blocked');
   });

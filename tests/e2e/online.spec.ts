@@ -107,7 +107,7 @@ test('blocked script source displays exact field diagnosis and cannot be enabled
   const dialog = page.getByRole('main', { name: '找书与书源', exact: true });
   await dialog.getByRole('button', { name: '管理书源' }).click();
   await dialog.getByRole('button', { name: '导入书源', exact: true }).click();
-  await dialog.getByLabel('选择书源 JSON').setInputFiles({ name: 'blocked.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...fixtureSource, bookSourceName: '<img onerror=alert(1)>', bookSourceUrl: 'https://reader.example.com/blocked', loginUrl: '/login', ruleContent: { content: '@js:evil()' } })) });
+  await dialog.getByLabel('选择书源 JSON').setInputFiles({ name: 'blocked.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...fixtureSource, bookSourceName: '<img onerror=alert(1)>', bookSourceUrl: 'https://reader.example.com/blocked', loginUrl: '/login', header: '{"Authorization":"fixture-not-a-credential"}', ruleContent: { content: '@js:eval("evil()")' } })) });
   const preview = dialog.getByRole('region', { name: '导入预览' }); await preview.locator('.source-status > summary').click();
   await expect(preview).toContainText('ruleContent.content'); await expect(preview).toContainText('loginUrl');
   await expect(preview.locator('img')).toHaveCount(0);

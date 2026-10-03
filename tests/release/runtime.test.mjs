@@ -125,6 +125,11 @@ test('Node compatibility matches the documented supported major versions', () =>
   for (const number of ['18.20.0', '20.19.0', '22.11.0', '23.0.0', '25.8.0']) assert.equal(supportedNode(number), false);
 });
 
+test('extracted package executes its isolated WASM worker without PATH, npm or a TS loader', { timeout: 30000 }, async () => {
+  const output = await run(process.execPath, [join(repo, 'scripts/verify-isolated-package.mjs'), join(unpacked, 'runtime/dist/server/online/script-worker.js')], { cwd: base, env: runtimeEnvironment, timeout: 20000 });
+  assert.equal(JSON.parse(output.stdout).packagedWorker, 'passed');
+});
+
 test('clean extracted runtime installs with no npm/PATH, survives removal of the download, and repeat setup preserves data', { timeout: 300000 }, async () => {
   const install = join(base, '程序 安装'), data = join(base, '书库 数据');
   const args = ['--install-dir', install, '--data-dir', data];

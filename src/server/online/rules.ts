@@ -7,8 +7,8 @@ export class RuleError extends Error {
 }
 type Context = any;
 type Compound = { tag?: string; text?: { value: string; exact: boolean }; attributes: { name: string; value?: string; word?: boolean; suffix?: boolean; negate?: boolean }[] };
-type Step = { selector: string; index?: number; exclude?: boolean; children?: boolean; compounds: Compound[]; relations: (' ' | '>')[] };
-export type Rule = ({ kind: 'css'; steps: Step[]; output?: string } | { kind: 'json'; path: (string | number | '*')[] }) & { replacement?: Replacement };
+type Step = { selector: string; index?: number; exclude?: boolean; children?: boolean; range?: [number, number]; compounds: Compound[]; relations: (' ' | '>')[] };
+export type Rule = ({ kind: 'combined'; mode: 'or' | 'and'; rules: Rule[] } | { kind: 'css'; steps: Step[]; output?: string } | { kind: 'json'; path: (string | number | '*')[] }) & { replacement?: Replacement };
 const deny = (message: string): never => { throw new RuleError('blocked', message); };
 const invalid = (message: string): never => { throw new RuleError('invalid', message); };
 const forbiddenKeys = new Set(['__proto__', 'prototype', 'constructor']);
@@ -30,7 +30,7 @@ function budgetFor(context: Context): Budget {
   if (!budget) { budget = new Budget(); budgets.set(owner, budget); }
   return budget;
 }
-const outputs = new Set(['text', 'ownText', 'textNodes', 'html', 'href', 'src', 'content', 'title', 'value', 'alt']);
+const outputs = new Set(['text', 'ownText', 'textNodes', 'html', 'href', 'src', 'content', 'title', 'value', 'alt', 'onclick', 'data-bid', 'data-src']);
 function cssStep(selector: string, index?: number, exclude = false): Step {
   const compounds: Compound[] = [], relations: (' ' | '>')[] = [];
   let rest = selector.trim();
@@ -81,7 +81,19 @@ function xpath(rule: string, list: boolean): Rule {
 export function compileRule(input: string, list = false): Rule {
   if (!input.trim() || input.length > 2048) return invalid('规则为空或超过 2048 字符');
   let rule = input.trim();
-  if (/@js:|<\/?js>|javascript:|\{\{|&&|\|\||@(?:get|put|json):/i.test(rule)) return deny('此字段需要脚本、模板表达式、组合或变量规则，暂不支持');
+  if (/@js:|<\/?js>|javascript:|\{\{|@(?:get|put|json):/i.test(rule)) return deny('此字段需要脚本、模板表达式、组合或变量规则，暂不支持');
+  for (const [token, mode] of [['||', 'or'], ['&&', 'and']] as const) {
+    if (rule.includes(token)) {
+      const parts = rule.split(token);
+      if (parts.length > 10) return deny('组合规则超过 10 项');
+      return { kind: 'combined', mode, rules: parts.map(part => compileRule(part, list)) };
+    }
+  }
+  if (/^@?css:/.test(rule) && rule.includes(',')) {
+    const at = rule.lastIndexOf('@'), selector = rule.slice(0, list ? undefined : at).replace(/^@?css:/, '');
+    if (selector.split(',').length > 10) return deny('CSS 组合超过 10 项');
+    return { kind: 'combined', mode: 'and', rules: selector.split(',').map(part => compileRule(part + (list ? '' : rule.slice(at)), list)) };
+  }
   let replacement: Replacement | undefined;
   const split = rule.indexOf('##');
   if (split >= 0) {
@@ -115,6 +127,12 @@ export function compileRule(input: string, list = false): Rule {
   const rootText = !list && parts.length === 1 && parts[0] === '';
   if (!rootText && parts.some(part => !part)) return invalid('选择器链含空步骤');
   const steps: Step[] = (rootText ? [] : parts).map(part => {
+    const range = part.match(/^(.*)\[(-?\d{1,5}):(-?\d{1,5})\]$/);
+    if (range) {
+      const inner = compileRule(range[1], true);
+      if (inner.kind !== 'css' || inner.steps.length !== 1) return deny('切片只支持单选择器');
+      return { ...inner.steps[0], range: [Number(range[2]), Number(range[3])] as [number, number] };
+    }
     const classic = part.match(/^(class|tag|id)\.([A-Za-z_][\w-]*)(?:\.(!?)(-?\d{1,5}))?$/);
     if (classic) return cssStep(`${classic[1] === 'class' ? '.' : classic[1] === 'id' ? '#' : ''}${classic[2]}`, classic[4] === undefined ? undefined : Number(classic[4]), !!classic[3]);
     const children = part.match(/^children(?:\[(-?\d{1,5})\])?$/);
@@ -253,6 +271,16 @@ function plain(node: Context, budget: Budget, own = false, textNodes = false): s
   return chunks.join('').replace(/\r/g, '').trim();
 }
 export function select(rule: Rule, context: Context, options: { strictJson?: boolean } = {}): Context[] {
+  if (rule.kind === 'combined') {
+    const values = [];
+    for (const item of rule.rules) {
+      const selected = select(item, context, options);
+      values.push(...selected);
+      if (values.length > RULE_LIMITS.results) throw Error('组合结果超限');
+      if (rule.mode === 'or' && selected.length) break;
+    }
+    return [...new Set(values)];
+  }
   const budget = budgetFor(context);
   let nodes: Context[] = [context];
   if (rule.kind === 'json') {
@@ -289,7 +317,11 @@ export function select(rule: Rule, context: Context, options: { strictJson?: boo
         if (indexed && !step.exclude && step.index! >= 0 && candidates.length > step.index!) break;
       }
       const index = indexed ? (step.index! < 0 ? candidates.length + step.index! : step.index!) : undefined;
-      for (let i = 0; i < candidates.length; i++) {
+      const rangeStart = step.range ? (step.range[0] < 0 ? candidates.length + step.range[0] : step.range[0]) : 0;
+      const rangeEnd = step.range ? (step.range[1] < 0 ? candidates.length + step.range[1] : step.range[1]) : candidates.length - 1;
+      const order = step.range && rangeStart > rangeEnd ? [...candidates.keys()].reverse() : [...candidates.keys()];
+      for (const i of order) {
+        if (step.range && (i < Math.min(rangeStart, rangeEnd) || i > Math.max(rangeStart, rangeEnd))) continue;
         budget.spend();
         if (index !== undefined && (step.exclude ? i === index : i !== index)) continue;
         const node = candidates[i];
@@ -301,6 +333,11 @@ export function select(rule: Rule, context: Context, options: { strictJson?: boo
   return nodes;
 }
 export function extract(rule: Rule, context: Context): string[] {
+  if (rule.kind === 'combined') {
+    const values: string[] = [];
+    for (const item of rule.rules) { const selected = extract(item, context); values.push(...selected); if (rule.mode === 'or' && selected.length) break; }
+    return values;
+  }
   const budget = budgetFor(context), values: string[] = [];
   for (const node of select(rule, context)) {
     let text: string;

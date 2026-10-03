@@ -5,10 +5,14 @@ import { z } from 'zod';
 import type { BookDetail, BookSummary, Bookmark, Locator } from '../../shared/types.js';
 import type { OnlineDetail, OnlineResult, SourcePreview, SourceReport, Stage } from '../../shared/online.js';
 import { atomicWrite, ReaderStore } from '../store.js';
-import { hash, importSources, inspectSource, SOURCE_LIMITS, stageKeys, type Source } from './import.js';
-import { SafeHttpClient, sameOriginUrl } from './http.js';
-import { searchRequest } from './request.js';
-import { compileRule, documentContext, extract, select, cleanContent } from './rules.js';
+import { hash, importSources, inspectSource, SOURCE_LIMITS, stageKeys, sourceOrigins, type Source } from './import.js';
+import { SafeHttpClient, allowedUrl } from './http.js';
+import { searchRequest, staticHeaders } from './request.js';
+import { documentContext } from './rules.js';
+import { RuleEvaluator } from './evaluate.js';
+import { ScriptSession, type ScriptGlobals } from './script.js';
+import { parseRate } from './rate.js';
+import { SCRIPT_LIMITS } from './script-syntax.js';
 
 const idSchema = z.string().regex(/^[a-f0-9]{64}$/);
 const chapterSchema = z.object({ id: idSchema, title: z.string().max(500), url: z.string().max(4096) });
@@ -98,7 +102,7 @@ export class OnlineSourceService {
     if (generation && source.generation !== generation) throw new Error('书源启停状态已改变，已丢弃过期响应');
     return source;
   }
-  private async tracked<T>(source: Source, stage: Stage, signal: AbortSignal, work: () => Promise<T>): Promise<T> {
+  private async tracked<T>(source: Source, stage: Stage, signal: AbortSignal, work: (rules: RuleEvaluator, fetchPage: (input: string) => Promise<{ text: string; url: string }>) => Promise<T>, globals?: Partial<ScriptGlobals>): Promise<T> {
     const report = source.report.stages[stage];
     if (!['supported', 'partial'].includes(report.syntax)) throw new Error(`${stageKeys[stage]}：该阶段语法 ${report.syntax}，请查看字段诊断`);
     const update = async (error?: string) => this.store.locked('online-sources', async () => {
@@ -108,87 +112,144 @@ export class OnlineSourceService {
         await this.writeSources(sources);
       } else if (!error) throw new Error('书源状态已变化，已丢弃过期响应');
     });
-    try { signal.throwIfAborted(); const result = await work(); signal.throwIfAborted(); await this.source(source.report.id, source.report.revision, source.generation); await update(); return result; }
-    catch (error) { if (!signal.aborted) await update(err(error)); throw error; }
+    return this.store.locked(`online-rule-${source.report.id}`, async () => {
+      const controller = new AbortController(), abort = () => controller.abort();
+      let requests = 0, bytes = 0;
+      const origin = new URL(source.report.url).origin, origins = sourceOrigins(source.raw, source.report.url);
+      const defaults = staticHeaders(source.raw.header), rate = parseRate(source.raw.concurrentRate);
+      const statePath = join(this.directory, `variables-${source.report.id}-${source.report.revision}.json`);
+      let saved: Record<string, Record<string, string>> = Object.create(null);
+      try { saved = JSON.parse(await fs.readFile(statePath, 'utf8')); } catch (error) { if (!missing(error)) throw new Error('书源变量存储损坏'); }
+      const scope = globals?.chapter?.url ? `chapter:${globals.chapter.url}` : globals?.book?.bookUrl ? `book:${globals.book.bookUrl}` : 'source';
+      const fetchPage = async (input: string) => {
+        controller.signal.throwIfAborted();
+        await this.source(source.report.id, source.report.revision, source.generation);
+        const request = searchRequest(input, rules.globals.key ?? '', rules.globals.page ?? 1);
+        const url = allowedUrl(request.url, rules.globals.baseUrl, origins);
+        const policy = { headers: { ...defaults, ...request.headers }, charset: request.charset, origins, rate, sourceKey: source.report.id,
+          beforeRequest: () => { if (++requests > SCRIPT_LIMITS.requests) throw new Error('单阶段请求超过 20 次（含脚本、重定向和连接重试）'); } };
+        const response = request.method === 'POST' ? await this.http.post(url, request.body!, controller.signal, origin, policy) : await this.http.get(url, controller.signal, origin, policy);
+        if (typeof source.raw.loginUrl === 'string' && /^https?:|^\//.test(source.raw.loginUrl)) {
+          try {
+            const login = new URL(source.raw.loginUrl, source.report.url), received = new URL(response.url);
+            if (login.pathname !== '/' && login.origin === received.origin && login.pathname === received.pathname) throw new Error('网站跳转至登录入口；需要授权登录，已停止');
+          } catch (error) { if ((error as Error).message.includes('登录入口')) throw error; }
+        }
+        bytes += Buffer.byteLength(response.text); if (bytes > SCRIPT_LIMITS.networkBytes) throw Error('单阶段响应合计超过 8 MiB');
+        if (/<title[^>]*>\s*(?:Just a moment|Attention Required|人机验证|用户登录|会员登录)/i.test(response.text) || /(?:cf-chl-|challenge-platform)/i.test(response.text)) throw Error('网站要求登录或人机验证；未绕过访问限制');
+        return response;
+      };
+      signal.addEventListener('abort', abort, { once: true }); if (signal.aborted) abort();
+      const timer = setTimeout(abort, SCRIPT_LIMITS.sessionMs);
+      const script = new ScriptSession(controller.signal, async input => (await fetchPage(input)).text);
+      script.variables = Object.assign(Object.create(null), saved.source, globals?.book?.bookUrl ? saved[`book:${globals.book.bookUrl}`] : {}, saved[scope]);
+      const rules = new RuleEvaluator(script, { baseUrl: source.report.url, book: { origin, ...globals?.book }, source: { bookSourceUrl: source.report.url }, ...globals });
+      // Internal snapshots, keyed by source revision and URL, cannot be supplied
+      // via UI results. Search fields can pass java.put data to that book only.
+      rules.saveScope = (scope: string) => { saved[scope] = { ...script.variables }; };
+      try {
+        signal.throwIfAborted(); const result = await work(rules, fetchPage); signal.throwIfAborted();
+        await this.source(source.report.id, source.report.revision, source.generation);
+        saved[scope] = { ...script.variables };
+        if (Object.keys(saved).length > 5000 || Buffer.byteLength(JSON.stringify(saved)) > 1024 * 1024) throw Error('书源持久变量超过 5000 作用域 / 1 MiB');
+        await atomicWrite(statePath, JSON.stringify(saved)); await update(); return result;
+      } catch (error) { if (!signal.aborted) await update(err(error)); throw error; }
+      finally { script.close(); controller.abort(); clearTimeout(timer); signal.removeEventListener('abort', abort); }
+    });
   }
   private rule(source: Source, stage: Stage, field: string) { return source.raw[stageKeys[stage]]?.[field] as string | undefined; }
-  private values(source: Source, stage: Stage, field: string, context: any, required = false): string[] {
+  private async values(rules: RuleEvaluator, source: Source, stage: Stage, field: string, context: any, required = false): Promise<string[]> {
     try {
       const text = this.rule(source, stage, field);
-      let values = text ? extract(compileRule(text), context) : [];
+      let values = text ? await rules.rule(text, context) : [];
       const replacement = field === 'content' && this.rule(source, stage, 'replaceRegex');
-      if (replacement) values = values.map(value => cleanContent(value, replacement, context)).filter(value => value.trim());
+      if (replacement) { const cleaned = []; for (const value of values) cleaned.push(await rules.clean(value, replacement, context)); values = cleaned.filter(value => value.trim()); }
       if ((required || text && !['nextTocUrl', 'nextContentUrl'].includes(field)) && !values.length) throw new Error('没有匹配到非空结果');
       return values;
     } catch (error) { throw new Error(`${stageKeys[stage]}.${field}：${err(error)}`); }
   }
-  private rows(source: Source, stage: Stage, field: string, context: any, allowEmpty = false): any[] {
-    try { const result = select(compileRule(this.rule(source, stage, field)!, true), context, { strictJson: true }); if (!allowEmpty && !result.length) throw new Error('没有匹配到列表'); return result; }
+  private async rows(rules: RuleEvaluator, source: Source, stage: Stage, field: string, context: any, allowEmpty = false): Promise<any[]> {
+    try { const result = await rules.rule(this.rule(source, stage, field)!, context, true); if (!allowEmpty && !result.length) throw new Error('没有匹配到列表'); return result; }
     catch (error) { throw new Error(`${stageKeys[stage]}.${field}：${err(error)}`); }
   }
   private url(source: Source, value: string, base: string, field: string): string {
     try {
       if (field === 'ruleToc.chapterUrl' && new URL(value, base).hash) throw new Error('首版不支持以 URL 片段区分章节，未合并这些章节');
-      return sameOriginUrl(value, base, new URL(source.report.url).origin);
+      return allowedUrl(value, base, sourceOrigins(source.raw, source.report.url));
     }
     catch (error) { throw new Error(`${field}：${err(error)}`); }
   }
   async search(sourceId: string, key: string, page: number, signal: AbortSignal): Promise<OnlineResult[]> {
     const source = await this.source(sourceId);
-    return this.tracked(source, 'search', signal, async () => {
-      if (page > 1 && !source.raw.searchUrl.includes('{{page}}')) throw new Error('searchUrl：该源未声明 {{page}}，不支持搜索翻页');
-      const request = searchRequest(source.raw.searchUrl, key, page);
-      const url = this.url(source, request.url, source.report.url, 'searchUrl');
-      const response = request.method === 'POST' ? await this.http.post(url, request.body!, signal, new URL(source.report.url).origin) : await this.http.get(url, signal, new URL(source.report.url).origin);
+    return this.tracked(source, 'search', signal, async (rules, fetchPage) => {
+      if (page > 1 && !/\bpage\b/.test(source.raw.searchUrl)) throw new Error('searchUrl：该源未声明 {{page}}，不支持搜索翻页');
+      const response = await fetchPage(await rules.url(source.raw.searchUrl));
+      rules.globals.baseUrl = response.url;
       let context: any;
       try { context = documentContext(response.text); }
       catch (error) { throw new Error(`ruleSearch.bookList：响应解析失败：${err(error)}`); }
       const results = new Map<string, OnlineResult>();
-      for (const row of this.rows(source, 'search', 'bookList', context, true)) {
-        const url = this.url(source, this.values(source, 'search', 'bookUrl', row, true)[0]!, response.url, 'ruleSearch.bookUrl');
-        results.set(url, { sourceId, revision: source.report.revision, url, title: cleanTitle(this.values(source, 'search', 'name', row, true)[0]!), author: cleanTitle(this.values(source, 'search', 'author', row)[0] ?? '') });
+      const rows = await this.rows(rules, source, 'search', 'bookList', context, true), sourceVariables = { ...rules.script.variables };
+      for (const row of rows) {
+        rules.script.variables = { ...sourceVariables };
+        rules.globals.book = { origin: new URL(source.report.url).origin };
+        const title = cleanTitle((await this.values(rules, source, 'search', 'name', row, true))[0]!);
+        rules.globals.book.name = title;
+        const author = cleanTitle((await this.values(rules, source, 'search', 'author', row))[0] ?? '');
+        rules.globals.book.author = author;
+        const url = this.url(source, (await this.values(rules, source, 'search', 'bookUrl', row, true))[0]!, response.url, 'ruleSearch.bookUrl');
+        results.set(url, { sourceId, revision: source.report.revision, url, title, author });
+        rules.saveScope(`book:${url}`);
         if (results.size > 200) throw new Error('ruleSearch.bookList：结果超过 200 项');
       }
+      rules.script.variables = sourceVariables;
       return [...results.values()];
-    });
+    }, { key, page });
   }
   async detail(result: OnlineResult, signal: AbortSignal): Promise<OnlineDetail> {
     const source = await this.source(result.sourceId, result.revision);
-    return this.tracked(source, 'detail', signal, async () => {
+    return this.tracked(source, 'detail', signal, async (rules, fetchPage) => {
       const url = this.url(source, result.url, source.report.url, 'bookUrl');
-      const response = await this.http.get(url, signal, new URL(source.report.url).origin), context = documentContext(response.text);
-      const toc = this.values(source, 'detail', 'tocUrl', context, !!this.rule(source, 'detail', 'tocUrl'))[0] ?? response.url;
-      return { ...result, url: response.url, title: cleanTitle(this.values(source, 'detail', 'name', context, !!this.rule(source, 'detail', 'name'))[0] ?? result.title), author: cleanTitle(this.values(source, 'detail', 'author', context)[0] ?? result.author), intro: this.values(source, 'detail', 'intro', context).join('\n').slice(0, 10000), tocUrl: this.url(source, toc, response.url, 'ruleBookInfo.tocUrl') };
-    });
+      const response = await fetchPage(url); rules.globals.baseUrl = response.url;
+      let context = documentContext(response.text);
+      if (this.rule(source, 'detail', 'init')) context = await rules.init(this.rule(source, 'detail', 'init')!, context);
+      const toc = (await this.values(rules, source, 'detail', 'tocUrl', context, !!this.rule(source, 'detail', 'tocUrl')))[0] ?? response.url;
+      return { ...result, url: response.url, title: cleanTitle((await this.values(rules, source, 'detail', 'name', context, !!this.rule(source, 'detail', 'name')))[0] ?? result.title), author: cleanTitle((await this.values(rules, source, 'detail', 'author', context))[0] ?? result.author), intro: (await this.values(rules, source, 'detail', 'intro', context)).join('\n').slice(0, 10000), tocUrl: this.url(source, toc, response.url, 'ruleBookInfo.tocUrl') };
+    }, { book: { origin: new URL(source.report.url).origin, bookUrl: result.url, name: result.title, author: result.author } });
   }
-  private async pages(source: Source, stage: 'toc' | 'content', start: string, signal: AbortSignal, visit: (context: any, url: string) => void) {
+  private async pages(rules: RuleEvaluator, fetchPage: (input: string) => Promise<{ text: string; url: string }>, source: Source, stage: 'toc' | 'content', start: string, signal: AbortSignal, visit: (context: any, url: string) => Promise<void>) {
     let url = start; const visited = new Set<string>();
     for (let page = 1; page <= SOURCE_LIMITS.pages; page++) {
       if (visited.has(url)) throw new Error(`${stageKeys[stage]}：检测到分页循环`);
       visited.add(url);
-      const response = await this.http.get(url, signal, new URL(source.report.url).origin), context = documentContext(response.text);
-      visit(context, response.url);
+      rules.globals.page = page;
+      const response = await fetchPage(url), context = documentContext(response.text); rules.globals.baseUrl = response.url;
+      await visit(context, response.url);
       const field = stage === 'toc' ? 'nextTocUrl' : 'nextContentUrl';
-      const links = this.values(source, stage, field, context);
+      const links = await this.values(rules, source, stage, field, context);
       if (links.length > 1) throw new Error(`${stageKeys[stage]}.${field}：下一页必须最多匹配一个链接`);
       if (!links.length) return;
       if (page === SOURCE_LIMITS.pages) throw new Error(`${stageKeys[stage]}.${field}：分页超过 5 页，未保存不完整结果`);
       url = this.url(source, links[0]!, response.url, `${stageKeys[stage]}.${field}`);
     }
   }
-  private async toc(source: Source, url: string, signal: AbortSignal): Promise<Toc> {
-    return this.tracked(source, 'toc', signal, async () => {
+  private async toc(source: Source, url: string, signal: AbortSignal, book: Record<string, unknown>): Promise<Toc> {
+    return this.tracked(source, 'toc', signal, async (rules, fetchPage) => {
       const chapters = new Map<string, Toc[number]>();
-      await this.pages(source, 'toc', this.url(source, url, source.report.url, 'tocUrl'), signal, (context, base) => {
-        for (const row of this.rows(source, 'toc', 'chapterList', context)) {
-          const url = this.url(source, this.values(source, 'toc', 'chapterUrl', row, true)[0]!, base, 'ruleToc.chapterUrl');
+      await this.pages(rules, fetchPage, source, 'toc', this.url(source, url, source.report.url, 'tocUrl'), signal, async (context, base) => {
+        const rows = await this.rows(rules, source, 'toc', 'chapterList', context), bookVariables = { ...rules.script.variables };
+        for (const row of rows) {
+          rules.script.variables = { ...bookVariables };
+          const url = this.url(source, (await this.values(rules, source, 'toc', 'chapterUrl', row, true))[0]!, base, 'ruleToc.chapterUrl');
           const id = hash(url);
-          chapters.set(id, { id, url, title: cleanTitle(this.values(source, 'toc', 'chapterName', row, true)[0]!) });
+          chapters.set(id, { id, url, title: cleanTitle((await this.values(rules, source, 'toc', 'chapterName', row, true))[0]!) });
+          if (JSON.stringify(rules.script.variables) !== JSON.stringify(bookVariables)) rules.saveScope(`chapter:${url}`);
           if (chapters.size > SOURCE_LIMITS.chapters) throw new Error('ruleToc.chapterList：目录超过 5000 章');
         }
+        rules.script.variables = bookVariables;
       });
       return [...chapters.values()];
-    });
+    }, { book });
   }
   async has(id: string) { try { await fs.access(this.path(id)); return true; } catch (error) { if (missing(error)) return false; throw error; } }
   private async read(id: string): Promise<RecordBook> { const book = recordSchema.parse(JSON.parse(await fs.readFile(this.path(id), 'utf8'))); if (book.id !== id) throw new Error('在线书籍 ID 不一致'); return book; }
@@ -206,7 +267,7 @@ export class OnlineSourceService {
   }
   private async asDetail(book: RecordBook, chapterId = book.locator.chapterId): Promise<BookDetail> {
     const paragraphs = await this.cached(book, chapterId);
-    return { summary: this.summary(book), bookmarks: book.bookmarks, document: { id: book.id, title: book.title, author: book.author, format: 'online', warnings: ['Legado 无脚本兼容子集；正文按章加载，在线进度按目录章节估算。搜索仅限当前章节，不包含其他已缓存章节，不自动下载全书。'], chapters: book.chapters.map(chapter => ({ id: chapter.id, title: chapter.title, paragraphs: chapter.id === chapterId ? paragraphs ?? [] : [], loaded: chapter.id === chapterId && !!paragraphs })) } };
+    return { summary: this.summary(book), bookmarks: book.bookmarks, document: { id: book.id, title: book.title, author: book.author, format: 'online', warnings: ['Legado 有界规则兼容；正文按章加载，在线进度按目录章节估算。搜索仅限当前章节，不包含其他已缓存章节，不自动下载全书。'], chapters: book.chapters.map(chapter => ({ id: chapter.id, title: chapter.title, paragraphs: chapter.id === chapterId ? paragraphs ?? [] : [], loaded: chapter.id === chapterId && !!paragraphs })) } };
   }
   async add(detail: OnlineDetail, signal: AbortSignal): Promise<BookDetail> {
     const source = await this.source(detail.sourceId, detail.revision);
@@ -214,7 +275,7 @@ export class OnlineSourceService {
     const id = hash(`online:${detail.sourceId}:${detail.revision}:${canonicalUrl}`);
     if (!['supported', 'partial'].includes(source.report.stages.content.syntax)) throw new Error('ruleContent：正文语法不可用，请查看书源字段诊断');
     if (await this.has(id)) return this.open(id, signal);
-    const chapters = await this.toc(source, detail.tocUrl, signal);
+    const chapters = await this.toc(source, detail.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: detail.url, name: detail.title, author: detail.author });
     const book: RecordBook = { version: 1, id, sourceId: detail.sourceId, revision: detail.revision, url: canonicalUrl, tocUrl: detail.tocUrl, title: detail.title, author: detail.author, chapters, locator: { chapter: 0, paragraph: 0, chapterId: chapters[0]!.id }, bookmarks: [], addedAt: new Date().toISOString() };
     await this.store.locked('online-sources', () => this.store.locked(`online-${id}`, async () => { signal.throwIfAborted(); await this.source(source.report.id, source.report.revision, source.generation); if (!await this.has(id)) await this.write(book); }));
     return this.open(id, signal);
@@ -229,10 +290,10 @@ export class OnlineSourceService {
     if (!chapter) throw new Error('章节已不在目录中，请刷新书籍');
     if (await this.cached(book, chapterId)) return this.asDetail(book, chapterId);
     const source = await this.source(book.sourceId, book.revision);
-    const paragraphs = await this.tracked(source, 'content', signal, async () => {
+    const paragraphs = await this.tracked(source, 'content', signal, async (rules, fetchPage) => {
       const paragraphs: string[] = []; let bytes = 0;
-      await this.pages(source, 'content', chapter.url, signal, context => {
-        for (const value of this.values(source, 'content', 'content', context, true)) for (const part of value.split(/\n+/).map(p => p.trim()).filter(Boolean)) {
+      await this.pages(rules, fetchPage, source, 'content', chapter.url, signal, async context => {
+        for (const value of await this.values(rules, source, 'content', 'content', context, true)) for (const part of value.split(/\n+/).map(p => p.trim()).filter(Boolean)) {
           bytes += Buffer.byteLength(part);
           if (bytes > 4 * 1024 * 1024 || paragraphs.length >= 50000) throw new Error('ruleContent.content：章节超过 4 MiB / 50000 段');
           paragraphs.push(part);
@@ -240,7 +301,7 @@ export class OnlineSourceService {
         if (!paragraphs.length) throw new Error('ruleContent.content：正文为空');
       });
       return paragraphs;
-    });
+    }, { book: { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author, durChapterTitle: chapter.title }, chapter: { title: chapter.title, url: chapter.url, index: book.chapters.indexOf(chapter) } });
     await this.store.locked('online-sources', () => this.store.locked(`online-${id}`, async () => {
       signal.throwIfAborted(); await this.source(book.sourceId, book.revision, source.generation);
       const current = await this.read(id); if (current.revision !== book.revision || !current.chapters.some(c => c.id === chapterId)) throw new Error('目录或书源已变化，已丢弃过期正文');
@@ -260,7 +321,7 @@ export class OnlineSourceService {
     return this.asDetail(await this.read(id), chapterId);
   }
   async refresh(id: string, signal: AbortSignal): Promise<BookDetail> {
-    const book = await this.read(id), source = await this.source(book.sourceId, book.revision), chapters = await this.toc(source, book.tocUrl, signal);
+    const book = await this.read(id), source = await this.source(book.sourceId, book.revision), chapters = await this.toc(source, book.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author });
     return this.store.locked('online-sources', () => this.store.locked(`online-${id}`, async () => {
       signal.throwIfAborted(); await this.source(book.sourceId, book.revision, source.generation);
       const current = await this.read(id);

@@ -7,6 +7,9 @@ export interface OutputBudget { spend(amount?: number): void; output(length: num
 const expressions = new Map<string, RE2JS | Error>();
 export const REPLACEMENT_LIMITS = Object.freeze({ pattern: 512, replacement: 512, input: 131072, output: 262144, matches: 512, expressions: 64, program: 1024 });
 function boundedPattern(pattern: string) {
+  for (const match of pattern.matchAll(/(?<!\\)\{([^}]*)\}/g)) {
+    if (!/^\d{1,2}(?:,\d{1,2})?$/.test(match[1])) throw Error('计数重复仅支持 0–99 的有限区间');
+  }
   let escaped = false, depth = 0, bracket = false;
   for (const char of pattern) {
     if (escaped) { escaped = false; continue; }
@@ -15,7 +18,7 @@ function boundedPattern(pattern: string) {
     else if (char === ']') bracket = false;
     else if (!bracket) {
       // Avoid counted repetition expansion before the compiled-size check.
-      if (char === '{' || char === '}') throw new Error('替换暂不支持计数重复或 Unicode 属性组');
+
       if (char === '(' && ++depth > 16) throw new Error('正则分组超过 16 层');
       if (char === ')') depth--;
     }
@@ -25,7 +28,7 @@ export function compileReplacement(value: string): Replacement {
   const parts = value.split('##');
   if (parts[0] !== '' || parts.length < 2 || parts.length > 3 || !parts[1] || parts[1].length > REPLACEMENT_LIMITS.pattern || (parts[2]?.length ?? 0) > REPLACEMENT_LIMITS.replacement) throw new Error('替换仅支持 ##正则##字面文本，模式和替换各最多 512 字符');
   const pattern = parts[1], replacement = parts[2] ?? '';
-  if (/\$|[{}]/.test(replacement) || /@js:|<\/?js>|javascript:|\{\{/i.test(value)) throw new Error('不支持替换表达式、脚本、捕获组替换或请求选项');
+  if (/[{}]/.test(replacement) || /\$(?![0-9])/.test(replacement) || /@js:|<\/?js>|javascript:|\{\{/i.test(value)) throw new Error('不支持替换表达式、脚本、捕获组替换或请求选项');
   let expression = expressions.get(pattern);
   if (!expression) {
     try {
@@ -55,7 +58,7 @@ export function replaceText(value: string, rule: Replacement, budget: OutputBudg
       budget.spend((value.length + 1) * expression.programSize());
       if (!matcher.find()) break;
       if (++count > REPLACEMENT_LIMITS.matches) throw new Error('替换匹配次数超过 512');
-      append(value.slice(offset, matcher.start())); append(replacement);
+      append(value.slice(offset, matcher.start())); append(replacement.replace(/\$(\d)/g, (_m, index: string) => matcher.group(Number(index)) ?? ''));
       offset = matcher.end();
     }
     append(value.slice(offset));

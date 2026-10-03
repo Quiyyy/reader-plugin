@@ -1,16 +1,18 @@
 import { createHash } from 'node:crypto';
 import { stages, type Diagnostic, type SourceReport, type Stage, type StageReport, type SyntaxStatus } from '../../shared/online.js';
-import { compileRule, RuleError } from './rules.js';
-import { safeUrl, sameOriginUrl } from './http.js';
-import { compileReplacement } from './replacement.js';
-import { searchRequest } from './request.js';
+import { RuleError } from './rules.js';
+import { safeUrl } from './http.js';
+import { inspectRule } from './evaluate.js';
+import { parseRate } from './rate.js';
+import { chain, validateScript } from './script-syntax.js';
+import { searchRequest, staticHeaders } from './request.js';
 
 export const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 export const SOURCE_LIMITS = Object.freeze({ bytes: 512 * 1024, sources: 50, stored: 100, pages: 5, chapters: 5000 });
 export interface Source { report: SourceReport; raw: Record<string, any>; generation?: string; }
 export const stageKeys: Record<Stage, string> = { search: 'ruleSearch', detail: 'ruleBookInfo', toc: 'ruleToc', content: 'ruleContent' };
 const fields: Record<Stage, string[]> = {
-  search: ['bookList', 'name', 'author', 'bookUrl'], detail: ['name', 'author', 'intro', 'tocUrl'],
+  search: ['bookList', 'name', 'author', 'bookUrl'], detail: ['init', 'name', 'author', 'intro', 'tocUrl'],
   toc: ['chapterList', 'chapterName', 'chapterUrl', 'nextTocUrl'], content: ['content', 'nextContentUrl', 'replaceRegex'],
 };
 const required: Record<Stage, string[]> = { search: ['bookList', 'name', 'bookUrl'], detail: [], toc: ['chapterList', 'chapterName', 'chapterUrl'], content: ['content'] };
@@ -38,6 +40,10 @@ export function inspectSource(raw: any): Source {
   if (raw.bookSourceType !== undefined && raw.bookSourceType !== 0) issue('bookSourceType', '仅支持文字书籍类型 0');
   for (const [key, value] of Object.entries(raw)) if (!metadata.has(key) && present(value)) {
     if (unusedRoot.has(key)) issue(key, 'Reader 不使用发现页或链接自动识别；此字段整体忽略，其中的脚本也不会执行', 'partial');
+    else if (key === 'concurrentRate') { try { parseRate(value); } catch (error) { issue(key, (error as Error).message); } }
+    else if (key === 'header') { try { staticHeaders(value); } catch (error) { issue(key, (error as Error).message); } }
+    else if (['loginUrl', 'loginUi'].includes(key)) issue(key, '登录入口未使用；只尝试公开请求，实际遇到登录或挑战时停止', 'partial');
+    else if (key === 'readerAllowedOrigins') { try { const origins = sourceOrigins(raw, url); issue(key, `启用后允许请求的明确域集合：${origins.join('、')}；不发送 Cookie/认证头`, 'partial'); } catch (error) { issue(key, (error as Error).message); } }
     else if (key === 'enabledCookieJar' && value === true) issue(key, '仅尝试无 Cookie 的公开请求；不存储或发送 Cookie，需要登录的网站仍不可读', 'partial');
     else issue(key, key === 'concurrentRate' ? '暂不支持此源的请求频率策略；未忽略限速要求发起请求' : '此源声明了未支持的访问能力或未知字段；不执行登录、请求头、依赖或脚本');
   }
@@ -53,15 +59,22 @@ export function inspectSource(raw: any): Source {
         if (!present(value)) continue;
         if (!fields[stage].includes(field)) { const unused = passive.has(field) || unusedStage[stage].includes(field); add(field, unused ? '未使用的展示、检查或下载字段已忽略；不提取、不请求、不执行其中脚本' : '此阶段依赖未支持的字段；不会跳过后执行', unused ? 'partial' : 'blocked'); continue; }
         if (typeof value !== 'string') { add(field, '规则必须为字符串', 'invalid'); continue; }
-        try { if (field === 'replaceRegex') compileReplacement(value); else compileRule(value, field === 'bookList' || field === 'chapterList'); }
+        try { if (inspectRule(value, ['bookList', 'chapterList', 'init'].includes(field), field === 'replaceRegex')) add(field, '含隔离脚本或表达式；宿主 API、网络域和运行预算在实际阶段检查，未证明站点可用', 'partial'); }
         catch (error) { add(field, (error as Error).message, error instanceof RuleError ? error.status : 'blocked'); }
       }
     }
     if (stage === 'search') {
       try {
         if (typeof raw.searchUrl !== 'string' || !raw.searchUrl) throw new RuleError('invalid', '缺少搜索 URL');
-        const request = searchRequest(raw.searchUrl, '测试', 1);
-        sameOriginUrl(request.url, url, new URL(url).origin);
+        const parts = chain(raw.searchUrl);
+        if (parts.some(part => part.kind === 'js') || /\{\{(?!(?:key|page)\}\})/.test(raw.searchUrl)) {
+          for (const part of parts) if (part.kind === 'js') validateScript(part.value);
+          problems.push({ field: 'searchUrl', status: 'partial', reason: '搜索 URL 使用隔离表达式；运行时检查请求选项与明确域集合' });
+        } else {
+          const request = searchRequest(raw.searchUrl, '测试', 1);
+          const target = safeUrl(request.url, url);
+          if (!sourceOrigins(raw, url).includes(target.origin)) throw new RuleError('blocked', `搜索跨域 ${target.origin} 不在明确域集合中`);
+        }
       } catch (error) { problems.push({ field: 'searchUrl', status: error instanceof RuleError ? error.status : 'invalid', reason: (error as Error).message }); }
     }
     reports[stage] = { syntax: status([...diagnostics, ...problems]), network: 'untested', diagnostics: problems };
@@ -89,4 +102,17 @@ export function importSources(json: string): Source[] {
   const sources = list.map(inspectSource);
   if (new Set(sources.map(s => s.report.id)).size !== sources.length) throw new Error('同一批次出现重复书源地址；请保留一个版本后重试');
   return sources;
+}
+
+/** Additional origins are explicit import data, visible in preview; never inferred from scripts. */
+export function sourceOrigins(raw: Record<string, any>, url: string): string[] {
+  const origin = safeUrl(url).origin, extra = raw.readerAllowedOrigins ?? [];
+  if (!Array.isArray(extra) || extra.length > 8) throw Error('额外域集合必须是最多 8 个 origin');
+  return [...new Set([origin, ...extra.map(value => {
+    if (typeof value !== 'string') throw Error('额外域必须是字符串');
+    const parsed = safeUrl(value);
+    if (parsed.href !== parsed.origin + '/' || parsed.search) throw Error('域集合必须只包含 origin');
+    if (origin.startsWith('https:') && parsed.protocol !== 'https:') throw Error('额外域不能将 HTTPS 降级');
+    return parsed.origin;
+  })])];
 }

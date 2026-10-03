@@ -23,7 +23,7 @@ for (const width of [320, 390, 1280]) {
     const sources = [
       { ...fixtureSource, bookSourceName: '河岸书源', bookSourceUrl: 'https://reader.example.com/river' },
       { ...fixtureSource, bookSourceName: '晚风书源', bookSourceUrl: 'https://evening.example.com/' },
-      { ...fixtureSource, bookSourceName: '需要登录的来源', bookSourceUrl: 'https://reader.example.com/login-required', loginUrl: 'https://reader.example.com/login' },
+      { ...fixtureSource, bookSourceName: '需要登录的来源', bookSourceUrl: 'https://reader.example.com/login-required', loginUrl: 'https://reader.example.com/login', header: '{"Authorization":"fixture-not-a-credential"}' },
     ];
     const preview = await tool(request, 'reader_online_preview', { json: JSON.stringify(sources) });
     await tool(request, 'reader_online_commit', { token: preview.token });

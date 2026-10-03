@@ -1,5 +1,7 @@
 # 0.1.7 声明式书源兼容候选
 
+> 历史记录：本文描述 `0473639` 及其前身的声明式候选。当前隔离脚本候选的能力、22 源状态和联网证据见 [ISOLATED_COMPATIBILITY.md](ISOLATED_COMPATIBILITY.md)，请勿把下方旧限制当作当前行为。
+
 独立分支 `improve-source-management`，基于正式 0.1.6 `2faa0b8`。本轮继续推送隔离验证分支 `feature/legado-reader-0.1.7-validation`，该前缀由现有 CI 排除 marketplace 发布；不修改 main、release、稳定 marketplace 或现有桌面安装。候选 UI 为 `ui://reader/v0.1.7/bookshelf.html`。
 
 ## 复现与原因

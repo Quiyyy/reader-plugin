@@ -49,7 +49,7 @@ describe('bounded declarative syntax', () => {
     expect(read('[property$=title]@content', html)).toEqual(['原创故事']);
     expect(read('[content="原创故事"]@content', html)).toEqual(['原创故事']);
   });
-  it.each(['@css:', 'a:nth-child(2)@text', '//div[last()]/a/@href', '//div/following-sibling::a/@href', 'a,b@href', 'class.items.-1:0@text', 'children[0:2]@text', 'a:not(:hover)@text', 'a@href##$##,{"webView":true}', 'a@text##(a)\\1', 'a@text##a(?=b)', 'a@text##(a)##$1', 'a@text##x##y##z', '@js:1', '{{java.get()}}', '$..data'])('rejects unsupported whole rule %s', rule => {
+  it.each(['@css:', 'a:nth-child(2)@text', '//div[last()]/a/@href', '//div/following-sibling::a/@href', 'a,b@href', 'class.items.-1:0@text', 'a:not(:hover)@text', 'a@href##$##,{"webView":true}', 'a@text##(a)\\1', 'a@text##a(?=b)', 'a@text##x##y##z', '@js:1', '{{java.get()}}', '$..data'])('rejects unsupported whole rule %s', rule => {
     expect(() => compileRule(rule)).toThrow();
   });
   it('cleans text with RE2 and bounds zero-width, amplification, work and input', () => {
@@ -74,23 +74,23 @@ describe('bounded declarative syntax', () => {
     expect(Object.values(report.stages).every(s => s.network === 'untested')).toBe(true);
     expect(report.enabled).toBe(false);
     expect(report.diagnostics.find(d => d.field === 'enabledCookieJar')?.reason).toContain('不存储或发送');
-    expect(inspectSource({ ...declarativeSource, ruleContent: { content: '@js:active()' } }).report.stages.content.syntax).toBe('blocked');
-    for (const key of ['header', 'loginUrl', 'loginUi', 'jsLib', 'concurrentRate', 'unknown']) expect(inspectSource({ ...fixtureSource, [key]: 'unhandled' }).report.syntax).toBe('blocked');
+    expect(inspectSource({ ...declarativeSource, ruleContent: { content: '@js:eval("active()")' } }).report.stages.content.syntax).toBe('blocked');
+    for (const key of ['header', 'jsLib', 'concurrentRate', 'unknown']) expect(inspectSource({ ...fixtureSource, [key]: 'unhandled' }).report.syntax).toBe('blocked');
     expect(inspectSource({ ...fixtureSource, ruleToc: { ...fixtureSource.ruleToc, isVip: '@js:active()' } }).report.stages.toc.syntax).toBe('blocked');
   });
 });
 
 describe('literal search form requests', () => {
   it('parses quoted literal options without evaluating code and safely encodes keywords', () => {
-    expect(searchRequest("/find,{'method':'post','body':'keyword={{key}}&page={{page}}','charset':'UTF-8'}", '中文 &/=', 2)).toEqual({ url: '/find', method: 'POST', body: 'keyword=%E4%B8%AD%E6%96%87%20%26%2F%3D&page=2' });
-    expect(searchRequest('/find?q={{key}}', '甲', 1)).toEqual({ url: '/find?q=%E7%94%B2', method: 'GET', body: undefined });
+    expect(searchRequest("/find,{'method':'post','body':'keyword={{key}}&page={{page}}','charset':'UTF-8'}", '中文 &/=', 2)).toEqual({ url: '/find', method: 'POST', body: 'keyword=%E4%B8%AD%E6%96%87%20%26%2F%3D&page=2', charset: 'utf-8', headers: {} });
+    expect(searchRequest('/find?q={{key}}', '甲', 1)).toEqual({ url: '/find?q=%E7%94%B2', method: 'GET', body: undefined, charset: 'utf-8', headers: {} });
     expect(searchRequest('/find,{"method":"GET"}', '甲', 1).method).toBe('GET');
   });
   it.each([
     "/find,{'method': getMethod()}", "/find,{'webView':'true'}", "/find,{'header':'Cookie: secret'}", "/find,{'method':'delete'}",
-    "/find,{'method':'POST','body':'q={{key}}','charset':'gbk'}", "/find,{'method':'post','body':'q={{java.get()}}'}",
-    "/find,{'method':'post','body':'static=1'}", "/find,{'method':'GET','body':'q={{key}}'}", "/find,{'method':'GET','method':'POST'}",
-    "/find,{'__proto__':'x'}", "/find,{'method':'GET'};attack()", "/find,{'method':'GET',}",
+    "/find,{'method':'post','body':'q={{java.get()}}'}",
+    "/find,{'method':'GET','body':'q={{key}}'}", "/find,{'method':'GET','method':'POST'}",
+    "/find,{'__proto__':'x'}", "/find,{'method':'GET'};attack()",
   ])('rejects active or ambiguous request configuration %s', value => expect(() => searchRequest(value, '甲', 1)).toThrow());
   it.each([301, 302, 303, 307, 308])('applies redirect method semantics for %i without cookies', async status => {
     const seen: { method?: string; body: string; cookie?: string }[] = [];

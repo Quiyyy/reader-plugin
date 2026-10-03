@@ -5,8 +5,8 @@ for (const width of [320, 390, 1280]) test(`declarative source shows stage limit
   const name = `原创语法样例 ${width}`, partialName = `仅搜索样例 ${width}`, blockedName = `需脚本样例 ${width}`;
   const sources = [
     { ...declarativeSource, bookSourceName: name, bookSourceUrl: `https://reader.example.com/grammar-${width}` },
-    { ...declarativeSource, bookSourceName: partialName, bookSourceUrl: `https://reader.example.com/partial-${width}`, ruleContent: { content: '@js:requiredButUnsupported()' } },
-    { ...declarativeSource, bookSourceName: blockedName, bookSourceUrl: `https://reader.example.com/blocked-${width}`, searchUrl: '@js:requiredButUnsupported()' },
+    { ...declarativeSource, bookSourceName: partialName, bookSourceUrl: `https://reader.example.com/partial-${width}`, ruleContent: { content: '@js:eval("requiredButUnsupported()")' } },
+    { ...declarativeSource, bookSourceName: blockedName, bookSourceUrl: `https://reader.example.com/blocked-${width}`, searchUrl: '@js:eval("requiredButUnsupported()")' },
   ];
   const errors: string[] = [], external: string[] = [];
   page.on('pageerror', error => errors.push(error.message));

@@ -2,6 +2,8 @@ import { lookup as dnsLookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { request as httpRequest, type RequestOptions, type IncomingMessage, type ClientRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
+import { staticHeaders } from './request.js';
+import { SourceRateLimiter, type Rate } from './rate.js';
 import { normalizeEncoding } from '../importers.js';
 
 export const HTTP_LIMITS = Object.freeze({ timeout: 10000, bytes: 2 * 1024 * 1024, redirects: 3, addresses: 3, concurrent: 4, queue: 16 });
@@ -38,6 +40,19 @@ export function sameOriginUrl(value: string, base: string, origin: string): stri
   if (url.origin !== origin) throw new Error('链接跨域；本兼容子集只允许书源声明的同一 origin');
   return url.href;
 }
+export interface HttpPolicy {
+  headers?: Record<string, string>;
+  charset?: string;
+  origins?: string[];
+  rate?: Rate;
+  sourceKey?: string;
+  beforeRequest?: () => void;
+}
+export function allowedUrl(value: string, base: string, origins: string[]): string {
+  const url = safeUrl(value, base);
+  if (!origins.includes(url.origin)) throw new Error(`链接跨域：${url.origin} 未在书源的明确域集合中；请检查导入策略`);
+  return url.href;
+}
 type Dependencies = {
   resolve?: (host: string) => Promise<{ address: string; family: number }[]>;
   transport?: (url: URL, options: RequestOptions, response: (res: IncomingMessage) => void) => ClientRequest;
@@ -49,14 +64,15 @@ export interface TextResponse { url: string; text: string; }
  */
 export class SafeHttpClient {
   private active = 0;
+  private readonly rates = new SourceRateLimiter();
   private waiters: (() => void)[] = [];
   constructor(private readonly dependencies: Dependencies = {}) {}
-  async get(value: string, signal?: AbortSignal, origin?: string): Promise<TextResponse> { return this.request(value, signal, origin); }
-  async post(value: string, body: string, signal?: AbortSignal, origin?: string): Promise<TextResponse> {
+  async get(value: string, signal?: AbortSignal, origin?: string, policy: HttpPolicy = {}): Promise<TextResponse> { return this.request(value, signal, origin, undefined, policy); }
+  async post(value: string, body: string, signal?: AbortSignal, origin?: string, policy: HttpPolicy = {}): Promise<TextResponse> {
     if (Buffer.byteLength(body) > 8192 || /[^\x21-\x7e]/.test(body)) throw new Error('POST 搜索表单无效或超过 8192 字节');
-    return this.request(value, signal, origin, body);
+    return this.request(value, signal, origin, body, policy);
   }
-  private async request(value: string, signal?: AbortSignal, origin?: string, body?: string): Promise<TextResponse> {
+  private async request(value: string, signal?: AbortSignal, origin?: string, body?: string, policy: HttpPolicy = {}): Promise<TextResponse> {
     const controller = new AbortController();
     const stop = () => controller.abort(new Error('请求已取消'));
     signal?.addEventListener('abort', stop, { once: true });
@@ -66,14 +82,19 @@ export class SafeHttpClient {
     try {
       await this.slot(controller.signal); release = true;
       let url = safeUrl(value);
-      const allowedOrigin = origin ?? url.origin;
+      const origins = policy.origins ?? [origin ?? url.origin];
+      const headers = staticHeaders(policy.headers);
+      if (headers.referer) allowedUrl(headers.referer, url.href, origins);
+      policy = { ...policy, headers };
+      const initialProtocol = url.protocol;
       const visited = new Set<string>();
       for (let redirects = 0; ; redirects++) {
         controller.signal.throwIfAborted();
-        if (url.origin !== allowedOrigin) throw new Error('禁止跨域重定向');
+        if (!origins.includes(url.origin)) throw new Error(`禁止跨域重定向：${url.origin} 未在允许集合中`);
+        if (initialProtocol === 'https:' && url.protocol !== 'https:') throw new Error('禁止 HTTPS 降级重定向');
         if (visited.has(url.href)) throw new Error('检测到重定向循环');
         visited.add(url.href);
-        const result = await this.once(url, controller.signal, body);
+        const result = await this.once(url, controller.signal, body, policy);
         if (result.location !== undefined) {
           if (redirects >= HTTP_LIMITS.redirects) throw new Error('重定向次数超过 3');
           if ([301, 302, 303].includes(result.redirectStatus!)) body = undefined;
@@ -104,7 +125,7 @@ export class SafeHttpClient {
       });
     } else this.active++;
   }
-  private async once(url: URL, signal: AbortSignal, body?: string): Promise<ResponseData> {
+  private async once(url: URL, signal: AbortSignal, body: string | undefined, policy: HttpPolicy): Promise<ResponseData> {
     const host = url.hostname.replace(/^\[|\]$/g, '');
     const resolved = isIP(host) ? [{ address: host, family: isIP(host) }] : await this.abortable((this.dependencies.resolve ?? (name => dnsLookup(name, { all: true, verbatim: true })))(host), signal);
     signal.throwIfAborted();
@@ -116,7 +137,11 @@ export class SafeHttpClient {
     let failure: Error = new Error('连接失败；请检查书源地址或稍后重试');
     for (const pinned of candidates) {
       signal.throwIfAborted();
-      try { return await this.connect(url, signal, pinned, body); }
+      try {
+        await this.rates.wait(policy.sourceKey ?? url.origin, policy.rate, signal);
+        signal.throwIfAborted(); policy.beforeRequest?.();
+        return await this.connect(url, signal, pinned, body, policy);
+      }
       catch (error) {
         if (!(error instanceof ConnectionFailure) || signal.aborted || body !== undefined) throw error;
         failure = error;
@@ -124,11 +149,11 @@ export class SafeHttpClient {
     }
     throw failure;
   }
-  private connect(url: URL, signal: AbortSignal, pinned: { address: string; family: number }, body?: string): Promise<ResponseData> {
+  private connect(url: URL, signal: AbortSignal, pinned: { address: string; family: number }, body: string | undefined, policy: HttpPolicy): Promise<ResponseData> {
     return new Promise((resolve, reject) => {
       const options: RequestOptions = {
         agent: false, method: body === undefined ? 'GET' : 'POST', signal, maxHeaderSize: 16384,
-        headers: { Accept: 'text/html,application/json,text/plain', 'Accept-Encoding': 'identity', 'User-Agent': 'Reader-Safe-Online/1', ...(body === undefined ? {} : { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'Content-Length': String(Buffer.byteLength(body)) }) },
+        headers: { ...(!policy.headers?.accept ? { Accept: 'text/html,application/json,text/plain' } : {}), 'Accept-Encoding': 'identity', ...(!policy.headers?.['user-agent'] ? { 'User-Agent': 'Reader-Safe-Online/1' } : {}), ...policy.headers, ...(body === undefined ? {} : { 'Content-Type': `application/x-www-form-urlencoded; charset=${policy.charset ?? 'UTF-8'}`, 'Content-Length': String(Buffer.byteLength(body)) }) },
         // Host/SNI/TLS retain the original hostname. Every connection uses only
         // the validated address, so a second DNS answer cannot rebind it.
         lookup: (_name: string, opts: any, callback: any) => opts?.all ? callback(null, [pinned]) : callback(null, pinned.address, pinned.family),

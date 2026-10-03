@@ -31,8 +31,8 @@ const stage = await fs.mkdtemp(join(artifacts, 'marketplace-stage-'));
 const output = join(root, 'artifacts/marketplace', `${values.target}${values.fixture ? '-fixture' : ''}`);
 const app = join(stage, 'app'); await fs.mkdir(join(app, 'dist/server'), { recursive: true });
 await fs.mkdir(join(app, 'dist/ui'), { recursive: true });
-const bundled = await build({ entryPoints: [join(source, 'src/server/index.ts')], bundle: true, platform: 'node', format: 'esm', target: 'node24',
-  outfile: join(app, 'dist/server/index.js'), metafile: true,
+const bundle = (entry, output, external = []) => build({ entryPoints: [join(source, entry)], bundle: true, platform: 'node', format: 'esm', target: 'node24',
+  outfile: join(app, output), metafile: true, external,
   banner: { js: "import { createRequire as __readerCreateRequire } from 'node:module'; const require = __readerCreateRequire(import.meta.url);" },
   plugins: [{ name: 'upstream-text-only-canvas-fallback', setup(builder) {
     // Reader is text-only and never depended on native canvas. Bundle linkedom's
@@ -40,9 +40,26 @@ const bundled = await build({ entryPoints: [join(source, 'src/server/index.ts')]
     builder.onResolve({ filter: /^canvas$/ }, () => ({ path: join(source, 'node_modules/linkedom/commonjs/canvas-shim.cjs') }));
   } }],
 });
+const bundles = [await bundle('src/server/index.ts', 'dist/server/index.js')];
+// Worker URLs are relative to the bundled server. Keep the engine's official
+// package layout: its dynamic imports locate matching JS/WASM assets there.
+const enginePackages = new Set();
+if (!values.fixture) {
+  bundles.push(await bundle('src/server/online/script-worker.ts', 'dist/server/script-worker.js', ['quickjs-emscripten']));
+  const copyEngine = async name => {
+    if (enginePackages.has(name)) return;
+    enginePackages.add(name);
+    const directory = join(source, 'node_modules', name), metadata = await readJson(join(directory, 'package.json'));
+    const locked = (await readJson(join(source, 'package-lock.json'))).packages[`node_modules/${name}`];
+    if (!locked || metadata.version !== locked.version || locked.dev || locked.hasInstallScript || locked.os || locked.cpu) throw new Error(`Unreviewed engine dependency: ${name}`);
+    await fs.cp(directory, join(app, 'node_modules', name), { recursive: true });
+    for (const dependency of Object.keys(metadata.dependencies ?? {})) await copyEngine(dependency);
+  };
+  await copyEngine('quickjs-emscripten');
+}
 const builtins = new Set(builtinModules.flatMap(name => [name, `node:${name}`]));
-for (const item of Object.values(bundled.metafile.outputs).flatMap(item => item.imports)) {
-  if (item.external && !builtins.has(item.path)) throw new Error(`Runtime has an unpackaged dependency: ${item.path}`);
+for (const item of bundles.flatMap(b => Object.values(b.metafile.outputs)).flatMap(item => item.imports)) {
+  if (item.external && !builtins.has(item.path) && !enginePackages.has(item.path)) throw new Error(`Runtime has an unpackaged dependency: ${item.path}`);
 }
 await fs.copyFile(join(source, 'dist/ui/index.html'), join(app, 'dist/ui/index.html'));
 await fs.writeFile(join(app, 'package.json'), json({ type: 'module', version: pkg.version }));
@@ -115,7 +132,7 @@ await fs.writeFile(join(stage, 'plugin.json'), json({ $schema: 'https://agent-pl
   extensions: { 'com.openai': { interface: { displayName: 'Reader', shortDescription: `${target.label}。本地阅读，无需 Node 或 npm。`, longDescription: `Bundled runtime for ${target.label}. Choose only the package matching this device. Book storage is separate from the plugin cache. System trust prompts may apply.`, developerName: 'Quiyyy', category: 'Productivity', capabilities: ['Interactive', 'Write'], defaultPrompt: ['打开 Reader 书架'] } } } }));
 await fs.writeFile(join(stage, 'mcp.json'), json({ $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json', mcpServers: { reader: { type: 'stdio', command: `./${executable}`, args: [], env: { NODE_OPTIONS: '', NODE_PATH: '' } } } }));
 const files = {};
-for (const name of ['app/package.json', 'app/dist/server/index.js', 'app/dist/ui/index.html', 'payload/node.gz']) files[name] = hash(await fs.readFile(join(stage, name)));
+for (const name of [...(await filesUnder(app)).map(name => `app/${name}`), 'payload/node.gz']) files[name] = hash(await fs.readFile(join(stage, name)));
 const manifest = { kind: 'reader-bundled-runtime', version: pkg.version, goos: target.goos, goarch: target.goarch, nodeVersion: pinned.version,
   nodeSha256: hash(node), nodeBytes: node.length, compressedSha256: hash(compressed), files,
   source: { commit, dirty }, testFixture: values.fixture, target: values.target, nodeArchive: { url: archiveURL, sha256: target.sha256 }, goVersion,
