@@ -53,8 +53,11 @@ describe('isolated QuickJS host and lifecycle', () => {
     expect(await session().run('40+2', '', '', globals)).toBe(42);
   }, 7000);
   it('cancels a suspended script and refuses dynamic compilation', async () => {
-    const controller = new AbortController(), s = session(async () => new Promise(() => {}), controller.signal);
-    const pending = expect(s.run('java.ajax(baseUrl)', '', '', globals)).rejects.toThrow('取消'); setTimeout(() => controller.abort(), 100); await pending;
+    const controller = new AbortController();
+    // Cancel after the guest actually reaches the suspended network call, not
+    // while its trusted development loader may still be starting on Windows.
+    const s = session(async () => { controller.abort(); return new Promise(() => {}); }, controller.signal);
+    await expect(s.run('java.ajax(baseUrl)', '', '', globals)).rejects.toThrow('取消');
     await expect(session().run('eval("1+1")', '', '', globals)).rejects.toThrow('动态');
     await expect(session().run('import("node:fs")', '', '', globals)).rejects.toThrow('动态');
   });
