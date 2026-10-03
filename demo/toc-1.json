@@ -1,0 +1,9 @@
+{
+  "chapters": [
+    {
+      "name": "第一章 河岸来信",
+      "url": "chapter-1a.json"
+    }
+  ],
+  "next": "toc-2.json"
+}
