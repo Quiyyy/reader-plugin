@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "reader-linux-arm64",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Local TXT and DRM-free EPUB reader; bundled runtime for Linux · ARM64 · glibc.",
   "author": {
     "name": "Quiyyy"
