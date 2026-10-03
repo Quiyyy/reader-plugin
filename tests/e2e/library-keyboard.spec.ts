@@ -36,10 +36,13 @@ for (const width of [320, 390, 1280]) {
     await expect(page.getByRole('heading', { name: '第二章 回收', exact: true })).toBeVisible();
     await page.getByRole('button', { name: '我的书签', exact: true }).click(); await expect(page.locator('.bookmark-list li')).toHaveCount(1); await page.keyboard.press('Escape');
     await reading.focus(); await page.keyboard.press('Escape'); await expect(page.getByRole('heading', { name: '书架', exact: true })).toBeVisible();
+    let releaseTrash!: () => void; const gate = new Promise<void>(resolve => { releaseTrash = resolve; });
+    await page.route('**/api/tool', async route => { if (route.request().postDataJSON()?.name === 'reader_trash') await gate; await route.continue(); });
     await page.getByLabel(`更多：${title}`, { exact: true }).click(); await page.getByRole('button', { name: '移到回收站', exact: true }).click();
+    try { await expect(page.getByRole('button', { name: '回收站', exact: true })).toBeDisabled(); } finally { releaseTrash(); }
     await page.getByRole('button', { name: '回收站', exact: true }).click(); await expect(page.getByRole('dialog', { name: '回收站' })).toContainText(title);
     await page.screenshot({ path: `artifacts/candidate-trash-${width}.png`, fullPage: true });
-    await page.getByRole('button', { name: '恢复', exact: true }).click(); await page.getByRole('button', { name: '关闭回收站' }).click();
+    await page.locator('.trash-row').filter({ hasText: title }).getByRole('button', { name: '恢复', exact: true }).click(); await page.getByRole('button', { name: '关闭回收站' }).click();
     await page.getByRole('button', { name: '切换列表' }).click(); await card.focus(); await page.keyboard.press('ArrowDown'); await expect(card).toBeFocused();
     await page.screenshot({ path: `artifacts/candidate-list-${width}.png`, fullPage: true });
     await page.getByRole('button', { name: '切换卡片' }).click(); await page.screenshot({ path: `artifacts/candidate-cards-${width}.png`, fullPage: true });
