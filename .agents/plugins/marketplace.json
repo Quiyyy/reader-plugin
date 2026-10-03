@@ -74,7 +74,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "736caab965bb3fb73f85f552b8a62d3dba4f1219"
+        "sha": "510b3eb50c5efe6e211142571421fbfc2f2bdf20"
       },
       "policy": {
         "installation": "AVAILABLE",
