@@ -38,7 +38,20 @@ export class ScriptSession {
       catch (error) { workers--; throw error; }
       this.worker.on('error', error => this.fail(error instanceof Error ? error : new Error(String(error))));
       this.worker.on('exit', code => { if (this.worker) this.fail(new Error(`隔离 Worker 意外退出（${code}）`)); });
+      const booting = this.worker;
+      // Only trusted module/WASM initialization occurs before ready. Do not
+      // send source code or spend its execution budget while a cold engine
+      // (or development TS loader) starts on a slower platform.
+      await new Promise<void>((resolve, reject) => {
+        const cleanup = () => { if (this.timer) clearTimeout(this.timer); booting.off('message', ready); this.reject = undefined; };
+        const ready = (message: any) => { if (message.type === 'ready') { cleanup(); resolve(); } };
+        this.reject = error => { cleanup(); reject(error); };
+        booting.on('message', ready);
+        this.timer = setTimeout(() => this.fail(new Error('隔离引擎初始化超时，Worker 已强制终止')), 10000);
+      });
     }
+    this.signal.throwIfAborted();
+    if (this.dead) throw this.dead;
     const worker = this.worker;
     return new Promise((resolve, reject) => {
       let settled = false, elapsed = 0, tick = Date.now();

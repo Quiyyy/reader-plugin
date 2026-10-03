@@ -18,8 +18,10 @@ node scripts/audit-source-capabilities.mjs /path/to/user-provided/shuyuan.json
 | 番茄小说2 | 阻止 | 未完整 | 递归 JSONPath、动态 eval、专用宿主/登录代码、多域/API |
 | 酷我小说 | 可尝试 | 可尝试 | 官方匿名搜索“红楼梦”请求完成，结果为空；未证明详情正文可读 |
 | 69书吧.com | 无效 | 未完整 | 固定集合内 searchUrl 的 JS 不是有效 ES2022；需要浏览器时停止 |
-| 69书吧 | 可尝试 | 可尝试 | GBK、数值限速、倒序切片与正文标题模板已实现；网站未测 |
-| 速读谷、得奇小说网、快书网、天天看小说、独步小说网 | 可尝试 | 可尝试 | 网站未测；快书网限速不再阻止 |
+| 69书吧 | 可尝试 | 可尝试 | GBK、数值限速、倒序切片与正文标题模板已实现；固定源被跨域跳转拦截，仅加已观察 www.69shuba.com 的临时副本仍超时 |
+| 速读谷、得奇小说网、独步小说网 | 可尝试 | 可尝试 | 网站未测 |
+| 快书网 | 可尝试 | 可尝试 | 限速不再阻止；匿名搜索连接失败 |
+| 天天看小说 | 可尝试 | 可尝试 | 匿名搜索 HTTP 403；未绕过访问限制 |
 | 手机小说 | 阻止 | 未完整 | 源内敏感 Cookie、XPath 轴；不使用集合携带的身份信息 |
 | 铅笔小说 | 可尝试 | 可尝试 | 未使用 loginUrl 不再阻止；公开搜索实测超时 |
 | 来看文学 | 阻止 | 未完整 | 动态 eval、Cookie/验证码、XPath 轴 |
@@ -29,6 +31,8 @@ node scripts/audit-source-capabilities.mjs /path/to/user-provided/shuyuan.json
 | 艾途小说 | 可尝试 | 未完整 | 正文对下载数据使用 eval；未把未知代码当 JSON 执行 |
 | 阅友小说、就爱文学 | 可尝试 | 可尝试 | 网站未测；onclick 仅作为数据送入隔离规则 |
 | 武林中文网 | 可尝试 | 未完整 | 正文/章节 URL 要求真实 WebView，不能用 fetch 冒充 |
+
+2026-10-03 少量联网检查共 6 个第三方源、7 次搜索尝试（含 69书吧的显式域临时副本），查询均为公版作品“红楼梦”。没有获得可确认原著的匹配结果，因此没有进入真实详情、目录或正文；第三方正文请求为 0。网站全链路可读数尚未证明，完整链路仅在原创 fixture 中通过。
 
 `partial` 也可表示忽略的展示字段或必须在运行时判断的 JS，不等于该阶段一定能完成。联网返回空列表只能证明搜索请求/列表提取完成，不证明逐条字段或后续阶段。
 
@@ -49,7 +53,7 @@ node scripts/audit-source-capabilities.mjs /path/to/user-provided/shuyuan.json
 
 每个操作一个 Worker、全局最多 4 个并行 Worker，来宾无文件、process/env、require、fetch、模块加载或 WebAssembly 接口。来宾 eval、Function 及普通/生成器/异步函数构造链被不可逆封闭，静态检查也拒绝动态编译/下载代码。新 VM 对每段求值创建，跨段只通过明确变量存取传递数据，不承诺共享任意 JS 全局对象。
 
-限制：32 Ki 字符脚本、16 MiB QuickJS 软堆、**32 MiB WASM 硬内存**、512 KiB 栈；500 ms 中断预算、2 s Worker 强制终止、每阶段 500 段/约 5 s 累计脚本墙钟、60 s 阶段上限；2 MiB 脚本输出，单阶段最多 20 次实际连接/8 MiB 响应。HTTP 每次仍为 10 s/2 MiB、最多 3 次重定向；DNS 全地址检查、固定 IP、TLS 验证和取消保持。
+限制：32 Ki 字符脚本、16 MiB QuickJS 软堆、**32 MiB WASM 硬内存**、512 KiB 栈；500 ms 中断预算、2 s 脚本 Worker 强制终止、每阶段 500 段/约 5 s 累计脚本墙钟、60 s 阶段上限。受信任模块/WASM 冷启动单独限制 10 s，收到 ready 后才发送第三方代码和开始执行计时；取消在初始化期间也生效。2 MiB 脚本输出，单阶段最多 20 次实际连接/8 MiB 响应。HTTP 每次仍为 10 s/2 MiB、最多 3 次重定向；DNS 全地址检查、固定 IP、TLS 验证和取消保持。
 
 当前上游 [#271](https://github.com/justjake/quickjs-emscripten/issues/271) 报告大块分配未累计到软堆限制，因此额外注入有限最大值的 WebAssembly.Memory，测试反复分配小于软上限的块也必须被硬上限拒绝。[#261](https://github.com/justjake/quickjs-emscripten/issues/261) 是 async runtime 销毁顺序问题，因此使用 module.newContext 管理 runtime 生命周期。测试覆盖多次 ajax/销毁、OOM、死循环、灾难正则、恶意 toJSON、输出超限、取消，以及失败后新操作仍正常。
 

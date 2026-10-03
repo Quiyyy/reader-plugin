@@ -31,19 +31,20 @@ describe('isolated QuickJS host and lifecycle', () => {
     expect(await r.init('$.data', { data: { name: 'original' } })).toEqual({ name: 'original' });
     expect(await r.clean('第一章 原创\n正文', '##{{book.durChapterTitle}}.*\n', '')).toBe('正文');
     const other = session(); expect(await other.run('java.get("part")', '', '', globals)).toBe('');
-  });
+  }, 15000);
   it('awaits bounded host ajax synchronously and rejects browser requirements even if caught', async () => {
     const ajax = vi.fn(async () => '<p>原创</p>'), s = session(ajax);
     expect(await s.run('java.ajax(baseUrl) + java.ajax(baseUrl)', '', '', globals)).toBe('<p>原创</p><p>原创</p>');
     expect(ajax).toHaveBeenCalledTimes(2);
     await expect(s.run('try { java.startBrowserAwait(baseUrl) } catch(e) {} "pretend success"', '', '', globals)).rejects.toThrow('真实浏览器');
-  });
+  }, 15000);
   it.each(['while(true) {}', '/(a+)+$/.test("a".repeat(100)+"!")', '({toJSON(){while(true){}}})'])('terminates excessive CPU without blocking the parent event loop: %s', async code => {
-    const s = session(); let ticks = 0; const timer = setInterval(() => ticks++, 10);
-    try { await expect(s.run(code, '', '', globals)).rejects.toThrow(/interrupt|超时|终止/i); expect(ticks).toBeGreaterThan(1); }
+    const s = session(); await s.run('0', '', '', globals);
+    let ticks = 0; const started = Date.now(), timer = setInterval(() => ticks++, 10);
+    try { await expect(s.run(code, '', '', globals)).rejects.toThrow(/interrupt|超时|终止/i); expect(ticks).toBeGreaterThan(1); expect(Date.now() - started).toBeLessThan(3500); }
     finally { clearInterval(timer); }
     expect(await session().run('1+1', '', '', globals)).toBe(2);
-  }, 7000);
+  }, 15000);
   it('enforces output, variable and bulk WASM memory ceilings', async () => {
     await expect(session().run('"x".repeat(3*1024*1024)', '', '', globals)).rejects.toThrow(/输出|memory/);
     await expect(session().run('java.put("x","x".repeat(40000))', '', '', globals)).rejects.toThrow(/参数|变量/);
@@ -51,7 +52,7 @@ describe('isolated QuickJS host and lifecycle', () => {
     // 32 MiB WebAssembly.Memory maximum (regression for upstream #271).
     await expect(session().run('let keep=[]; for(let i=0;i<80;i++) keep.push(new Uint8Array(1024*1024)); "unbounded"', '', '', globals)).rejects.toThrow(/memory|分配|退出|abort|null/i);
     expect(await session().run('40+2', '', '', globals)).toBe(42);
-  }, 7000);
+  }, 15000);
   it('cancels a suspended script and refuses dynamic compilation', async () => {
     const controller = new AbortController();
     // Cancel after the guest actually reaches the suspended network call, not
@@ -60,7 +61,13 @@ describe('isolated QuickJS host and lifecycle', () => {
     await expect(s.run('java.ajax(baseUrl)', '', '', globals)).rejects.toThrow('取消');
     await expect(session().run('eval("1+1")', '', '', globals)).rejects.toThrow('动态');
     await expect(session().run('import("node:fs")', '', '', globals)).rejects.toThrow('动态');
-  });
+  }, 15000);
+  it('cancels trusted engine initialization before any source code is sent', async () => {
+    const controller = new AbortController(), ajax = vi.fn(async () => 'must not run'), s = session(ajax, controller.signal);
+    const pending = expect(s.run('java.ajax(baseUrl)', '', '', globals)).rejects.toThrow('取消');
+    controller.abort(); await pending; expect(ajax).not.toHaveBeenCalled();
+    expect(await session().run('6*7', '', '', globals)).toBe(42);
+  }, 15000);
 });
 
 describe('request encoding and per-source limits', () => {
@@ -117,7 +124,7 @@ it('runs an original JS/GBK source through pagination and persisted book/chapter
   `, dir, book.summary.id], { timeout: 10000 });
   expect(JSON.parse(child.stdout)).toMatchObject({ progress: 1, locator, bookmarks: 1, text: expect.arrayContaining(['第二段文字。']) });
   expect(importSources(JSON.stringify({ ...raw, readerAllowedOrigins: ['http://127.0.0.1'] }))[0].report.syntax).toBe('blocked');
-}, 15000);
+}, 30000);
 
 it('keeps ajax under pinned DNS, explicit origins, cancellation and network quotas', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'reader-network-')); cleanup.push(() => rm(dir, { recursive: true, force: true }));
@@ -139,7 +146,7 @@ it('keeps ajax under pinned DNS, explicit origins, cancellation and network quot
   await expect(use('for(let i=0;i<30;i++) java.ajax("/search"); "/search"')).rejects.toThrow('20');
   expect(f.requests.length - start).toBe(20);
   expect((await online.listSources())[0].stages.search.network).toBe('failed');
-});
+}, 30000);
 
 it('extracts reversed classic ranges, fallback/combined fields and safe capture cleanup', async () => {
   const r = new RuleEvaluator(session(), globals);

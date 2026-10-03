@@ -2,7 +2,7 @@
 
 一个安静、私人的小说阅读插件。React + TypeScript 阅读界面，真实 MCP Apps 协议与 OpenAI MCP Extensions 接入，书籍和进度由 Reader 服务持久保存。
 
-**源码版本：0.1.7 独立审查候选，尚未发布。** 新增有界声明式书源兼容并简化来源管理；规则识别不等于网站可用，见 [兼容性复查](docs/DECLARATIVE_COMPATIBILITY.md)。现有正式安装保持 0.1.6。 本版将书架和找书作为主入口，书源管理独立，导入采用摘要确认向导，阅读返回保留搜索状态；设计与验证边界见 [找书改版说明](docs/DISCOVERY_DESIGN.md)。保留紧凑标题与正文工具栏；本地 Node 安装的升级方法见 [界面更新说明](docs/UI_COMPACT.md)。 平台包自带官方 Node，用户无需 Node/npm 或手动 setup；选择、依赖、数据保留和发行限制见 [marketplace 指南](docs/MARKETPLACE.md)。macOS 正常目录暂不可安装，Reader 发布者签名、公证及发行信任尚未完成。既有 0.1.3 免编译包及安装方式保留，见 [旧安装指南](docs/INSTALL.md)。此前用户已确认 Mac 主导航 Reader 和本地 Codex 对话侧栏可用；dot 对话的宿主 `thread not found` 问题 [#50152](https://github.com/openai/codex/issues/50152) 仍未修复。Windows 实际桌面及宿主文件入口仍待人工验收；CI/测试宿主通过不等于原生入口通过。见 [宿主排错记录](docs/HOST_ROUTING.md)。
+**源码版本：0.1.7 独立审查候选，尚未发布。** 新增有界声明式与隔离 JavaScript 规则、GBK 请求编码、限速及静态请求头，保留简化后的来源管理；规则识别不等于网站可用，见 [兼容性与联网验收](docs/ISOLATED_COMPATIBILITY.md)。现有正式安装保持 0.1.6。 本版将书架和找书作为主入口，书源管理独立，导入采用摘要确认向导，阅读返回保留搜索状态；设计与验证边界见 [找书改版说明](docs/DISCOVERY_DESIGN.md)。保留紧凑标题与正文工具栏；本地 Node 安装的升级方法见 [界面更新说明](docs/UI_COMPACT.md)。 平台包自带官方 Node，用户无需 Node/npm 或手动 setup；选择、依赖、数据保留和发行限制见 [marketplace 指南](docs/MARKETPLACE.md)。macOS 正常目录暂不可安装，Reader 发布者签名、公证及发行信任尚未完成。既有 0.1.3 免编译包及安装方式保留，见 [旧安装指南](docs/INSTALL.md)。此前用户已确认 Mac 主导航 Reader 和本地 Codex 对话侧栏可用；dot 对话的宿主 `thread not found` 问题 [#50152](https://github.com/openai/codex/issues/50152) 仍未修复。Windows 实际桌面及宿主文件入口仍待人工验收；CI/测试宿主通过不等于原生入口通过。见 [宿主排错记录](docs/HOST_ROUTING.md)。
 
 ## 已实现
 
