@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "reader-win32-x64",
+  "version": "0.1.9",
+  "description": "Local TXT and DRM-free EPUB reader; bundled runtime for Windows · x64.",
+  "author": {
+    "name": "Quiyyy"
+  },
+  "repository": "https://github.com/Quiyyy/reader-plugin",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Reader",
+        "shortDescription": "Windows · x64。本地阅读，无需 Node 或 npm。",
+        "longDescription": "Bundled runtime for Windows · x64. Choose only the package matching this device. Book storage is separate from the plugin cache. System trust prompts may apply.",
+        "developerName": "Quiyyy",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "打开 Reader 书架"
+        ]
+      }
+    }
+  }
+}
