@@ -2,11 +2,15 @@
 
 一个安静、私人的小说阅读插件。React + TypeScript 阅读界面，真实 MCP Apps 协议与 OpenAI MCP Extensions 接入，书籍和进度由 Reader 服务持久保存。
 
-**源码版本：0.1.7 独立审查候选，尚未发布。** 新增有界声明式与隔离 JavaScript 规则、GBK 请求编码、限速及静态请求头，保留简化后的来源管理；规则识别不等于网站可用，见 [兼容性与联网验收](docs/ISOLATED_COMPATIBILITY.md)。现有正式安装保持 0.1.6。 本版将书架和找书作为主入口，书源管理独立，导入采用摘要确认向导，阅读返回保留搜索状态；设计与验证边界见 [找书改版说明](docs/DISCOVERY_DESIGN.md)。保留紧凑标题与正文工具栏；本地 Node 安装的升级方法见 [界面更新说明](docs/UI_COMPACT.md)。 平台包自带官方 Node，用户无需 Node/npm 或手动 setup；选择、依赖、数据保留和发行限制见 [marketplace 指南](docs/MARKETPLACE.md)。macOS 正常目录暂不可安装，Reader 发布者签名、公证及发行信任尚未完成。既有 0.1.3 免编译包及安装方式保留，见 [旧安装指南](docs/INSTALL.md)。此前用户已确认 Mac 主导航 Reader 和本地 Codex 对话侧栏可用；dot 对话的宿主 `thread not found` 问题 [#50152](https://github.com/openai/codex/issues/50152) 仍未修复。Windows 实际桌面及宿主文件入口仍待人工验收；CI/测试宿主通过不等于原生入口通过。见 [宿主排错记录](docs/HOST_ROUTING.md)。
+**Reader 0.1.8：书架回收站、键盘操作与书源清单导入。** 书籍可移入回收站、撤销和恢复，原文、在线缓存、进度和书签保留；方向键只在 Reader 获得焦点时操作，快捷键可录制、校验、清除和重置。清单文件由用户选择并确认导入，新增或更新书源默认停用，格式兼容不代表在线可读。详见 [0.1.8 说明](docs/RELEASE_0.1.8.md)。
+
+正式平台目录由 main CI 完成六平台原生及远程安装验证后推进；以目录的版本、来源提交和摘要为准。Windows/Linux 平台包自带官方 Node，用户无需 Node/npm 或手动 setup，见 [marketplace 指南](docs/MARKETPLACE.md)。本版保留有界规则、隔离 QuickJS 和 SafeHTTP 网络边界；第三方网站兼容范围见 [兼容性说明](docs/ISOLATED_COMPATIBILITY.md)。
+
+真实 ChatGPT 侧栏关闭尚未验证：仅调用公开宿主关闭请求，界面明确区分请求已发送、不支持和失败，不隐藏 iframe、不拦截宿主全局快捷键。Mac 正常目录的签名/公证限制维持不变；本批 Windows 升级不授权或触发 Mac 安装。测试宿主或 CI 通过不等同于真实 global/thread/file 入口通过，见 [宿主验收边界](docs/HOST_ROUTING.md)。
 
 ## 已实现
 
-- TXT / 无 DRM EPUB 导入、重复文件去重、书架搜索
+- TXT / 无 DRM EPUB 导入、重复文件去重、书架搜索、卡片/列表与可恢复回收站
 - 中文/英文章节识别、EPUB spine 和导航目录、全文搜索
 - 中文硬换行适度合并，保留空行、缩进、章头、短诗行和对话边界；支持跨原始换行搜索
 - 段落级阅读位置、跨进程持久化、书签、字体/字号/行距/宽度/主题
@@ -19,7 +23,7 @@
 
 EPUB 当前是**小说正文模式**：保留原文与段落，以每个可读 spine 资源作为一章；不显示图片、音视频、自定义字体和原书分页/复杂版式，目录里的同一文件内锚点会合并到该章节。适合文字小说，不适合漫画或图文教材。
 
-MOBI/AZW3、CBZ/漫画、原版 EPUB 排版、CFI、跨设备云同步、书籍删除/重解码尚未实现。不会移除 DRM。改变已导入 TXT 的编码会明确报错并保留原数据；首次导入前可选 UTF-8、GB18030/GBK、Big5、UTF-16LE/BE。自动检测可能有误。
+MOBI/AZW3、CBZ/漫画、原版 EPUB 排版、CFI、跨设备云同步、永久删除/重解码尚未实现。不会移除 DRM。改变已导入 TXT 的编码会明确报错并保留原数据；首次导入前可选 UTF-8、GB18030/GBK、Big5、UTF-16LE/BE。自动检测可能有误。
 
 ## 免编译安装
 
@@ -58,7 +62,7 @@ READER_DATA_DIR="$HOME/.reader-test" PORT=4173 npm run preview
 npm start
 ```
 
-它在 stdin/stdout 上运行 MCP，诊断只写 stderr。**不要直接把标准输出当日志。** 本地宿主负责启动它并读取 ui://reader/v0.1.7/bookshelf.html。UI HTML 内联全部脚本和样式，不依赖 CDN；iframe 通过 App.callServerTool 与宿主通信，不假设能 fetch localhost，也不依赖 localStorage/IndexedDB 的持久性。发行平台包使用根目录 portable `plugin.json`/`mcp.json`；这里的兼容 wrapper 仅用于开发。
+它在 stdin/stdout 上运行 MCP，诊断只写 stderr。**不要直接把标准输出当日志。** 本地宿主负责启动它并读取 ui://reader/v0.1.8/bookshelf.html。UI HTML 内联全部脚本和样式，不依赖 CDN；iframe 通过 App.callServerTool 与宿主通信，不假设能 fetch localhost，也不依赖 localStorage/IndexedDB 的持久性。发行平台包使用根目录 portable `plugin.json`/`mcp.json`；这里的兼容 wrapper 仅用于开发。
 
 不同客户端对本地插件和 ${PLUGIN_ROOT} 的支持需要实际检查。若不支持占位符，运行以下命令得到此机器上真实的绝对路径配置，再按该客户端的本地 MCP 配置流程接入：
 
