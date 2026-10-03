@@ -4,7 +4,10 @@ import { request as httpRequest, type RequestOptions, type IncomingMessage, type
 import { request as httpsRequest } from 'node:https';
 import { normalizeEncoding } from '../importers.js';
 
-export const HTTP_LIMITS = Object.freeze({ timeout: 10000, bytes: 2 * 1024 * 1024, redirects: 3, concurrent: 4, queue: 16 });
+export const HTTP_LIMITS = Object.freeze({ timeout: 10000, bytes: 2 * 1024 * 1024, redirects: 3, addresses: 3, concurrent: 4, queue: 16 });
+class ConnectionFailure extends Error {}
+const retryableConnectionErrors = new Set(['ECONNRESET', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETUNREACH', 'ETIMEDOUT', 'EPIPE']);
+type ResponseData = { location?: string; bytes?: Buffer; type?: string };
 export function publicAddress(address: string): boolean {
   const family = isIP(address);
   if (family === 4) {
@@ -95,12 +98,27 @@ export class SafeHttpClient {
       });
     } else this.active++;
   }
-  private async once(url: URL, signal: AbortSignal): Promise<{ location?: string; bytes?: Buffer; type?: string }> {
+  private async once(url: URL, signal: AbortSignal): Promise<ResponseData> {
     const host = url.hostname.replace(/^\[|\]$/g, '');
     const resolved = isIP(host) ? [{ address: host, family: isIP(host) }] : await this.abortable((this.dependencies.resolve ?? (name => dnsLookup(name, { all: true, verbatim: true })))(host), signal);
     signal.throwIfAborted();
     if (!resolved.length || resolved.length > 32 || resolved.some(item => !publicAddress(item.address))) throw new Error('DNS 包含非公网地址，已阻止连接');
-    const pinned = resolved[0]!;
+    // Retry only a small set of addresses from this already validated DNS
+    // answer. Never resolve again after a connection failure. All attempts
+    // share the original deadline, concurrency slot, hostname and TLS checks.
+    const candidates = [...new Map(resolved.map(item => [`${item.family}:${item.address}`, item])).values()].slice(0, HTTP_LIMITS.addresses);
+    let failure: Error = new Error('连接失败；请检查书源地址或稍后重试');
+    for (const pinned of candidates) {
+      signal.throwIfAborted();
+      try { return await this.connect(url, signal, pinned); }
+      catch (error) {
+        if (!(error instanceof ConnectionFailure) || signal.aborted) throw error;
+        failure = error;
+      }
+    }
+    throw failure;
+  }
+  private connect(url: URL, signal: AbortSignal, pinned: { address: string; family: number }): Promise<ResponseData> {
     return new Promise((resolve, reject) => {
       const options: RequestOptions = {
         agent: false, method: 'GET', signal, maxHeaderSize: 16384,
@@ -126,7 +144,8 @@ export class SafeHttpClient {
         response.on('error', reject); response.on('aborted', () => reject(new Error('响应传输中断')));
         response.on('end', () => resolve({ bytes: Buffer.concat(chunks), type }));
       });
-      request.on('error', () => reject(signal.aborted ? signal.reason : new Error('连接失败；请检查书源地址或稍后重试')));
+      request.on('error', (error: NodeJS.ErrnoException) => reject(signal.aborted ? signal.reason :
+        retryableConnectionErrors.has(error.code ?? '') ? new ConnectionFailure('连接失败；请检查书源地址或稍后重试') : new Error('连接失败；请检查书源地址或稍后重试')));
       request.end();
     });
   }

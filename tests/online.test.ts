@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { EventEmitter } from 'node:events';
+import type { ClientRequest } from 'node:http';
 import { compileRule, documentContext, extract, select, template } from '../src/server/online/rules.js';
 import { importSources } from '../src/server/online/import.js';
 import { publicAddress, safeUrl, SafeHttpClient } from '../src/server/online/http.js';
@@ -56,6 +58,54 @@ describe('complete no-script grammar and source diagnostics', () => {
 });
 
 describe('public-only pinned HTTP client', () => {
+  function failedConnection(code: string, beforeError?: () => void): ClientRequest {
+    const request = new EventEmitter() as ClientRequest;
+    request.end = (() => { queueMicrotask(() => { beforeError?.(); request.emit('error', Object.assign(new Error('synthetic connection failure'), { code })); }); return request; }) as ClientRequest['end'];
+    return request;
+  }
+  it('retries a failed public address using the same validated DNS answer and original TLS hostname', async () => {
+    const f = await fixture(), pins: string[] = [], hosts: string[] = [];
+    const resolve = vi.fn(async () => [{ address: '8.8.8.8', family: 4 }, { address: '1.1.1.1', family: 4 }]);
+    const client = new SafeHttpClient({ resolve, transport: (url, options, callback) => {
+      hosts.push(url.hostname);
+      (options.lookup as any)(url.hostname, {}, (_error: unknown, address: string) => pins.push(address));
+      expect(options.agent).toBe(false); expect(options).not.toHaveProperty('rejectUnauthorized', false);
+      return pins.length === 1 ? failedConnection('ECONNRESET') : (f.client as any).dependencies.transport(url, options, callback);
+    } });
+    expect((await client.get('https://reader.example.com/search')).text).toContain('原创');
+    expect(resolve).toHaveBeenCalledTimes(1); expect(pins).toEqual(['8.8.8.8', '1.1.1.1']);
+    expect(hosts).toEqual(['reader.example.com', 'reader.example.com']);
+  });
+  it('deduplicates addresses and caps connection attempts at three', async () => {
+    const transport = vi.fn(() => failedConnection('ECONNRESET'));
+    const client = new SafeHttpClient({ resolve: async () => ['8.8.8.8', '8.8.8.8', '1.1.1.1', '9.9.9.9', '4.4.4.4'].map(address => ({ address, family: 4 })), transport });
+    await expect(client.get('https://reader.example.com')).rejects.toThrow('连接失败'); expect(transport).toHaveBeenCalledTimes(3);
+  });
+  it('does not retry TLS verification failures, cancellation or HTTP denial on other addresses', async () => {
+    const resolve = async () => [{ address: '8.8.8.8', family: 4 }, { address: '1.1.1.1', family: 4 }];
+    const tls = vi.fn(() => failedConnection('CERT_HAS_EXPIRED'));
+    await expect(new SafeHttpClient({ resolve, transport: tls }).get('https://reader.example.com')).rejects.toThrow('连接失败'); expect(tls).toHaveBeenCalledTimes(1);
+    const abort = new AbortController(), cancelled = vi.fn(() => failedConnection('ECONNRESET', () => abort.abort()));
+    await expect(new SafeHttpClient({ resolve, transport: cancelled }).get('https://reader.example.com', abort.signal)).rejects.toThrow(); expect(cancelled).toHaveBeenCalledTimes(1);
+    const f = await fixture((_req, response) => { response.writeHead(403); response.end('Denied'); });
+    const denied = vi.fn((url, options, callback) => (f.client as any).dependencies.transport(url, options, callback));
+    await expect(new SafeHttpClient({ resolve, transport: denied }).get('https://reader.example.com')).rejects.toThrow('HTTP 403'); expect(denied).toHaveBeenCalledTimes(1);
+  });
+  it('keeps one total timeout across public-address retries', async () => {
+    vi.useFakeTimers();
+    const transport = vi.fn((_url, options) => {
+      const request = new EventEmitter() as ClientRequest;
+      request.end = (() => {
+        const timer = setTimeout(() => request.emit('error', Object.assign(new Error('reset'), { code: 'ECONNRESET' })), 6000);
+        options.signal.addEventListener('abort', () => { clearTimeout(timer); request.emit('error', Object.assign(new Error('abort'), { code: 'ABORT_ERR' })); }, { once: true });
+        return request;
+      }) as ClientRequest['end'];
+      return request;
+    });
+    const client = new SafeHttpClient({ resolve: async () => ['8.8.8.8', '1.1.1.1', '9.9.9.9'].map(address => ({ address, family: 4 })), transport });
+    const rejected = expect(client.get('https://reader.example.com')).rejects.toThrow('超时');
+    await vi.advanceTimersByTimeAsync(10001); await rejected; expect(transport).toHaveBeenCalledTimes(2);
+  });
   it.each(['127.0.0.1', '0.0.0.0', '10.2.3.4', '172.16.1.1', '192.168.0.1', '169.254.169.254', '100.100.100.200', '198.18.0.1', '192.0.0.1', '192.0.2.1', '224.1.1.1', '255.255.255.255', '::1', '::', 'fc00::1', 'fe80::1', '::ffff:127.0.0.1', '64:ff9b::a9fe:a9fe', '2002:7f00:1::', '2001:db8::1', '2001::1'])('blocks non-public address %s', address => { expect(publicAddress(address)).toBe(false); });
   it.each(['http://2130706433/', 'http://0177.0.0.1/', 'http://0x7f000001/', 'http://[::ffff:7f00:1]/', 'http://localhost/', 'http://metadata.google.internal/', 'file:///etc/passwd', 'https://user:pass@example.com', 'http://example.com:22', 'http://example.com\\@127.0.0.1'])('blocks unsafe URL %s', url => { expect(() => safeUrl(url)).toThrow(); });
   it('allows global IPv4/IPv6 and rejects any mixed private DNS answer before transport', async () => {
