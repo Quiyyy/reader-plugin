@@ -25,9 +25,13 @@ func publishNode(temporary, target string) error {
 // temporary sharing lock. Retry only sharing/lock violations, for at most one
 // second. A permission error, missing file or failed hash remains a hard error.
 func openForVerification(path string) (*os.File, error) {
-	deadline := time.Now().Add(time.Second)
+	return openWithSharingRetry(func() (*os.File, error) { return os.Open(path) }, time.Second)
+}
+
+func openWithSharingRetry(open func() (*os.File, error), limit time.Duration) (*os.File, error) {
+	deadline := time.Now().Add(limit)
 	for {
-		file, err := os.Open(path)
+		file, err := open()
 		if err == nil || (!errors.Is(err, syscall.Errno(32)) && !errors.Is(err, syscall.Errno(33))) || !time.Now().Before(deadline) {
 			return file, err
 		}
