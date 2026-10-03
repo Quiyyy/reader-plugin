@@ -18,8 +18,15 @@ port.on('message', async message => {
   const vm = module.newContext({ intrinsics: { ...DefaultIntrinsics, Proxy: false } });
   const runtime = vm.runtime;
   runtime.setMemoryLimit(SCRIPT_LIMITS.memory); runtime.setMaxStackSize(SCRIPT_LIMITS.stack);
-  let deadline = Date.now() + SCRIPT_LIMITS.cpuMs, failure: string | undefined;
-  runtime.setInterruptHandler(() => Date.now() > deadline);
+  let deadline = performance.now() + SCRIPT_LIMITS.cpuMs, failure: string | undefined;
+  let executionMs = 0, executionStarted = 0, executing = false;
+  const charge = () => { if (executing) { executionMs += performance.now() - executionStarted; executing = false; } };
+  const beginExecution = () => {
+    if (!Number.isFinite(message.budgetMs) || message.budgetMs <= executionMs) throw Error('脚本累计执行预算超限');
+    executionStarted = performance.now(); executing = true;
+    deadline = executionStarted + Math.min(SCRIPT_LIMITS.cpuMs, message.budgetMs - executionMs);
+  };
+  runtime.setInterruptHandler(() => performance.now() > deadline);
   runtime.setModuleLoader(() => { throw Error('不允许加载模块'); });
   let context = message.context === undefined ? undefined : typeof message.context === 'string' ? documentContext(message.context) : message.context;
   const variables: Record<string, string> = Object.assign(Object.create(null), message.variables);
@@ -92,14 +99,20 @@ port.on('message', async message => {
     for (const name of ['startBrowserAwait', 'startBrowser', 'webView', 'getVerificationCode']) bind(name, () => stop('此步骤需要真实浏览器、登录或验证码交互；尚无经授权的浏览器会话，已停止'));
     const ajax = vm.newAsyncifiedFunction('ajax', async url => {
       const input = string(url, 8192);
+      charge();
+      if (executionMs >= message.budgetMs) return stop('脚本累计执行预算超限');
       port.postMessage({ type: 'ajax', input });
       const response = await new Promise<any>(resolve => { pending = resolve; });
-      deadline = Date.now() + SCRIPT_LIMITS.cpuMs;
+      beginExecution();
       if (response.error) return stop(response.error);
       return vm.newString(response.text);
     });
     vm.setProp(java, 'ajax', ajax); ajax.dispose();
     vm.setProp(vm.global, 'java', java);
+    // Count guest evaluation, host calls and guest serialization in this worker.
+    // Parent IPC scheduling and trusted context setup are not guest execution.
+    // The parent command watchdog and total operation deadline still apply.
+    beginExecution();
     const result = await vm.evalCodeAsync(message.code, 'source-rule.js', { type: 'global' });
     try {
       if (failure) throw Error(failure);
@@ -119,7 +132,9 @@ port.on('message', async message => {
         }
       } finally { encoded.dispose(); }
       if (failure) throw Error(failure);
-      port.postMessage({ type: 'done', value, variables });
+      charge();
+      if (executionMs > message.budgetMs) throw Error('脚本累计执行预算超限');
+      port.postMessage({ type: 'done', value, variables, executionMs });
     } finally { result.dispose(); }
   } catch (error) { port.postMessage({ type: 'error', error: failure ?? (error instanceof Error ? error.message : '隔离脚本失败') }); }
   finally { serializer?.dispose(); java.dispose(); vm.dispose(); }

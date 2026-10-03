@@ -284,7 +284,7 @@ export class OnlineSourceService {
     try {
       for (let batch = 0; state.next; batch++) {
         control.signal.throwIfAborted();
-        if (batch >= PAGINATION_LIMITS.batchPages || Date.now() - began >= PAGINATION_LIMITS.batchMs) {
+        if (batch >= PAGINATION_LIMITS.batchPages || Date.now() - began >= PAGINATION_LIMITS.batchMs || batch > 0 && rules.script.shouldPause) {
           throw new IncompleteLoadError(`${label}尚未完成，已加载 ${state.pages} 页、${items.length} ${stage === 'toc' ? '章' : '段'}。已保存续点，可继续加载；原书籍和阅读进度未改动。`, { ...progress(), paused: true });
         }
         if (state.requests >= PAGINATION_LIMITS.requests) throw new PaginationBoundaryError('分页累计请求已达 512 次，请检查书源规则');

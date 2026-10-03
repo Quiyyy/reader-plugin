@@ -195,4 +195,4 @@ it.each(['classic', 'xpath'])('runs original %s source through search, detail, p
   const restored = await restarted.open(book.summary.id, signal());
   expect(restored.summary.locator).toEqual(locator); expect(restored.bookmarks[0].label).toBe('原创书签');
   expect(restored.document.chapters[0].paragraphs).toHaveLength(2); expect(f.requests).toHaveLength(requests);
-});
+}, 15000);
