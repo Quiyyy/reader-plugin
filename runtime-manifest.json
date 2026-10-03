@@ -1,6 +1,6 @@
 {
   "kind": "reader-bundled-runtime",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "goos": "linux",
   "goarch": "arm64",
   "nodeVersion": "24.21.0",
@@ -8,9 +8,9 @@
   "nodeBytes": 122893672,
   "compressedSha256": "f07967f50a15f95573eea989a0fdc6a4ae8dd9f29348de335c9bca86d8a8a554",
   "files": {
-    "app/dist/server/index.js": "80c68eb42b366b4fdaad4a25cc28d4d4685d9d64dd7cd15596738d697372cd01",
-    "app/dist/server/script-worker.js": "c72f394d15f0a2402af7ac33a6a90e3fd36d5fa0fb3b41de0f952bac76b5ada4",
-    "app/dist/ui/index.html": "cb86eebf13af81898cbd8e79e38f18c7a1b968d6b39f1511ac47351f853e02f3",
+    "app/dist/server/index.js": "6fd1d11a6f9eac3ebf638d8d57564aa88a9fff03e6a389183123c0d4caac7f63",
+    "app/dist/server/script-worker.js": "4bf3bb90578b56ea0359bc8fa10fc08837847b14d58257f008952d218f99f335",
+    "app/dist/ui/index.html": "68184303bcff7ac86d63057dd3fefcac2b6f6bc671a1f44314218dc468171bad",
     "app/node_modules/@jitl/quickjs-ffi-types/LICENSE": "3c6040aa318612a234cc951609b640c0c63d85ae5a98a9330d3116f1553a79db",
     "app/node_modules/@jitl/quickjs-ffi-types/README.md": "808124bff16606acac21b74e72017c201200b370f62064dcd61baefbaa5470d6",
     "app/node_modules/@jitl/quickjs-ffi-types/dist/index.d.mts": "89d6886dc16653c9e3372b255d3967ca756babe1f82ba07ed7d32af269c1b21e",
@@ -150,11 +150,11 @@
     "app/node_modules/quickjs-emscripten/dist/variants.mjs": "e3f70bc7cb4591c875997b8d1b570d1f2c03531f4b2f59c046b2965672e8209c",
     "app/node_modules/quickjs-emscripten/dist/variants.mjs.map": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3",
     "app/node_modules/quickjs-emscripten/package.json": "0feb2558c02e41fc9b8ab20c674edfa84af70d21d1189b55ec6455fe133ad9f6",
-    "app/package.json": "3332522283911a840a5b10d54ee8d6dbe3baa838344d7858d5959634f7e7c089",
+    "app/package.json": "04c7bac2aa6872fedc9061f9e23f015a64255087528f90ab55128d82fcd03873",
     "payload/node.gz": "f07967f50a15f95573eea989a0fdc6a4ae8dd9f29348de335c9bca86d8a8a554"
   },
   "source": {
-    "commit": "297720f3e0ddf0f2c4878d0e94ba515410c63376",
+    "commit": "62b9b552d7a1863af241dea2d4993f956fdd4689",
     "dirty": false
   },
   "testFixture": false,
@@ -164,5 +164,5 @@
     "sha256": "724282c3b43aec998aa9527380465b45d229e021b58035f5f4f63095eabfe5d5"
   },
   "goVersion": "go version go1.27.1 linux/arm64",
-  "dependencyLockSha256": "637bab43a8f427975e6021bf999223f172a1cceedcc681597246b243b86a476f"
+  "dependencyLockSha256": "92c89ad8ce8cfdde6dfc3c3d94a94565ab057228de6b676901c54868f3210655"
 }
