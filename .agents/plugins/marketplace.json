@@ -1,7 +1,7 @@
 {
   "name": "reader-marketplace",
   "interface": {
-    "displayName": "Reader · choose your platform · preview"
+    "displayName": "Reader"
   },
   "plugins": [
     {
@@ -9,7 +9,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "baad0b094ce44c038daf09a03d5fdb5a11269b31"
+        "sha": "5c594f0f76b01a1e074c8911436b4e48dd5f6b66"
       },
       "policy": {
         "installation": "NOT_AVAILABLE",
@@ -22,7 +22,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "2a403a21b6071b90eec552863725b71356e92a67"
+        "sha": "2d3e67be02926be1a58ad2a6aab833478180a6d5"
       },
       "policy": {
         "installation": "NOT_AVAILABLE",
@@ -35,7 +35,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "b54dcdfaaae4fc1253b3b6e0f162a414dd939108"
+        "sha": "2bb7104108fb90f68fb4bfd03de1c89a33da941b"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -48,7 +48,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "7967c56f3869b0b5c26a279e82b4c69218a963a0"
+        "sha": "00f7c66b92ce3bc566c905a7d05f75c520a81441"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -61,7 +61,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "b4163d1a2dbf774f4692209f808fb3017de760c4"
+        "sha": "a2b5a7537036a7dc174308c2c4f55d056a216ef4"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -74,7 +74,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "370e2aafffb6a4d1e37fe748927695aa603f4cf2"
+        "sha": "58b0397cfa1d3e785f41159689bf68ff16befbe8"
       },
       "policy": {
         "installation": "AVAILABLE",
