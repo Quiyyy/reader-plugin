@@ -1,30 +1,30 @@
 [
   {
-    "bookSourceName": "Reader 原创公开示例 CDN",
-    "bookSourceUrl": "https://cdn.jsdelivr.net/gh/Quiyyy/reader-plugin@099106c14a3f057ec18432cf306c1721418e7107/examples/online/demo/",
+    "bookSourceName": "Reader 原创公开示例 JSON",
+    "bookSourceUrl": "https://cdn.jsdelivr.net/gh/Quiyyy/reader-plugin@a5bddf2ece1d911b2ee899b3f2b340874190fafa/demo/",
     "bookSourceType": 0,
-    "searchUrl": "search-{{page}}.html?key={{key}}",
+    "searchUrl": "search-{{page}}.json?key={{key}}",
     "ruleSearch": {
-      "bookList": ".book",
-      "name": "a@text",
-      "author": ".author@text",
-      "bookUrl": "a@href"
+      "bookList": "$.books[*]",
+      "name": "$.name",
+      "author": "$.author",
+      "bookUrl": "$.url"
     },
     "ruleBookInfo": {
-      "name": "h1@text",
-      "author": ".author@text",
-      "intro": ".intro@text",
-      "tocUrl": "a.toc@href"
+      "name": "$.name",
+      "author": "$.author",
+      "intro": "$.intro",
+      "tocUrl": "$.tocUrl"
     },
     "ruleToc": {
-      "chapterList": ".chapters a",
-      "chapterName": "@text",
-      "chapterUrl": "@href",
-      "nextTocUrl": "a.next@href"
+      "chapterList": "$.chapters[*]",
+      "chapterName": "$.name",
+      "chapterUrl": "$.url",
+      "nextTocUrl": "$.next"
     },
     "ruleContent": {
-      "content": "#content@text",
-      "nextContentUrl": "a.next@href"
+      "content": "$.paragraphs[*]",
+      "nextContentUrl": "$.next"
     }
   }
 ]
