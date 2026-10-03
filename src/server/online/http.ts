@@ -160,6 +160,11 @@ export class SafeHttpClient {
       };
       const transport = this.dependencies.transport ?? ((target, settings, callback) => (target.protocol === 'https:' ? httpsRequest : httpRequest)(target, settings, callback));
       const request = transport(url, options, response => {
+        // Cloudflare marks actual interstitial responses independently of their
+        // status/title. Never follow or parse one, including an HTTP 200 page.
+        if (String(response.headers['cf-mitigated'] ?? '').split(',').some(value => value.trim().toLowerCase() === 'challenge')) {
+          response.destroy(); reject(new Error('网站要求人机验证；未绕过访问限制')); return;
+        }
         if ([301, 302, 303, 307, 308].includes(response.statusCode ?? 0)) {
           const location = response.headers.location; response.destroy();
           if (!location) reject(new Error('重定向缺少 Location')); else resolve({ location, redirectStatus: response.statusCode });

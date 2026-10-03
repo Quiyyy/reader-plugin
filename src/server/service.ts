@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { keyboardSchema, defaultKeyboard } from '../shared/keyboard.js';
 import type { ReaderStore } from './store.js';
 import { OnlineSourceService } from './online/service.js';
+import { ONLINE_SEARCH_PAGE_LIMIT } from '../shared/online.js';
 
 const locator = z.object({ chapter: z.number().int().min(0), paragraph: z.number().int().min(0), chapterId: z.string().regex(/^[a-f0-9]{64}$/).optional() }).strict();
 const id = z.string().regex(/^[a-f0-9]{64}$/);
@@ -28,7 +29,7 @@ export const actionSchemas = {
   reader_online_commit: z.object({ token: z.string().uuid() }).strict(),
   reader_online_enable: z.object({ id, enabled: z.boolean() }).strict(),
   reader_online_remove: z.object({ id }).strict(),
-  reader_online_search: z.object({ sourceId: id, key: z.string().trim().min(1).max(200), page: z.number().int().min(1).max(5), requestId }).strict(),
+  reader_online_search: z.object({ sourceId: id, key: z.string().trim().min(1).max(200), page: z.number().int().min(1).max(ONLINE_SEARCH_PAGE_LIMIT), requestId }).strict(),
   reader_online_detail: z.object({ result: onlineResult, requestId }).strict(),
   reader_online_add: z.object({ detail: onlineResult.extend({ intro: z.string().max(10000), tocUrl: z.string().max(4096) }), requestId }).strict(),
   reader_online_chapter: z.object({ id, chapterId: id, requestId }).strict(),

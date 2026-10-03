@@ -52,7 +52,7 @@ for (const [layout, width, height] of [['wide', 1280, 900], ['narrow', 390, 844]
     await expect(page.getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
     await expect(page.getByRole('link', { name: 'Reader 书架', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: '键盘快捷键', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: '让阅读更顺手' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: '键盘快捷键' })).toBeVisible();
     await page.getByRole('button', { name: '关闭键盘快捷键', exact: true }).click();
     const title = `紧凑布局 ${layout}`;
     await waitForImport(page, async () => {

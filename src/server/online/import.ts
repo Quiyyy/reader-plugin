@@ -8,7 +8,7 @@ import { chain, validateScript } from './script-syntax.js';
 import { searchRequest, staticHeaders } from './request.js';
 
 export const hash = (text: string) => createHash('sha256').update(text).digest('hex');
-export const SOURCE_LIMITS = Object.freeze({ bytes: 512 * 1024, sources: 50, stored: 100, pages: 5, chapters: 5000 });
+export const SOURCE_LIMITS = Object.freeze({ bytes: 512 * 1024, sources: 50, stored: 100, chapters: 20000 });
 export interface Source { report: SourceReport; raw: Record<string, any>; generation?: string; }
 export const stageKeys: Record<Stage, string> = { search: 'ruleSearch', detail: 'ruleBookInfo', toc: 'ruleToc', content: 'ruleContent' };
 const fields: Record<Stage, string[]> = {

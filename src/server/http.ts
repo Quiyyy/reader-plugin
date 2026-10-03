@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createMcpServer } from './mcp.js';
 import type { ReaderService } from './service.js';
+import { IncompleteLoadError } from '../shared/online.js';
 // A <=1 MiB catalog JSON string is escaped once more inside the RPC envelope.
 // Each action retains its own narrower schema/byte budget.
 const MAX_BODY = 2 * 1024 * 1024 + 4096;
@@ -30,7 +31,7 @@ export function createReaderHttpServer(service: ReaderService, htmlPath: string)
         response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self'; frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(await readFile(htmlPath)); return;
       }
-      if (request.method === 'GET' && pathname === '/health') { json(response, 200, { status: 'ok', mode: 'loopback-preview', version: '0.1.8' }); return; }
+      if (request.method === 'GET' && pathname === '/health') { json(response, 200, { status: 'ok', mode: 'loopback-preview', version: '0.1.9' }); return; }
       if (request.method === 'POST' && (pathname === '/api/tool' || pathname === '/mcp')) {
         if (!request.headers['content-type']?.startsWith('application/json')) { json(response, 415, { error: '需要 application/json' }); return; }
         const body = await readBody(request);
@@ -48,7 +49,7 @@ export function createReaderHttpServer(service: ReaderService, htmlPath: string)
       }
       json(response, 404, { error: '未找到资源' });
     } catch (error) {
-      if (!response.headersSent) json(response, 400, { error: error instanceof Error ? error.message : 'Reader 操作失败' });
+      if (!response.headersSent) json(response, 400, { error: error instanceof Error ? error.message : 'Reader 操作失败', ...(error instanceof IncompleteLoadError ? { incomplete: error.incomplete } : {}) });
       else response.end();
     }
   });
