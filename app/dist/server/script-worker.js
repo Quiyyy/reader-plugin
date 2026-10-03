@@ -28415,8 +28415,21 @@ port.on("message", async (message) => {
   const runtime = vm.runtime;
   runtime.setMemoryLimit(SCRIPT_LIMITS.memory);
   runtime.setMaxStackSize(SCRIPT_LIMITS.stack);
-  let deadline = Date.now() + SCRIPT_LIMITS.cpuMs, failure;
-  runtime.setInterruptHandler(() => Date.now() > deadline);
+  let deadline = performance.now() + SCRIPT_LIMITS.cpuMs, failure;
+  let executionMs = 0, executionStarted = 0, executing = false;
+  const charge = () => {
+    if (executing) {
+      executionMs += performance.now() - executionStarted;
+      executing = false;
+    }
+  };
+  const beginExecution = () => {
+    if (!Number.isFinite(message.budgetMs) || message.budgetMs <= executionMs) throw Error("\u811A\u672C\u7D2F\u8BA1\u6267\u884C\u9884\u7B97\u8D85\u9650");
+    executionStarted = performance.now();
+    executing = true;
+    deadline = executionStarted + Math.min(SCRIPT_LIMITS.cpuMs, message.budgetMs - executionMs);
+  };
+  runtime.setInterruptHandler(() => performance.now() > deadline);
   runtime.setModuleLoader(() => {
     throw Error("\u4E0D\u5141\u8BB8\u52A0\u8F7D\u6A21\u5757");
   });
@@ -28512,17 +28525,20 @@ port.on("message", async (message) => {
     for (const name of ["startBrowserAwait", "startBrowser", "webView", "getVerificationCode"]) bind(name, () => stop("\u6B64\u6B65\u9AA4\u9700\u8981\u771F\u5B9E\u6D4F\u89C8\u5668\u3001\u767B\u5F55\u6216\u9A8C\u8BC1\u7801\u4EA4\u4E92\uFF1B\u5C1A\u65E0\u7ECF\u6388\u6743\u7684\u6D4F\u89C8\u5668\u4F1A\u8BDD\uFF0C\u5DF2\u505C\u6B62"));
     const ajax = vm.newAsyncifiedFunction("ajax", async (url) => {
       const input = string(url, 8192);
+      charge();
+      if (executionMs >= message.budgetMs) return stop("\u811A\u672C\u7D2F\u8BA1\u6267\u884C\u9884\u7B97\u8D85\u9650");
       port.postMessage({ type: "ajax", input });
       const response = await new Promise((resolve) => {
         pending = resolve;
       });
-      deadline = Date.now() + SCRIPT_LIMITS.cpuMs;
+      beginExecution();
       if (response.error) return stop(response.error);
       return vm.newString(response.text);
     });
     vm.setProp(java, "ajax", ajax);
     ajax.dispose();
     vm.setProp(vm.global, "java", java);
+    beginExecution();
     const result = await vm.evalCodeAsync(message.code, "source-rule.js", { type: "global" });
     try {
       if (failure) throw Error(failure);
@@ -28549,7 +28565,9 @@ port.on("message", async (message) => {
         encoded.dispose();
       }
       if (failure) throw Error(failure);
-      port.postMessage({ type: "done", value, variables });
+      charge();
+      if (executionMs > message.budgetMs) throw Error("\u811A\u672C\u7D2F\u8BA1\u6267\u884C\u9884\u7B97\u8D85\u9650");
+      port.postMessage({ type: "done", value, variables, executionMs });
     } finally {
       result.dispose();
     }

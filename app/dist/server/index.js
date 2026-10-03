@@ -32882,12 +32882,12 @@ var require_dist = __commonJS({
         throw new Error(`Unknown format "${name}"`);
       return f2;
     };
-    function addFormats(ajv, list2, fs3, exportName) {
+    function addFormats(ajv, list2, fs4, exportName) {
       var _a8;
       var _b2;
       (_a8 = (_b2 = ajv.opts.code).formats) !== null && _a8 !== void 0 ? _a8 : _b2.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f2 of list2)
-        ajv.addFormat(f2, fs3[f2]);
+        ajv.addFormat(f2, fs4[f2]);
     }
     module.exports = exports2 = formatsPlugin;
     Object.defineProperty(exports2, "__esModule", { value: true });
@@ -33001,7 +33001,7 @@ var require_content_type = __commonJS({
 
 // src/server/index.ts
 import { homedir } from "node:os";
-import { join as join3, resolve as resolve2 } from "node:path";
+import { join as join4, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
@@ -49992,9 +49992,42 @@ function importTxt(filename, bytes, override) {
   if (chapters.length === 1 && chapters[0].title === "Opening") chapters[0].title = filenameTitle(filename);
   return { title: filenameTitle(filename), author: "", format: "txt", chapters, encoding: decoded.encoding, warnings: decoded.warnings, layoutVersion: 2 };
 }
+function withoutDocumentType(source, label) {
+  const tokens = /<!--|<!\[CDATA\[|<!DOCTYPE|<!ENTITY/gi;
+  const parts = [];
+  let copied = 0, seen = false;
+  for (let token; token = tokens.exec(source); ) {
+    const start = token.index;
+    if (token[0] === "<!--" || token[0] === "<![CDATA[") {
+      const endMarker = token[0] === "<!--" ? "-->" : "]]>";
+      const end2 = source.indexOf(endMarker, tokens.lastIndex);
+      if (end2 < 0) throw new Error(`${label}: malformed XML comment or CDATA.`);
+      tokens.lastIndex = end2 + endMarker.length;
+      continue;
+    }
+    if (token[0].toUpperCase() === "<!ENTITY") throw new Error(`${label}: XML custom entities are unsupported.`);
+    let end = tokens.lastIndex, quote = "";
+    for (; end < source.length; end++) {
+      const char = source[end];
+      if (quote) {
+        if (char === quote) quote = "";
+      } else if (char === '"' || char === "'") quote = char;
+      else if (char === "[") throw new Error(`${label}: XML custom entities and internal DTD subsets are unsupported.`);
+      else if (char === ">") break;
+    }
+    const declaration = source.slice(start, end + 1);
+    if (seen || !/^<!DOCTYPE[\t\r\n ]+[a-z_:][\w:.-]*(?:[\t\r\n ]+(?:SYSTEM[\t\r\n ]+(?:"[^"]*"|'[^']*')|PUBLIC[\t\r\n ]+(?:"[^"]*"|'[^']*')[\t\r\n ]+(?:"[^"]*"|'[^']*')))?[\t\r\n ]*>$/i.test(declaration)) {
+      throw new Error(`${label}: malformed XML document type.`);
+    }
+    seen = true;
+    parts.push(source.slice(copied, start));
+    copied = tokens.lastIndex = end + 1;
+  }
+  parts.push(source.slice(copied));
+  return parts.join("");
+}
 function parseXml2(bytes, label) {
-  const text2 = textDecoder("utf-8", bytes);
-  if (/<!DOCTYPE|<!ENTITY/i.test(text2)) throw new Error(`${label}: XML document types and custom entities are unsupported.`);
+  const text2 = withoutDocumentType(textDecoder("utf-8", bytes), label);
   const valid = XMLValidator.validate(text2);
   if (valid !== true) throw new Error(`${label}: malformed XML.`);
   return new XMLParser({ ignoreAttributes: false, removeNSPrefix: true, parseTagValue: false, parseAttributeValue: false, processEntities: true }).parse(text2);
@@ -50017,8 +50050,7 @@ var localTag = (element) => element.tagName.toLowerCase().split(":").pop();
 var BLOCKED_TAGS = /* @__PURE__ */ new Set(["script", "style", "iframe", "object", "embed", "form", "input", "button", "textarea", "select", "svg", "math", "canvas", "video", "audio", "link", "meta", "noscript", "template"]);
 var BLOCK_TAGS = /* @__PURE__ */ new Set(["p", "div", "section", "article", "main", "aside", "header", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "li", "ul", "ol", "dl", "dt", "dd", "pre", "address", "table", "tr", "td", "th", "hr"]);
 function htmlDocument(bytes) {
-  const source = textDecoder("utf-8", bytes);
-  if (/<!ENTITY/i.test(source) || /<!DOCTYPE[^>]*\[/i.test(source)) throw new Error("EPUB custom entities are unsupported.");
+  const source = withoutDocumentType(textDecoder("utf-8", bytes), "EPUB content");
   const document2 = new DOMParser().parseFromString(source, "text/html");
   for (const node2 of Array.from(document2.querySelectorAll("*"))) {
     if (BLOCKED_TAGS.has(localTag(node2)) || node2.hasAttribute("hidden") || node2.getAttribute("aria-hidden") === "true") node2.remove();
@@ -50270,8 +50302,8 @@ var ReaderStore = class {
           }
         } catch (readError) {
           if (isMissing(readError)) {
-            const stat3 = await fs.stat(lockPath).catch(() => void 0);
-            if (stat3 && Date.now() - stat3.mtimeMs > 3e4) {
+            const stat4 = await fs.stat(lockPath).catch(() => void 0);
+            if (stat4 && Date.now() - stat4.mtimeMs > 3e4) {
               await fs.rm(lockPath, { recursive: true, force: true });
               continue;
             }
@@ -50553,15 +50585,23 @@ var ReaderStore = class {
 import { randomUUID as randomUUID3 } from "node:crypto";
 
 // src/server/online/service.ts
-import * as fs2 from "node:fs/promises";
-import { join as join2 } from "node:path";
+import * as fs3 from "node:fs/promises";
+import { join as join3 } from "node:path";
 import { randomUUID as randomUUID2 } from "node:crypto";
+
+// src/shared/online.ts
+var ONLINE_SEARCH_PAGE_LIMIT = 1e4;
+var IncompleteLoadError = class extends Error {
+  constructor(message, incomplete) {
+    super(message);
+    this.incomplete = incomplete;
+  }
+  incomplete;
+};
+var stages = ["search", "detail", "toc", "content"];
 
 // src/server/online/import.ts
 import { createHash as createHash3 } from "node:crypto";
-
-// src/shared/online.ts
-var stages = ["search", "detail", "toc", "content"];
 
 // node_modules/re2js/build/index.js
 var RE2Flags = class RE2Flags2 {
@@ -63298,6 +63338,11 @@ var SafeHttpClient = class {
       };
       const transport = this.dependencies.transport ?? ((target, settings, callback) => (target.protocol === "https:" ? httpsRequest : httpRequest)(target, settings, callback));
       const request = transport(url3, options, (response) => {
+        if (String(response.headers["cf-mitigated"] ?? "").split(",").some((value) => value.trim().toLowerCase() === "challenge")) {
+          response.destroy();
+          reject(new Error("\u7F51\u7AD9\u8981\u6C42\u4EBA\u673A\u9A8C\u8BC1\uFF1B\u672A\u7ED5\u8FC7\u8BBF\u95EE\u9650\u5236"));
+          return;
+        }
         if ([301, 302, 303, 307, 308].includes(response.statusCode ?? 0)) {
           const location2 = response.headers.location;
           response.destroy();
@@ -63437,6 +63482,12 @@ var RuleEvaluator = class {
   saveScope = () => {
   };
   steps = 0;
+  // Each bounded page owns its field work; a long directory must not exhaust
+  // a budget intended to stop one hostile document. CPU/session guards remain.
+  async beginPage() {
+    this.steps = 0;
+    await this.script.beginPage();
+  }
   async interpolate(input2, context, preserveKeyPage = false, regexLiteral = false) {
     let output2 = "", end = 0;
     for (const match of input2.matchAll(/\{\{([\s\S]*?)\}\}/g)) {
@@ -63507,7 +63558,7 @@ var RuleEvaluator = class {
 
 // src/server/online/import.ts
 var hash2 = (text2) => createHash3("sha256").update(text2).digest("hex");
-var SOURCE_LIMITS = Object.freeze({ bytes: 512 * 1024, sources: 50, stored: 100, pages: 5, chapters: 5e3 });
+var SOURCE_LIMITS = Object.freeze({ bytes: 512 * 1024, sources: 50, stored: 100, chapters: 2e4 });
 var stageKeys = { search: "ruleSearch", detail: "ruleBookInfo", toc: "ruleToc", content: "ruleContent" };
 var fields = {
   search: ["bookList", "name", "author", "bookUrl"],
@@ -63666,8 +63717,29 @@ var ScriptSession = class {
   timer;
   reject;
   calls = 0;
+  callLimit = SCRIPT_LIMITS.calls;
   started = Date.now();
   budget = SCRIPT_LIMITS.cpuMs * 10;
+  get shouldPause() {
+    return this.budget < SCRIPT_LIMITS.cpuMs;
+  }
+  async beginPage() {
+    this.calls = 0;
+    this.callLimit = 15e3;
+    await this.recycle();
+  }
+  async recycle() {
+    const worker = this.worker;
+    if (worker) {
+      this.worker = void 0;
+      worker.removeAllListeners();
+      try {
+        await worker.terminate();
+      } finally {
+        workers--;
+      }
+    }
+  }
   abort = () => this.fail(new Error("\u89C4\u5219\u64CD\u4F5C\u5DF2\u53D6\u6D88"));
   fail(error112) {
     this.dead ??= error112;
@@ -63688,8 +63760,11 @@ var ScriptSession = class {
   async run(code, result, context, globals) {
     this.signal.throwIfAborted();
     if (this.dead) throw this.dead;
-    if (++this.calls > SCRIPT_LIMITS.calls || Date.now() - this.started > SCRIPT_LIMITS.sessionMs || this.budget <= 0) throw new Error("\u811A\u672C\u64CD\u4F5C\u603B\u9884\u7B97\u8D85\u9650");
+    if (++this.calls > this.callLimit || Date.now() - this.started > SCRIPT_LIMITS.sessionMs || this.budget <= 0) throw new Error("\u811A\u672C\u64CD\u4F5C\u603B\u9884\u7B97\u8D85\u9650");
     validateScript(code);
+    if (this.calls % 128 === 0) await this.recycle();
+    this.signal.throwIfAborted();
+    if (this.dead) throw this.dead;
     if (!this.worker) {
       if (workers >= 4) throw new Error("\u9694\u79BB\u811A\u672C\u5E76\u53D1\u5DF2\u6EE1\uFF08\u6700\u591A 4\uFF09");
       workers++;
@@ -63730,12 +63805,11 @@ var ScriptSession = class {
     if (this.dead) throw this.dead;
     const worker = this.worker;
     return new Promise((resolve3, reject) => {
-      let settled = false, elapsed = 0, tick = Date.now();
+      let settled = false;
       const cleanup = () => {
         if (this.timer) clearTimeout(this.timer);
         worker.off("message", receive);
         this.reject = void 0;
-        this.budget -= elapsed + Date.now() - tick;
       };
       const failure2 = (error112) => {
         if (settled) return;
@@ -63745,14 +63819,12 @@ var ScriptSession = class {
       };
       this.reject = failure2;
       const arm = () => {
-        tick = Date.now();
         this.timer = setTimeout(() => this.fail(new Error("\u9694\u79BB\u811A\u672C\u8D85\u65F6\uFF0CWorker \u5DF2\u5F3A\u5236\u7EC8\u6B62")), SCRIPT_LIMITS.commandMs);
       };
       const receive = (message) => {
         if (settled) return;
         if (message.type === "ajax") {
           if (this.timer) clearTimeout(this.timer);
-          elapsed += Date.now() - tick;
           this.timer = setTimeout(() => this.fail(new Error("\u89C4\u5219\u7F51\u7EDC\u9636\u6BB5\u8D85\u65F6\uFF0CWorker \u5DF2\u7EC8\u6B62")), 12e3);
           void this.ajax(message.input).then((text2) => {
             if (!settled) {
@@ -63762,6 +63834,11 @@ var ScriptSession = class {
             }
           }, (error112) => this.fail(error112 instanceof Error ? error112 : new Error("\u89C4\u5219\u7F51\u7EDC\u5931\u8D25")));
         } else if (message.type === "done") {
+          if (!Number.isFinite(message.executionMs) || message.executionMs < 0 || message.executionMs > this.budget) {
+            this.fail(new Error("\u9694\u79BB\u5F15\u64CE\u6267\u884C\u8BA1\u65F6\u65E0\u6548\u6216\u8D85\u9650"));
+            return;
+          }
+          this.budget -= message.executionMs;
           settled = true;
           cleanup();
           this.variables = message.variables;
@@ -63770,7 +63847,7 @@ var ScriptSession = class {
       };
       worker.on("message", receive);
       arm();
-      worker.postMessage({ type: "run", code, result, context, globals, variables: this.variables });
+      worker.postMessage({ type: "run", code, result, context, globals, variables: this.variables, budgetMs: this.budget });
     });
   }
 };
@@ -63813,7 +63890,7 @@ function newer(required4, current2) {
   }
   return false;
 }
-function parseCatalogPackage(text2, readerVersion = "0.1.8") {
+function parseCatalogPackage(text2, readerVersion = "0.1.9") {
   if (Buffer.byteLength(text2) > 1024 * 1024) throw new Error("\u6E05\u5355\u5305\u8D85\u8FC7 1 MiB");
   const pkg = envelopeSchema.parse(parseJson(text2));
   if (digest(pkg.manifest) !== pkg.manifestSha256) throw new Error("manifest SHA-256 \u4E0D\u5339\u914D");
@@ -63846,6 +63923,65 @@ function parseCatalogPackage(text2, readerVersion = "0.1.8") {
   return { json: JSON.stringify(sources), receipt: { catalogId: manifest.catalogId, version: manifest.version, channel: manifest.channel, manifestSha256: pkg.manifestSha256, sources: manifest.sources } };
 }
 
+// src/server/online/pagination.ts
+import * as fs2 from "node:fs/promises";
+import { join as join2 } from "node:path";
+import { createHash as createHash5 } from "node:crypto";
+var PAGINATION_LIMITS = Object.freeze({ pages: 256, requests: 512, batchPages: 8, batchMs: 2e4, lifetimeMs: 24 * 60 * 6e4, entries: 16, checkpointBytes: 16 * 1024 * 1024, diskBytes: 64 * 1024 * 1024, tocBytes: 32 * 1024 * 1024, contentBytes: 8 * 1024 * 1024 });
+var variables = external_exports.record(external_exports.string(), external_exports.string());
+var ruleStateSchema = external_exports.object({ variables, scopes: external_exports.record(external_exports.string(), variables) });
+var PaginationBoundaryError = class extends Error {
+};
+var checkpointSchema = external_exports.object({ version: external_exports.literal(1), updatedAt: external_exports.number(), pages: external_exports.number().int().min(0).max(PAGINATION_LIMITS.pages), next: external_exports.string().max(4096), visited: external_exports.array(external_exports.string().max(4096)).max(PAGINATION_LIMITS.pages * 2), fingerprints: external_exports.array(external_exports.string()).max(PAGINATION_LIMITS.pages), requests: external_exports.number().int().min(0).max(PAGINATION_LIMITS.requests + 1), bytes: external_exports.number().int().min(0), rules: ruleStateSchema.optional(), payload: external_exports.unknown() });
+var PaginationDraft = class {
+  path;
+  directory;
+  constructor(directory, identity) {
+    this.directory = join2(directory, "pagination-v1");
+    this.path = join2(this.directory, `${createHash5("sha256").update(JSON.stringify(identity)).digest("hex")}.json`);
+  }
+  async read() {
+    try {
+      if ((await fs2.stat(this.path)).size > PAGINATION_LIMITS.checkpointBytes) throw Error("\u5206\u9875\u7EED\u70B9\u8FC7\u5927\uFF1B\u8BF7\u91CD\u65B0\u52A0\u8F7D");
+      const state = checkpointSchema.parse(JSON.parse(await fs2.readFile(this.path, "utf8")));
+      if (Date.now() - state.updatedAt > PAGINATION_LIMITS.lifetimeMs) {
+        await this.remove();
+        return;
+      }
+      return state;
+    } catch (error112) {
+      if (error112.code === "ENOENT") return;
+      throw error112;
+    }
+  }
+  async save(state) {
+    const bytes = JSON.stringify(checkpointSchema.parse({ ...state, updatedAt: Date.now() }));
+    if (Buffer.byteLength(bytes) > PAGINATION_LIMITS.checkpointBytes) throw Error("\u5206\u9875\u7EED\u70B9\u8D85\u8FC7 16 MiB\uFF1B\u672A\u4FDD\u5B58\u4E0D\u5B8C\u6574\u4E66\u7C4D");
+    await fs2.mkdir(this.directory, { recursive: true, mode: 448 });
+    const files = await Promise.all((await fs2.readdir(this.directory)).filter((name) => /^[a-f0-9]{64}\.json$/.test(name)).map(async (name) => {
+      const path2 = join2(this.directory, name);
+      try {
+        return { path: path2, stat: await fs2.stat(path2) };
+      } catch (error112) {
+        if (error112.code === "ENOENT") return;
+        throw error112;
+      }
+    }));
+    const other = files.filter((file3) => file3 && file3.path !== this.path).sort((a, b) => a.stat.mtimeMs - b.stat.mtimeMs);
+    let size = other.reduce((sum, file3) => sum + file3.stat.size, Buffer.byteLength(bytes)), count = other.length + 1;
+    for (const file3 of other) {
+      if (count <= PAGINATION_LIMITS.entries && size <= PAGINATION_LIMITS.diskBytes && Date.now() - file3.stat.mtimeMs <= PAGINATION_LIMITS.lifetimeMs) continue;
+      await fs2.rm(file3.path, { force: true });
+      size -= file3.stat.size;
+      count--;
+    }
+    await atomicWrite(this.path, bytes);
+  }
+  async remove() {
+    await fs2.rm(this.path, { force: true });
+  }
+};
+
 // src/server/online/service.ts
 var idSchema = external_exports.string().regex(/^[a-f0-9]{64}$/);
 var chapterSchema2 = external_exports.object({ id: idSchema, title: external_exports.string().max(500), url: external_exports.string().max(4096) });
@@ -63865,7 +64001,7 @@ var OnlineSourceService = class {
   constructor(store, http = new SafeHttpClient()) {
     this.store = store;
     this.http = http;
-    this.directory = join2(store.dataDir, "online-v1");
+    this.directory = join3(store.dataDir, "online-v1");
   }
   store;
   http;
@@ -63873,16 +64009,16 @@ var OnlineSourceService = class {
   previews = /* @__PURE__ */ new Map();
   jobs = /* @__PURE__ */ new Map();
   async ready() {
-    await fs2.mkdir(this.directory, { recursive: true, mode: 448 });
+    await fs3.mkdir(this.directory, { recursive: true, mode: 448 });
   }
   path(id2) {
     idSchema.parse(id2);
-    return join2(this.directory, `${id2}.json`);
+    return join3(this.directory, `${id2}.json`);
   }
   async sources() {
     await this.ready();
     try {
-      const stored = JSON.parse(await fs2.readFile(join2(this.directory, "sources.json"), "utf8"));
+      const stored = JSON.parse(await fs3.readFile(join3(this.directory, "sources.json"), "utf8"));
       if (stored.version !== 1 || !Array.isArray(stored.sources) || stored.sources.length > SOURCE_LIMITS.stored) throw new Error("Invalid sources");
       return stored.sources.map((source) => {
         const inspected = inspectSource(source.raw);
@@ -63902,14 +64038,14 @@ var OnlineSourceService = class {
   }
   async receipts() {
     try {
-      return external_exports.array(catalogReceiptSchema).parse(JSON.parse(await fs2.readFile(join2(this.directory, "sources.json"), "utf8")).catalogReceipts ?? []);
+      return external_exports.array(catalogReceiptSchema).parse(JSON.parse(await fs3.readFile(join3(this.directory, "sources.json"), "utf8")).catalogReceipts ?? []);
     } catch (error112) {
       if (missing(error112)) return [];
       throw new Error("\u6E05\u5355\u56DE\u6267\u635F\u574F\uFF1B\u672A\u8986\u76D6\u539F\u6587\u4EF6");
     }
   }
   async writeSources(sources, receipts) {
-    await atomicWrite(join2(this.directory, "sources.json"), JSON.stringify({ version: 1, sources, catalogReceipts: receipts ?? await this.receipts() }));
+    await atomicWrite(join3(this.directory, "sources.json"), JSON.stringify({ version: 1, sources, catalogReceipts: receipts ?? await this.receipts() }));
   }
   async previewCatalog(packageJson) {
     const { json: json5, receipt } = parseCatalogPackage(packageJson);
@@ -63970,7 +64106,7 @@ var OnlineSourceService = class {
       if (existing.length > SOURCE_LIMITS.stored) throw new Error("\u6700\u591A\u4FDD\u5B58 100 \u4E2A\u4E66\u6E90");
       if (entry.catalog) {
         try {
-          await fs2.copyFile(join2(this.directory, "sources.json"), join2(this.directory, "sources.before-catalog-v1.json"), 1);
+          await fs3.copyFile(join3(this.directory, "sources.json"), join3(this.directory, "sources.before-catalog-v1.json"), 1);
         } catch (error112) {
           if (!missing(error112) && error112.code !== "EEXIST") throw error112;
         }
@@ -64013,14 +64149,16 @@ var OnlineSourceService = class {
       } else if (!error112) throw new Error("\u4E66\u6E90\u72B6\u6001\u5DF2\u53D8\u5316\uFF0C\u5DF2\u4E22\u5F03\u8FC7\u671F\u54CD\u5E94");
     });
     return this.store.locked(`online-rule-${source.report.id}`, async () => {
-      const controller = new AbortController(), abort = () => controller.abort();
-      let requests = 0, bytes = 0;
+      const controller = new AbortController(), abort = () => controller.abort(signal.reason);
+      let requests = 0, bytes = 0, priorRequests = 0, priorBytes = 0;
+      const paginated = stage === "toc" || stage === "content";
+      const totalBytes = stage === "toc" ? PAGINATION_LIMITS.tocBytes : PAGINATION_LIMITS.contentBytes;
       const origin = new URL(source.report.url).origin, origins = sourceOrigins(source.raw, source.report.url);
       const defaults = staticHeaders(source.raw.header), rate = parseRate(source.raw.concurrentRate);
-      const statePath = join2(this.directory, `variables-${source.report.id}-${source.report.revision}.json`);
+      const statePath = join3(this.directory, `variables-${source.report.id}-${source.report.revision}.json`);
       let saved = /* @__PURE__ */ Object.create(null);
       try {
-        saved = JSON.parse(await fs2.readFile(statePath, "utf8"));
+        saved = JSON.parse(await fs3.readFile(statePath, "utf8"));
       } catch (error112) {
         if (!missing(error112)) throw new Error("\u4E66\u6E90\u53D8\u91CF\u5B58\u50A8\u635F\u574F");
       }
@@ -64037,7 +64175,8 @@ var OnlineSourceService = class {
           rate,
           sourceKey: source.report.id,
           beforeRequest: () => {
-            if (++requests > SCRIPT_LIMITS.requests) throw new Error("\u5355\u9636\u6BB5\u8BF7\u6C42\u8D85\u8FC7 20 \u6B21\uFF08\u542B\u811A\u672C\u3001\u91CD\u5B9A\u5411\u548C\u8FDE\u63A5\u91CD\u8BD5\uFF09");
+            if (++requests + priorRequests > PAGINATION_LIMITS.requests && paginated) throw new PaginationBoundaryError("\u5206\u9875\u7D2F\u8BA1\u8BF7\u6C42\u8D85\u8FC7 512 \u6B21\uFF0C\u8BF7\u68C0\u67E5\u4E66\u6E90\u89C4\u5219");
+            if (requests > SCRIPT_LIMITS.requests) throw new Error("\u672C\u6279\u8BF7\u6C42\u8D85\u8FC7 20 \u6B21\uFF08\u542B\u811A\u672C\u3001\u91CD\u5B9A\u5411\u548C\u8FDE\u63A5\u91CD\u8BD5\uFF09");
           }
         };
         const response = request.method === "POST" ? await this.http.post(url3, request.body, controller.signal, origin, policy) : await this.http.get(url3, controller.signal, origin, policy);
@@ -64050,31 +64189,54 @@ var OnlineSourceService = class {
           }
         }
         bytes += Buffer.byteLength(response.text);
-        if (bytes > SCRIPT_LIMITS.networkBytes) throw Error("\u5355\u9636\u6BB5\u54CD\u5E94\u5408\u8BA1\u8D85\u8FC7 8 MiB");
-        if (/<title[^>]*>\s*(?:Just a moment|Attention Required|人机验证|用户登录|会员登录)/i.test(response.text) || /(?:cf-chl-|challenge-platform)/i.test(response.text)) throw Error("\u7F51\u7AD9\u8981\u6C42\u767B\u5F55\u6216\u4EBA\u673A\u9A8C\u8BC1\uFF1B\u672A\u7ED5\u8FC7\u8BBF\u95EE\u9650\u5236");
+        if (paginated && bytes + priorBytes > totalBytes) throw new PaginationBoundaryError(`\u5206\u9875\u54CD\u5E94\u5408\u8BA1\u8D85\u8FC7 ${totalBytes / 1024 / 1024} MiB`);
+        if (bytes > SCRIPT_LIMITS.networkBytes) throw Error("\u672C\u6279\u54CD\u5E94\u5408\u8BA1\u8D85\u8FC7 8 MiB");
+        const challengeSignals = response.text.replace(/\/cdn-cgi\/challenge-platform\/scripts\/jsd\/(?:main|api)\.js(?=[\s"'<>?#]|$)/gi, "");
+        if (/<title[^>]*>\s*(?:Just a moment|Attention Required|人机验证|用户登录|会员登录)/i.test(response.text) || /(?:cf-chl-|challenge-platform)/i.test(challengeSignals)) throw Error("\u7F51\u7AD9\u8981\u6C42\u767B\u5F55\u6216\u4EBA\u673A\u9A8C\u8BC1\uFF1B\u672A\u7ED5\u8FC7\u8BBF\u95EE\u9650\u5236");
         return response;
       };
       signal.addEventListener("abort", abort, { once: true });
       if (signal.aborted) abort();
-      const timer = setTimeout(abort, SCRIPT_LIMITS.sessionMs);
+      const timer = setTimeout(() => controller.abort(new Error("\u89C4\u5219\u9636\u6BB5\u8D85\u65F6\uFF0C\u8BF7\u91CD\u8BD5")), SCRIPT_LIMITS.sessionMs);
       const script = new ScriptSession(controller.signal, async (input2) => (await fetchPage(input2)).text);
       script.variables = Object.assign(/* @__PURE__ */ Object.create(null), saved.source, globals?.book?.bookUrl ? saved[`book:${globals.book.bookUrl}`] : {}, saved[scope]);
       const rules = new RuleEvaluator(script, { baseUrl: source.report.url, book: { origin, ...globals?.book }, source: { bookSourceUrl: source.report.url }, ...globals });
+      const changedScopes = /* @__PURE__ */ Object.create(null);
       rules.saveScope = (scope2) => {
-        saved[scope2] = { ...script.variables };
+        saved[scope2] = changedScopes[scope2] = { ...script.variables };
+      };
+      const control = {
+        signal: controller.signal,
+        restore(state) {
+          if (state) {
+            script.variables = { ...state.variables };
+            Object.assign(saved, state.scopes);
+            Object.assign(changedScopes, state.scopes);
+          }
+        },
+        snapshot() {
+          const state = { variables: { ...script.variables }, scopes: { ...changedScopes } };
+          if (Buffer.byteLength(JSON.stringify(state)) > 1024 * 1024) throw Error("\u5206\u9875\u89C4\u5219\u72B6\u6001\u8D85\u8FC7 1 MiB");
+          return state;
+        },
+        usage: () => ({ requests: priorRequests + requests, bytes: priorBytes + bytes }),
+        resumeUsage(count, size) {
+          priorRequests = count;
+          priorBytes = size;
+        }
       };
       try {
         signal.throwIfAborted();
-        const result = await work(rules, fetchPage);
-        signal.throwIfAborted();
+        const result = await work(rules, fetchPage, control);
+        controller.signal.throwIfAborted();
         await this.source(source.report.id, source.report.revision, source.generation);
         saved[scope] = { ...script.variables };
-        if (Object.keys(saved).length > 5e3 || Buffer.byteLength(JSON.stringify(saved)) > 1024 * 1024) throw Error("\u4E66\u6E90\u6301\u4E45\u53D8\u91CF\u8D85\u8FC7 5000 \u4F5C\u7528\u57DF / 1 MiB");
+        if (Object.keys(saved).length > SOURCE_LIMITS.chapters + 1 || Buffer.byteLength(JSON.stringify(saved)) > 1024 * 1024) throw Error("\u4E66\u6E90\u6301\u4E45\u53D8\u91CF\u8D85\u8FC7 20001 \u4F5C\u7528\u57DF / 1 MiB");
         await atomicWrite(statePath, JSON.stringify(saved));
         await update2();
         return result;
       } catch (error112) {
-        if (!signal.aborted) await update2(err2(error112));
+        if (!signal.aborted && !(error112 instanceof IncompleteLoadError && error112.incomplete.paused)) await update2(err2(error112));
         throw error112;
       } finally {
         script.close();
@@ -64166,45 +64328,98 @@ var OnlineSourceService = class {
       return { ...result, url: response.url, title: cleanTitle((await this.values(rules, source, "detail", "name", context, !!this.rule(source, "detail", "name")))[0] ?? result.title), author: cleanTitle((await this.values(rules, source, "detail", "author", context))[0] ?? result.author), intro: (await this.values(rules, source, "detail", "intro", context)).join("\n").slice(0, 1e4), tocUrl: this.url(source, toc, response.url, "ruleBookInfo.tocUrl") };
     }, { book: { origin: new URL(source.report.url).origin, bookUrl: result.url, name: result.title, author: result.author } });
   }
-  async pages(rules, fetchPage, source, stage, start, signal, visit2) {
-    let url3 = start;
-    const visited = /* @__PURE__ */ new Set();
-    for (let page = 1; page <= SOURCE_LIMITS.pages; page++) {
-      if (visited.has(url3)) throw new Error(`${stageKeys[stage]}\uFF1A\u68C0\u6D4B\u5230\u5206\u9875\u5FAA\u73AF`);
-      visited.add(url3);
-      rules.globals.page = page;
-      const response = await fetchPage(url3), context = documentContext(response.text);
-      rules.globals.baseUrl = response.url;
-      await visit2(context, response.url);
-      const field = stage === "toc" ? "nextTocUrl" : "nextContentUrl";
-      const links = await this.values(rules, source, stage, field, context);
-      if (links.length > 1) throw new Error(`${stageKeys[stage]}.${field}\uFF1A\u4E0B\u4E00\u9875\u5FC5\u987B\u6700\u591A\u5339\u914D\u4E00\u4E2A\u94FE\u63A5`);
-      if (!links.length) return;
-      if (page === SOURCE_LIMITS.pages) throw new Error(`${stageKeys[stage]}.${field}\uFF1A\u5206\u9875\u8D85\u8FC7 5 \u9875\uFF0C\u672A\u4FDD\u5B58\u4E0D\u5B8C\u6574\u7ED3\u679C`);
-      url3 = this.url(source, links[0], response.url, `${stageKeys[stage]}.${field}`);
+  async pages(rules, fetchPage, control, source, stage, start, identity, schema, visit2, merge3) {
+    const draft = new PaginationDraft(this.directory, [source.report.id, source.report.revision, source.generation, stage, start, identity]);
+    let checkpoint = await draft.read();
+    const loaded = checkpoint ? schema.safeParse(checkpoint.payload) : void 0;
+    if (loaded && !loaded.success) {
+      await draft.remove();
+      throw Error("\u5206\u9875\u7EED\u70B9\u635F\u574F\uFF0C\u5DF2\u6E05\u9664\u4E34\u65F6\u7EED\u70B9\uFF1B\u539F\u4E66\u7C4D\u4E0D\u53D8\uFF0C\u8BF7\u91CD\u8BD5");
+    }
+    let items = loaded?.success ? loaded.data : [];
+    checkpoint ??= { version: 1, updatedAt: Date.now(), pages: 0, next: start, visited: [], fingerprints: [], requests: 0, bytes: 0, payload: [] };
+    const state = checkpoint;
+    control.restore(state.rules);
+    control.resumeUsage(state.requests, state.bytes);
+    const began = Date.now(), visited = new Set(state.visited), fingerprints = new Set(state.fingerprints);
+    const label = stage === "toc" ? "\u76EE\u5F55" : "\u7AE0\u8282";
+    const progress = () => ({ stage, pages: state.pages, items: items.length, resumable: true, paused: false });
+    const save = async () => {
+      Object.assign(state, control.usage());
+      await this.store.locked("online-pagination-drafts", () => draft.save(state));
+    };
+    try {
+      for (let batch = 0; state.next; batch++) {
+        control.signal.throwIfAborted();
+        if (batch >= PAGINATION_LIMITS.batchPages || Date.now() - began >= PAGINATION_LIMITS.batchMs || batch > 0 && rules.script.shouldPause) {
+          throw new IncompleteLoadError(`${label}\u5C1A\u672A\u5B8C\u6210\uFF0C\u5DF2\u52A0\u8F7D ${state.pages} \u9875\u3001${items.length} ${stage === "toc" ? "\u7AE0" : "\u6BB5"}\u3002\u5DF2\u4FDD\u5B58\u7EED\u70B9\uFF0C\u53EF\u7EE7\u7EED\u52A0\u8F7D\uFF1B\u539F\u4E66\u7C4D\u548C\u9605\u8BFB\u8FDB\u5EA6\u672A\u6539\u52A8\u3002`, { ...progress(), paused: true });
+        }
+        if (state.requests >= PAGINATION_LIMITS.requests) throw new PaginationBoundaryError("\u5206\u9875\u7D2F\u8BA1\u8BF7\u6C42\u5DF2\u8FBE 512 \u6B21\uFF0C\u8BF7\u68C0\u67E5\u4E66\u6E90\u89C4\u5219");
+        if (state.pages >= PAGINATION_LIMITS.pages) throw new PaginationBoundaryError("\u5206\u9875\u8D85\u8FC7 256 \u9875\u603B\u9884\u7B97\uFF0C\u8BF7\u68C0\u67E5\u4E66\u6E90\u4E0B\u4E00\u9875\u89C4\u5219");
+        const url3 = this.url(source, state.next, start, `${stageKeys[stage]}.nextUrl`);
+        if (visited.has(url3)) throw new PaginationBoundaryError("\u68C0\u6D4B\u5230\u5206\u9875\u5FAA\u73AF\uFF08\u91CD\u590D\u94FE\u63A5\uFF09");
+        await rules.beginPage();
+        rules.globals.page = state.pages + 1;
+        const response = await fetchPage(url3);
+        if (response.url !== url3 && visited.has(response.url)) throw new PaginationBoundaryError("\u68C0\u6D4B\u5230\u5206\u9875\u5FAA\u73AF\uFF08\u91CD\u5B9A\u5411\u56DE\u5DF2\u8BFB\u53D6\u9875\u9762\uFF09");
+        const context = documentContext(response.text);
+        rules.globals.baseUrl = response.url;
+        const values = await visit2(context, response.url);
+        const fingerprint = hash2(JSON.stringify(stage === "toc" ? values.map((value) => value.id) : values));
+        if (fingerprints.has(fingerprint)) throw new PaginationBoundaryError("\u68C0\u6D4B\u5230\u5206\u9875\u5FAA\u73AF\uFF08\u4E0D\u540C\u94FE\u63A5\u8FD4\u56DE\u91CD\u590D\u5185\u5BB9\uFF09");
+        const field = stage === "toc" ? "nextTocUrl" : "nextContentUrl";
+        const links = [...new Set((await this.values(rules, source, stage, field, context)).map((link) => this.url(source, link, response.url, `${stageKeys[stage]}.${field}`)))];
+        if (links.length > 1) throw new PaginationBoundaryError(`${stageKeys[stage]}.${field}\uFF1A\u5339\u914D\u4E86\u591A\u4E2A\u4E0D\u540C\u4E0B\u4E00\u9875\uFF0C\u8BF7\u68C0\u67E5\u4E66\u6E90\u89C4\u5219`);
+        const combined = merge3(items, values);
+        if (stage === "toc" && combined.length === items.length) throw new PaginationBoundaryError("\u76EE\u5F55\u4E0B\u4E00\u9875\u6CA1\u6709\u65B0\u589E\u7AE0\u8282\uFF0C\u8BF7\u68C0\u67E5\u4E66\u6E90\u5206\u9875\u89C4\u5219");
+        schema.parse(combined);
+        control.signal.throwIfAborted();
+        const snapshot = control.snapshot();
+        visited.add(url3);
+        visited.add(response.url);
+        fingerprints.add(fingerprint);
+        items = combined;
+        Object.assign(state, { pages: state.pages + 1, next: links[0] ?? "", payload: items, visited: [...visited], fingerprints: [...fingerprints], rules: snapshot });
+        await save();
+      }
+      return items;
+    } catch (error112) {
+      if (error112 instanceof PaginationBoundaryError) {
+        await draft.remove();
+        throw new IncompleteLoadError(`${label}\u5C1A\u672A\u5B8C\u6210\uFF1A${err2(error112)}\u3002\u5DF2\u505C\u6B62\u5E76\u6E05\u9664\u4E34\u65F6\u7EED\u70B9\uFF0C\u672A\u8986\u76D6\u539F\u4E66\u7C4D\u6216\u7F13\u5B58\uFF1B\u8BF7\u66F4\u65B0\u4E66\u6E90\u540E\u91CD\u8BD5\u3002`, { ...progress(), resumable: false });
+      }
+      if (state.pages) await save();
+      if (error112 instanceof IncompleteLoadError) throw error112;
+      throw new IncompleteLoadError(`${label}\u5C1A\u672A\u5B8C\u6210${state.pages ? `\uFF08\u5DF2\u4FDD\u7559 ${state.pages} \u9875\u7EED\u70B9\uFF09` : ""}\uFF1A${err2(error112)}\u3002\u539F\u4E66\u7C4D\u3001\u7F13\u5B58\u548C\u8FDB\u5EA6\u672A\u6539\u52A8\uFF1B\u53EF\u91CD\u8BD5\u7EE7\u7EED\uFF0C\u89C4\u5219\u9519\u8BEF\u8BF7\u66F4\u65B0\u4E66\u6E90\u3002`, progress());
     }
   }
-  async toc(source, url3, signal, book) {
-    return this.tracked(source, "toc", signal, async (rules, fetchPage) => {
-      const chapters = /* @__PURE__ */ new Map();
-      await this.pages(rules, fetchPage, source, "toc", this.url(source, url3, source.report.url, "tocUrl"), signal, async (context, base) => {
-        const rows = await this.rows(rules, source, "toc", "chapterList", context), bookVariables = { ...rules.script.variables };
+  async toc(source, url3, signal, book, identity) {
+    return this.tracked(source, "toc", signal, async (rules, fetchPage, control) => {
+      return this.pages(rules, fetchPage, control, source, "toc", this.url(source, url3, source.report.url, "tocUrl"), identity, external_exports.array(chapterSchema2).max(SOURCE_LIMITS.chapters), async (context, base) => {
+        const rows = await this.rows(rules, source, "toc", "chapterList", context), bookVariables = { ...rules.script.variables }, page = [];
         for (const row of rows) {
+          control.signal.throwIfAborted();
           rules.script.variables = { ...bookVariables };
           const url4 = this.url(source, (await this.values(rules, source, "toc", "chapterUrl", row, true))[0], base, "ruleToc.chapterUrl");
-          const id2 = hash2(url4);
-          chapters.set(id2, { id: id2, url: url4, title: cleanTitle((await this.values(rules, source, "toc", "chapterName", row, true))[0]) });
+          page.push({ id: hash2(url4), url: url4, title: cleanTitle((await this.values(rules, source, "toc", "chapterName", row, true))[0]) });
           if (JSON.stringify(rules.script.variables) !== JSON.stringify(bookVariables)) rules.saveScope(`chapter:${url4}`);
-          if (chapters.size > SOURCE_LIMITS.chapters) throw new Error("ruleToc.chapterList\uFF1A\u76EE\u5F55\u8D85\u8FC7 5000 \u7AE0");
         }
         rules.script.variables = bookVariables;
+        return page;
+      }, (previous, page) => {
+        const chapters = new Map(previous.map((chapter) => [chapter.id, chapter]));
+        for (const chapter of page) if (!chapters.has(chapter.id)) chapters.set(chapter.id, chapter);
+        if (chapters.size > SOURCE_LIMITS.chapters) throw new PaginationBoundaryError("\u76EE\u5F55\u8D85\u8FC7 20000 \u7AE0\u603B\u9884\u7B97");
+        return [...chapters.values()];
       });
-      return [...chapters.values()];
     }, { book });
+  }
+  async clearPages(source, stage, start, identity) {
+    await new PaginationDraft(this.directory, [source.report.id, source.report.revision, source.generation, stage, this.url(source, start, source.report.url, stage), identity]).remove();
   }
   async has(id2) {
     try {
-      await fs2.access(this.path(id2));
+      await fs3.access(this.path(id2));
       return true;
     } catch (error112) {
       if (missing(error112)) return false;
@@ -64213,7 +64428,7 @@ var OnlineSourceService = class {
   }
   async read(id2) {
     await this.store.assertActive(id2);
-    const book = recordSchema.parse(JSON.parse(await fs2.readFile(this.path(id2), "utf8")));
+    const book = recordSchema.parse(JSON.parse(await fs3.readFile(this.path(id2), "utf8")));
     if (book.id !== id2) throw new Error("\u5728\u7EBF\u4E66\u7C4D ID \u4E0D\u4E00\u81F4");
     return book;
   }
@@ -64230,18 +64445,18 @@ var OnlineSourceService = class {
   async listBooks() {
     await this.ready();
     const books = [];
-    for (const name of await fs2.readdir(this.directory)) if (/^[a-f0-9]{64}\.json$/.test(name)) await this.store.locked(`online-${name.slice(0, -5)}`, async () => {
+    for (const name of await fs3.readdir(this.directory)) if (/^[a-f0-9]{64}\.json$/.test(name)) await this.store.locked(`online-${name.slice(0, -5)}`, async () => {
       if (!await this.store.isTrashed(name.slice(0, -5))) books.push(this.summary(await this.read(name.slice(0, -5))));
     });
     return books;
   }
   cachePath(book, chapterId) {
     idSchema.parse(chapterId);
-    return join2(this.directory, "cache", book.id, book.revision, `${chapterId}.json`);
+    return join3(this.directory, "cache", book.id, book.revision, `${chapterId}.json`);
   }
   async cached(book, chapterId) {
     try {
-      return external_exports.array(external_exports.string()).min(1).max(5e4).parse(JSON.parse(await fs2.readFile(this.cachePath(book, chapterId), "utf8")));
+      return external_exports.array(external_exports.string()).min(1).max(5e4).parse(JSON.parse(await fs3.readFile(this.cachePath(book, chapterId), "utf8")));
     } catch (error112) {
       if (missing(error112)) return void 0;
       throw new Error("\u7AE0\u8282\u7F13\u5B58\u635F\u574F\uFF1B\u672A\u8986\u76D6\u539F\u7F13\u5B58");
@@ -64258,13 +64473,14 @@ var OnlineSourceService = class {
     if (!["supported", "partial"].includes(source.report.stages.content.syntax)) throw new Error("ruleContent\uFF1A\u6B63\u6587\u8BED\u6CD5\u4E0D\u53EF\u7528\uFF0C\u8BF7\u67E5\u770B\u4E66\u6E90\u5B57\u6BB5\u8BCA\u65AD");
     if (await this.has(id2)) return this.open(id2, signal);
     await this.store.assertActive(id2);
-    const chapters = await this.toc(source, detail2.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: detail2.url, name: detail2.title, author: detail2.author });
+    const chapters = await this.toc(source, detail2.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: detail2.url, name: detail2.title, author: detail2.author }, ["add", id2, await this.store.lifecycle(id2)]);
     const book = { version: 1, id: id2, sourceId: detail2.sourceId, revision: detail2.revision, url: canonicalUrl, tocUrl: detail2.tocUrl, title: detail2.title, author: detail2.author, chapters, locator: { chapter: 0, paragraph: 0, chapterId: chapters[0].id }, bookmarks: [], addedAt: (/* @__PURE__ */ new Date()).toISOString() };
     await this.store.locked("online-sources", () => this.store.locked(`online-${id2}`, async () => {
       signal.throwIfAborted();
       await this.source(source.report.id, source.report.revision, source.generation);
       if (!await this.has(id2)) await this.write(book);
     }));
+    await this.clearPages(source, "toc", detail2.tocUrl, ["add", id2, await this.store.lifecycle(id2)]);
     return this.open(id2, signal);
   }
   async open(id2, signal) {
@@ -64283,18 +64499,17 @@ var OnlineSourceService = class {
     if (!chapter) throw new Error("\u7AE0\u8282\u5DF2\u4E0D\u5728\u76EE\u5F55\u4E2D\uFF0C\u8BF7\u5237\u65B0\u4E66\u7C4D");
     if (await this.cached(book, chapterId)) return this.asDetail(book, chapterId);
     const source = await this.source(book.sourceId, book.revision);
-    const paragraphs = await this.tracked(source, "content", signal, async (rules, fetchPage) => {
-      const paragraphs2 = [];
-      let bytes = 0;
-      await this.pages(rules, fetchPage, source, "content", chapter.url, signal, async (context) => {
-        for (const value of await this.values(rules, source, "content", "content", context, true)) for (const part of value.split(/\n+/).map((p2) => p2.trim()).filter(Boolean)) {
-          bytes += Buffer.byteLength(part);
-          if (bytes > 4 * 1024 * 1024 || paragraphs2.length >= 5e4) throw new Error("ruleContent.content\uFF1A\u7AE0\u8282\u8D85\u8FC7 4 MiB / 50000 \u6BB5");
-          paragraphs2.push(part);
-        }
-        if (!paragraphs2.length) throw new Error("ruleContent.content\uFF1A\u6B63\u6587\u4E3A\u7A7A");
+    const paragraphs = await this.tracked(source, "content", signal, async (rules, fetchPage, control) => {
+      return this.pages(rules, fetchPage, control, source, "content", chapter.url, [id2, chapterId, lifecycle], external_exports.array(external_exports.string()).max(5e4), async (context) => {
+        const page = [];
+        for (const value of await this.values(rules, source, "content", "content", context, true)) page.push(...value.split(/\n+/).map((p2) => p2.trim()).filter(Boolean));
+        if (!page.length) throw Error("ruleContent.content\uFF1A\u6B63\u6587\u4E3A\u7A7A");
+        return page;
+      }, (previous, page) => {
+        const combined = [...previous, ...page];
+        if (combined.length > 5e4 || combined.reduce((bytes, value) => bytes + Buffer.byteLength(value), 0) > 4 * 1024 * 1024) throw new PaginationBoundaryError("\u7AE0\u8282\u8D85\u8FC7 4 MiB / 50000 \u6BB5\u603B\u9884\u7B97");
+        return combined;
       });
-      return paragraphs2;
     }, { book: { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author, durChapterTitle: chapter.title }, chapter: { title: chapter.title, url: chapter.url, index: book.chapters.indexOf(chapter) } });
     await this.store.locked("online-sources", () => this.store.locked(`online-${id2}`, async () => {
       signal.throwIfAborted();
@@ -64302,23 +64517,24 @@ var OnlineSourceService = class {
       const current2 = await this.read(id2);
       if (await this.store.lifecycle(id2) !== lifecycle) throw new Error("\u4E66\u7C4D\u5DF2\u79FB\u5165\u6216\u6062\u590D\u81EA\u56DE\u6536\u7AD9\uFF0C\u8FC7\u671F\u8BF7\u6C42\u5DF2\u4E22\u5F03");
       if (current2.revision !== book.revision || !current2.chapters.some((c) => c.id === chapterId)) throw new Error("\u76EE\u5F55\u6216\u4E66\u6E90\u5DF2\u53D8\u5316\uFF0C\u5DF2\u4E22\u5F03\u8FC7\u671F\u6B63\u6587");
-      const path2 = this.cachePath(book, chapterId), directory = join2(path2, "..");
-      await fs2.mkdir(directory, { recursive: true, mode: 448 });
+      const path2 = this.cachePath(book, chapterId), directory = join3(path2, "..");
+      await fs3.mkdir(directory, { recursive: true, mode: 448 });
       await atomicWrite(path2, JSON.stringify(paragraphs));
-      const entries2 = await Promise.all((await fs2.readdir(directory)).filter((name) => /^[a-f0-9]{64}\.json$/.test(name)).map(async (name) => ({ name, stat: await fs2.stat(join2(directory, name)) })));
+      const entries2 = await Promise.all((await fs3.readdir(directory)).filter((name) => /^[a-f0-9]{64}\.json$/.test(name)).map(async (name) => ({ name, stat: await fs3.stat(join3(directory, name)) })));
       let size = entries2.reduce((n, e) => n + e.stat.size, 0);
       for (const entry of entries2.sort((a, b) => a.stat.mtimeMs - b.stat.mtimeMs)) {
         if (size <= 32 * 1024 * 1024) break;
         if (entry.name === `${chapterId}.json` || entry.name === `${current2.locator.chapterId}.json`) continue;
-        await fs2.unlink(join2(directory, entry.name));
+        await fs3.unlink(join3(directory, entry.name));
         size -= entry.stat.size;
       }
     }));
+    await this.clearPages(source, "content", chapter.url, [id2, chapterId, lifecycle]);
     return this.asDetail(await this.read(id2), chapterId);
   }
   async refresh(id2, signal) {
     const lifecycle = await this.store.lifecycle(id2);
-    const book = await this.read(id2), source = await this.source(book.sourceId, book.revision), chapters = await this.toc(source, book.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author });
+    const book = await this.read(id2), source = await this.source(book.sourceId, book.revision), chapters = await this.toc(source, book.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author }, ["refresh", id2, lifecycle]);
     return this.store.locked("online-sources", () => this.store.locked(`online-${id2}`, async () => {
       signal.throwIfAborted();
       await this.source(book.sourceId, book.revision, source.generation);
@@ -64333,6 +64549,7 @@ var OnlineSourceService = class {
       current2.bookmarks = current2.bookmarks.map((b) => ({ ...b, locator: align(b.locator) }));
       current2.chapters = chapters;
       await this.write(current2);
+      await this.clearPages(source, "toc", book.tocUrl, ["refresh", id2, lifecycle]);
       return this.asDetail(current2);
     }));
   }
@@ -64432,7 +64649,7 @@ var actionSchemas = {
   reader_online_commit: external_exports.object({ token: external_exports.string().uuid() }).strict(),
   reader_online_enable: external_exports.object({ id, enabled: external_exports.boolean() }).strict(),
   reader_online_remove: external_exports.object({ id }).strict(),
-  reader_online_search: external_exports.object({ sourceId: id, key: external_exports.string().trim().min(1).max(200), page: external_exports.number().int().min(1).max(5), requestId }).strict(),
+  reader_online_search: external_exports.object({ sourceId: id, key: external_exports.string().trim().min(1).max(200), page: external_exports.number().int().min(1).max(ONLINE_SEARCH_PAGE_LIMIT), requestId }).strict(),
   reader_online_detail: external_exports.object({ result: onlineResult, requestId }).strict(),
   reader_online_add: external_exports.object({ detail: onlineResult.extend({ intro: external_exports.string().max(1e4), tocUrl: external_exports.string().max(4096) }), requestId }).strict(),
   reader_online_chapter: external_exports.object({ id, chapterId: id, requestId }).strict(),
@@ -64547,7 +64764,7 @@ var ReaderService = class {
 };
 
 // src/server/mcp.ts
-import { readFile as readFile3 } from "node:fs/promises";
+import { readFile as readFile4 } from "node:fs/promises";
 
 // node_modules/zod/v3/helpers/util.js
 var util;
@@ -72086,9 +72303,9 @@ var McpServer = class {
         return resource.readCallback(uri2, extra);
       }
       for (const template of Object.values(this._registeredResourceTemplates)) {
-        const variables = template.resourceTemplate.uriTemplate.match(uri2.toString());
-        if (variables) {
-          return template.readCallback(uri2, variables, extra);
+        const variables2 = template.resourceTemplate.uriTemplate.match(uri2.toString());
+        if (variables2) {
+          return template.readCallback(uri2, variables2, extra);
         }
       }
       throw new McpError(ErrorCode.InvalidParams, `Resource ${uri2} not found`);
@@ -88636,13 +88853,13 @@ var OpenAIFileEntrypointInputSchema = external_exports2.object({
 });
 
 // src/server/mcp.ts
-var UI_URI = "ui://reader/v0.1.8/bookshelf.html";
+var UI_URI = "ui://reader/v0.1.9/bookshelf.html";
 var names = { reader_list: "\u8BFB\u53D6\u4E66\u67B6", reader_get: "\u6253\u5F00\u4E66\u7C4D", reader_import_begin: "\u5F00\u59CB\u5BFC\u5165\u4E66\u7C4D", reader_import_chunk: "\u4F20\u8F93\u4E66\u7C4D\u5206\u5757", reader_import_finish: "\u5B8C\u6210\u4E66\u7C4D\u5BFC\u5165", reader_import_cancel: "\u53D6\u6D88\u4E66\u7C4D\u5BFC\u5165", reader_progress: "\u4FDD\u5B58\u9605\u8BFB\u8FDB\u5EA6", reader_settings: "\u4FDD\u5B58\u9605\u8BFB\u8BBE\u7F6E", reader_bookmark_add: "\u6DFB\u52A0\u4E66\u7B7E", reader_bookmark_remove: "\u79FB\u9664\u4E66\u7B7E" };
 function createMcpServer(service2, htmlPath) {
-  const server = new McpServer({ name: "reader-plugin", version: "0.1.8" });
+  const server = new McpServer({ name: "reader-plugin", version: "0.1.9" });
   new OpenAIExtensions(server);
   const meta5 = { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] }, prefersBorder: false }, "openai/ui": { preferredDisplayMode: "fullscreen", availableDisplayModes: ["inline", "fullscreen"] } };
-  N3(server, "Reader", UI_URI, { _meta: meta5 }, async () => ({ contents: [{ uri: UI_URI, mimeType: p, text: await readFile3(htmlPath, "utf8"), _meta: meta5 }] }));
+  N3(server, "Reader", UI_URI, { _meta: meta5 }, async () => ({ contents: [{ uri: UI_URI, mimeType: p, text: await readFile4(htmlPath, "utf8"), _meta: meta5 }] }));
   K3(server, "reader_open", {
     title: "Reader",
     description: "Open the private Reader bookshelf. Book text is not sent to the model; import and reading happen in the app.",
@@ -88668,7 +88885,7 @@ function createMcpServer(service2, htmlPath) {
       try {
         return { content: [], _meta: { reader: await service2.call(name, args) } };
       } catch (error112) {
-        return { isError: true, content: [{ type: "text", text: error112 instanceof Error ? error112.message : "Reader \u64CD\u4F5C\u5931\u8D25" }] };
+        return { isError: true, content: [{ type: "text", text: error112 instanceof Error ? error112.message : "Reader \u64CD\u4F5C\u5931\u8D25" }], ...error112 instanceof IncompleteLoadError ? { _meta: { readerIncomplete: error112.incomplete } } : {} };
       }
     });
   }
@@ -88677,7 +88894,7 @@ function createMcpServer(service2, htmlPath) {
 
 // src/server/http.ts
 import { createServer as createServer2 } from "node:http";
-import { readFile as readFile4 } from "node:fs/promises";
+import { readFile as readFile5 } from "node:fs/promises";
 
 // node_modules/@hono/node-server/dist/constants-BLSFu_RU.mjs
 var X_ALREADY_SENT = "x-hono-already-sent";
@@ -90835,11 +91052,11 @@ function createReaderHttpServer(service2, htmlPath) {
       if (request.method === "GET" && pathname === "/") {
         response.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self'; frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
         response.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
-        response.end(await readFile4(htmlPath));
+        response.end(await readFile5(htmlPath));
         return;
       }
       if (request.method === "GET" && pathname === "/health") {
-        json4(response, 200, { status: "ok", mode: "loopback-preview", version: "0.1.8" });
+        json4(response, 200, { status: "ok", mode: "loopback-preview", version: "0.1.9" });
         return;
       }
       if (request.method === "POST" && (pathname === "/api/tool" || pathname === "/mcp")) {
@@ -90870,7 +91087,7 @@ function createReaderHttpServer(service2, htmlPath) {
       }
       json4(response, 404, { error: "\u672A\u627E\u5230\u8D44\u6E90" });
     } catch (error112) {
-      if (!response.headersSent) json4(response, 400, { error: error112 instanceof Error ? error112.message : "Reader \u64CD\u4F5C\u5931\u8D25" });
+      if (!response.headersSent) json4(response, 400, { error: error112 instanceof Error ? error112.message : "Reader \u64CD\u4F5C\u5931\u8D25", ...error112 instanceof IncompleteLoadError ? { incomplete: error112.incomplete } : {} });
       else response.end();
     }
   });
@@ -90881,9 +91098,9 @@ function createReaderHttpServer(service2, htmlPath) {
 
 // src/server/index.ts
 var root = fileURLToPath(new URL("../../", import.meta.url));
-var dataDir = process.env.READER_DATA_DIR ?? (process.platform === "darwin" ? join3(homedir(), "Library", "Application Support", "Reader") : process.platform === "win32" ? join3(process.env.LOCALAPPDATA ?? homedir(), "Reader") : join3(process.env.XDG_DATA_HOME ?? join3(homedir(), ".local", "share"), "reader-plugin"));
+var dataDir = process.env.READER_DATA_DIR ?? (process.platform === "darwin" ? join4(homedir(), "Library", "Application Support", "Reader") : process.platform === "win32" ? join4(process.env.LOCALAPPDATA ?? homedir(), "Reader") : join4(process.env.XDG_DATA_HOME ?? join4(homedir(), ".local", "share"), "reader-plugin"));
 var service = new ReaderService(new ReaderStore(resolve2(dataDir)));
-var uiPath = join3(root, "dist", "ui", "index.html");
+var uiPath = join4(root, "dist", "ui", "index.html");
 if (process.argv.includes("--reflow-text")) {
   for (const book of (await service.store.list()).books) {
     if (book.format === "txt") console.log(JSON.stringify(await service.store.reflowText(book.id)));
