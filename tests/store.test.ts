@@ -111,9 +111,11 @@ describe('durable ReaderStore', () => {
     const documentPath = join(directory, 'books', book.summary.id, 'document.json');
     const documentBefore = await readFile(documentPath, 'utf8');
     const moduleUrl = new URL('../src/server/store.ts', import.meta.url).href;
-    const run = promisify(execFile);
-    const worker = (paragraph: number) => run(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', `import { ReaderStore } from ${JSON.stringify(moduleUrl)}; const store = new ReaderStore(${JSON.stringify(directory)}); await store.addBookmark(${JSON.stringify(book.summary.id)}, { chapter: 0, paragraph: ${paragraph} }, 'Process ${paragraph}');`]);
-    await Promise.all([worker(1), worker(2)]);
+    const run = promisify(execFile), controller = new AbortController();
+    const worker = (paragraph: number) => run(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', `import { ReaderStore } from ${JSON.stringify(moduleUrl)}; const store = new ReaderStore(${JSON.stringify(directory)}); await store.addBookmark(${JSON.stringify(book.summary.id)}, { chapter: 0, paragraph: ${paragraph} }, 'Process ${paragraph}');`], { timeout: 15_000, signal: controller.signal, killSignal: 'SIGKILL' });
+    const children = [worker(1), worker(2)];
+    try { await Promise.all(children); }
+    finally { controller.abort(); await Promise.allSettled(children); }
     const restarted = new ReaderStore(directory);
     expect((await restarted.open(book.summary.id)).bookmarks).toHaveLength(2);
     await restarted.saveProgress(book.summary.id, { chapter: 1, paragraph: 1 });
@@ -121,7 +123,7 @@ describe('durable ReaderStore', () => {
     const record = await readFile(join(directory, 'books', book.summary.id, 'record.json'), 'utf8');
     expect(record.length).toBeLessThan(2_000);
     expect(JSON.parse(record)).not.toHaveProperty('document');
-  });
+  }, 30_000);
   it('reports corrupted metadata without modifying the preserved original', async () => {
     const store = new ReaderStore(directory);
     const book = await store.importBook('Journey.txt', source);

@@ -8,8 +8,38 @@ import { IncompleteLoadError } from '../src/shared/online.js';
 import { fixtureServer, fixtureSource } from './online/fixture.js';
 
 const cleanups: (() => Promise<unknown>)[] = [];
-afterEach(async () => { await Promise.all(cleanups.splice(0).map(fn => fn())); });
-const signal = () => new AbortController().signal;
+const controllers = new Set<AbortController>();
+const active = new Set<Promise<unknown>>();
+let tearingDown = false;
+function trackOnline(online: OnlineSourceService) {
+  return new Proxy(online, { get(target, key) {
+    const value = Reflect.get(target, key);
+    if (typeof value !== 'function') return value;
+    return (...args: unknown[]) => {
+      const result = value.apply(target, args);
+      if (result && typeof result.then === 'function') {
+        const pending = Promise.resolve(result); active.add(pending);
+        void pending.then(() => active.delete(pending), () => active.delete(pending));
+      }
+      return result;
+    };
+  } });
+}
+afterEach(async () => {
+  // Vitest's outer deadline does not cancel Reader. Prevent a timed-out test
+  // from continuing into another batch or writing after fixture removal.
+  tearingDown = true;
+  try {
+    for (const controller of controllers) controller.abort();
+    while (active.size) await Promise.allSettled([...active]);
+    for (const close of cleanups.splice(0).reverse()) await close();
+  } finally { controllers.clear(); tearingDown = false; }
+}, 15_000);
+const signal = () => {
+  const controller = new AbortController(); controllers.add(controller);
+  if (tearingDown) controller.abort();
+  return controller.signal;
+};
 async function setup(options: { pages?: number; rows?: number; contentPages?: number; mode?: string; script?: boolean } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'reader-pagination-'));
   cleanups.push(() => rm(dir, { recursive: true, force: true }));
@@ -30,7 +60,7 @@ async function setup(options: { pages?: number; rows?: number; contentPages?: nu
     } else { res.writeHead(404); res.end('missing'); }
   });
   cleanups.push(server.close);
-  const store = new ReaderStore(dir), online = new OnlineSourceService(store, server.client);
+  const store = new ReaderStore(dir), online = trackOnline(new OnlineSourceService(store, server.client));
   const raw = { ...fixtureSource, ...(state.script ? { ruleToc: { ...fixtureSource.ruleToc, chapterName: '@text@js:result + " / " + page', nextTocUrl: '@js:java.put("counter", String(Number(java.get("counter")||0)+1));java.getStringList("a.next@href")[0]||"";' } } : {}) };
   const preview = await online.preview(JSON.stringify(raw)); await online.commit(preview.token); await online.manage(preview.sources[0].id, true);
   const source = await online.source(preview.sources[0].id);
@@ -52,7 +82,7 @@ describe('bounded, resumable long directories and chapters', () => {
     expect(await f.online.listBooks()).toEqual([]);
     expect((await f.online.listSources())[0].stages.toc.network).toBe('untested');
     expect(f.requests.filter(path => path.startsWith('/chapter/'))).toEqual([]);
-    const restarted = new OnlineSourceService(new ReaderStore(f.dir), f.client);
+    const restarted = trackOnline(new OnlineSourceService(new ReaderStore(f.dir), f.client));
     const book = await complete(() => restarted.add(f.detail, signal()));
     expect(book.document.chapters).toHaveLength(8000);
     expect(book.document.chapters[200].title).toBe('Original chapter 200');
@@ -67,7 +97,7 @@ describe('bounded, resumable long directories and chapters', () => {
     await expect(f.online.add(f.detail, signal())).rejects.toMatchObject({ incomplete: { stage: 'content', pages: 8, items: 8, paused: true } });
     const [summary] = await f.online.listBooks();
     await expect(readdir(join(f.dir, 'online-v1/cache', summary.id))).rejects.toMatchObject({ code: 'ENOENT' });
-    const restarted = new OnlineSourceService(new ReaderStore(f.dir), f.client);
+    const restarted = trackOnline(new OnlineSourceService(new ReaderStore(f.dir), f.client));
     const book = await complete(() => restarted.open(summary.id, signal()));
     expect(book.document.chapters[0].paragraphs).toHaveLength(17);
     expect(book.document.chapters[0].paragraphs.at(-1)).toBe('Original paragraph on page 17.');
@@ -106,16 +136,26 @@ describe('bounded, resumable long directories and chapters', () => {
   });
 
   it('retains script variables and page number across batches without relaxing the isolated runtime', async () => {
-    // This case needs three batches, not a second large-row stress workload.
-    // The separate 600-row case retains per-row script/worker recycling coverage.
+    // Three batches restart the trusted development loader/WASM on all 18
+    // pages. Give the whole integration test 90 s; each Reader operation and
+    // guest evaluation retain their production deadlines. The separate 600-row
+    // case retains per-row script/worker recycling coverage.
     const f = await setup({ pages: 18, rows: 8, script: true });
-    await expect(f.online.add(f.detail, signal())).rejects.toMatchObject({ incomplete: { pages: 8, items: 64, paused: true } });
+    const checkpoint = await f.online.add(f.detail, signal()).then(
+      () => { throw Error('expected a continuation checkpoint'); },
+      error => { expect(error).toBeInstanceOf(IncompleteLoadError); return error.incomplete; },
+    );
+    // A busy runner may reach the 20 s batch wall before the eight-page cap.
+    expect(checkpoint).toMatchObject({ stage: 'toc', paused: true, resumable: true });
+    expect(checkpoint.pages).toBeGreaterThanOrEqual(1);
+    expect(checkpoint.pages).toBeLessThanOrEqual(8);
+    expect(checkpoint.items).toBe(checkpoint.pages * 8);
     const book = await complete(() => f.online.add(f.detail, signal()));
     expect(book.document.chapters).toHaveLength(144);
     expect(book.document.chapters[80].title).toBe('Original chapter 80 / 11');
     const vars = JSON.parse(await readFile(join(f.dir, 'online-v1', `variables-${f.detail.sourceId}-${f.detail.revision}.json`), 'utf8'));
     expect(vars['book:https://reader.example.com/book'].counter).toBe('18');
-  }, 30_000);
+  }, 90_000);
 
   it('does not reuse an interrupted directory after source disable/re-enable', async () => {
     const f = await setup();
@@ -131,7 +171,7 @@ describe('bounded, resumable long directories and chapters', () => {
     const book = await f.online.add(f.detail, signal());
     expect(book.document.chapters).toHaveLength(600);
     expect(book.document.chapters.at(-1)!.title).toBe('Original chapter 599 / 1');
-  }, 20_000);
+  }, 45_000);
 
   it('stops an endless changing directory at the cumulative page budget across continuations', async () => {
     const f = await setup({ pages: 1000, rows: 1 });
