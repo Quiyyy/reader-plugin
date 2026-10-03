@@ -268,10 +268,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path) {
-  if (!path)
+function getElementAtPath(obj, path2) {
+  if (!path2)
     return obj;
-  return path.reduce((acc, key2) => acc?.[key2], obj);
+  return path2.reduce((acc, key2) => acc?.[key2], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys2 = Object.keys(promisesObj);
@@ -530,11 +530,11 @@ function explicitlyAborted(x2, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path, issues) {
+function prefixIssues(path2, issues) {
   return issues.map((iss) => {
     var _a8;
     (_a8 = iss).path ?? (_a8.path = []);
-    iss.path.unshift(path);
+    iss.path.unshift(path2);
     return iss;
   });
 }
@@ -1055,16 +1055,16 @@ function flattenError(error112, mapper = (issue3) => issue3.message) {
 }
 function formatError(error112, mapper = (issue3) => issue3.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error113, path = []) => {
+  const processError = (error113, path2 = []) => {
     for (const issue3 of error113.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path2, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path2, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path2, ...issue3.path]);
       } else {
-        const fullpath = [...path, ...issue3.path];
+        const fullpath = [...path2, ...issue3.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue3));
         } else {
@@ -1103,17 +1103,17 @@ function formatError(error112, mapper = (issue3) => issue3.message) {
 }
 function treeifyError(error112, mapper = (issue3) => issue3.message) {
   const result = { errors: [] };
-  const processError = (error113, path = []) => {
+  const processError = (error113, path2 = []) => {
     var _a8;
     for (const issue3 of error113.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path2, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path2, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path2, ...issue3.path]);
       } else {
-        const fullpath = [...path, ...issue3.path];
+        const fullpath = [...path2, ...issue3.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue3));
           continue;
@@ -1152,8 +1152,8 @@ function treeifyError(error112, mapper = (issue3) => issue3.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path) {
+  const path2 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path2) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -1501,10 +1501,10 @@ var init_regexes = __esm({
     duration = /^P(?:(\d+W)|(?!.*W)(?=\d|T\d)(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+([.,]\d+)?S)?)?)$/;
     extendedDuration = /^[-+]?P(?!$)(?:(?:[-+]?\d+Y)|(?:[-+]?\d+[.,]\d+Y$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:(?:[-+]?\d+W)|(?:[-+]?\d+[.,]\d+W$))?(?:(?:[-+]?\d+D)|(?:[-+]?\d+[.,]\d+D$))?(?:T(?=[\d+-])(?:(?:[-+]?\d+H)|(?:[-+]?\d+[.,]\d+H$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:[-+]?\d+(?:[.,]\d+)?S)?)??$/;
     guid = /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
-    uuid = (version4) => {
-      if (!version4)
+    uuid = (version5) => {
+      if (!version5)
         return /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/;
-      return new RegExp(`^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-${version4}[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$`);
+      return new RegExp(`^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-${version5}[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$`);
     };
     uuid4 = /* @__PURE__ */ uuid(4);
     uuid6 = /* @__PURE__ */ uuid(6);
@@ -19149,13 +19149,13 @@ function resolveRef(ref2, ctx) {
   if (!ref2.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path = ref2.slice(1).split("/").filter(Boolean);
-  if (path.length === 0) {
+  const path2 = ref2.slice(1).split("/").filter(Boolean);
+  if (path2.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path[0] === defsKey) {
-    const key2 = path[1] === void 0 ? void 0 : decodeJSONPointerSegment(path[1]);
+  if (path2[0] === defsKey) {
+    const key2 = path2[1] === void 0 ? void 0 : decodeJSONPointerSegment(path2[1]);
     if (!key2 || !ctx.defs[key2]) {
       throw new Error(`Reference not found: ${ref2}`);
     }
@@ -19742,10 +19742,10 @@ function fromJSONSchema(schema, params) {
   } catch {
     throw new Error("fromJSONSchema input is not valid JSON (possibly cyclic); use $defs/$ref for recursive schemas");
   }
-  const version4 = detectVersion(normalized, params?.defaultTarget);
+  const version5 = detectVersion(normalized, params?.defaultTarget);
   const defs = normalized.$defs || normalized.definitions || {};
   const ctx = {
-    version: version4,
+    version: version5,
     defs,
     refs: /* @__PURE__ */ new Map(),
     processing: /* @__PURE__ */ new Set(),
@@ -28958,8 +28958,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path) {
-      let input2 = path;
+    function removeDotSegments(path2) {
+      let input2 = path2;
       const output2 = [];
       let nextSlash = -1;
       let len = 0;
@@ -29368,8 +29368,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path && path !== "/" ? path : void 0;
+        const path2 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path2 && path2 !== "/" ? path2 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -34659,6 +34659,29 @@ init_external();
 // src/shared/types.ts
 var defaultSettings = { theme: "system", fontSize: 20, lineHeight: 1.9, lineWidth: 680, fontFamily: "serif" };
 
+// src/shared/keyboard.ts
+var shortcutActions = ["scrollUp", "scrollDown", "previousChapter", "nextChapter", "closeHost"];
+var defaultKeyboard = { version: 1, bindings: { scrollUp: "ArrowUp", scrollDown: "ArrowDown", previousChapter: "ArrowLeft", nextChapter: "ArrowRight", closeHost: "" } };
+var reservedKeys = /* @__PURE__ */ new Set(["Escape", "Tab", "Enter", "Space", "Backspace", "Delete", "Home", "End", "PageUp", "PageDown"]);
+function shortcutError(value, action, bindings) {
+  if (!value) return;
+  const parts = value.split("+"), key2 = parts.at(-1);
+  if (reservedKeys.has(key2) || /^F\d+$/.test(key2)) return "\u8BE5\u6309\u952E\u4FDD\u7559\u7ED9\u7CFB\u7EDF\u3001\u5BBF\u4E3B\u6216\u754C\u9762\u5BFC\u822A";
+  if (!/^Arrow(Up|Down|Left|Right)$/.test(value)) {
+    if (key2.startsWith("Key")) return "\u4E3A\u907F\u514D\u7CFB\u7EDF\u6216\u5BBF\u4E3B\u51B2\u7A81\uFF0C\u5B57\u6BCD\u7EC4\u5408\u6682\u4E0D\u5F00\u653E";
+    if (!/^Ctrl\+Shift\+(Digit[0-9]|Period|Comma|Semicolon)$/.test(value)) return "\u8BF7\u9009\u62E9\u65B9\u5411\u952E\uFF0C\u6216 Ctrl + Shift + \u6570\u5B57\u3001\u53E5\u53F7\u3001\u9017\u53F7\u3001\u5206\u53F7";
+  }
+  if (action === "closeHost" && !value.startsWith("Ctrl+Shift+")) return "\u5173\u95ED\u5BBF\u4E3B\u9700\u8981\u7EC4\u5408\u952E";
+  if (shortcutActions.some((other) => other !== action && bindings[other] === value)) return "\u4E0E Reader \u7684\u53E6\u4E00\u52A8\u4F5C\u91CD\u590D";
+}
+var bindingsSchema = external_exports.object({ scrollUp: external_exports.string().max(60), scrollDown: external_exports.string().max(60), previousChapter: external_exports.string().max(60), nextChapter: external_exports.string().max(60), closeHost: external_exports.string().max(60) }).strict();
+var keyboardSchema = external_exports.object({ version: external_exports.literal(1), bindings: bindingsSchema }).strict().superRefine((value, ctx) => {
+  for (const action of shortcutActions) {
+    const error112 = shortcutError(value.bindings[action], action, value.bindings);
+    if (error112) ctx.addIssue({ code: "custom", message: error112, path: ["bindings", action] });
+  }
+});
+
 // src/server/importers.ts
 import { createHash } from "node:crypto";
 import { posix } from "node:path";
@@ -35340,8 +35363,8 @@ var EntityDecoder = class {
    * Call this as soon as the document's `<?xml version="...">` declaration is parsed.
    * @param {1.0|1.1|number} version
    */
-  setXmlVersion(version4) {
-    this._ncrXmlVersion = version4 === 1.1 ? 1.1 : 1;
+  setXmlVersion(version5) {
+    this._ncrXmlVersion = version5 === 1.1 ? 1.1 : 1;
   }
   // -------------------------------------------------------------------------
   // Primary API
@@ -36783,16 +36806,16 @@ var MatcherView = class {
    * @returns {string|undefined}
    */
   getCurrentTag() {
-    const path = this._matcher.path;
-    return path.length > 0 ? path[path.length - 1].tag : void 0;
+    const path2 = this._matcher.path;
+    return path2.length > 0 ? path2[path2.length - 1].tag : void 0;
   }
   /**
    * Get current namespace.
    * @returns {string|undefined}
    */
   getCurrentNamespace() {
-    const path = this._matcher.path;
-    return path.length > 0 ? path[path.length - 1].namespace : void 0;
+    const path2 = this._matcher.path;
+    return path2.length > 0 ? path2[path2.length - 1].namespace : void 0;
   }
   /**
    * Get current node's attribute value.
@@ -36800,9 +36823,9 @@ var MatcherView = class {
    * @returns {*}
    */
   getAttrValue(attrName) {
-    const path = this._matcher.path;
-    if (path.length === 0) return void 0;
-    return path[path.length - 1].values?.[attrName];
+    const path2 = this._matcher.path;
+    if (path2.length === 0) return void 0;
+    return path2[path2.length - 1].values?.[attrName];
   }
   /**
    * Check if current node has an attribute.
@@ -36810,9 +36833,9 @@ var MatcherView = class {
    * @returns {boolean}
    */
   hasAttr(attrName) {
-    const path = this._matcher.path;
-    if (path.length === 0) return false;
-    const current2 = path[path.length - 1];
+    const path2 = this._matcher.path;
+    if (path2.length === 0) return false;
+    const current2 = path2[path2.length - 1];
     return current2.values !== void 0 && attrName in current2.values;
   }
   /**
@@ -36838,18 +36861,18 @@ var MatcherView = class {
    * @returns {number}
    */
   getPosition() {
-    const path = this._matcher.path;
-    if (path.length === 0) return -1;
-    return path[path.length - 1].position ?? 0;
+    const path2 = this._matcher.path;
+    if (path2.length === 0) return -1;
+    return path2[path2.length - 1].position ?? 0;
   }
   /**
    * Get current node's repeat counter (occurrence count of this tag name).
    * @returns {number}
    */
   getCounter() {
-    const path = this._matcher.path;
-    if (path.length === 0) return -1;
-    return path[path.length - 1].counter ?? 0;
+    const path2 = this._matcher.path;
+    if (path2.length === 0) return -1;
+    return path2[path2.length - 1].counter ?? 0;
   }
   /**
    * Get current node's sibling index (alias for getPosition).
@@ -40630,7 +40653,7 @@ var Document = class extends NodeWithChildren {
     return 9;
   }
 };
-var Element = class extends NodeWithChildren {
+var Element2 = class extends NodeWithChildren {
   /**
    * @param name Name of the tag, eg. `div`, `span`.
    * @param attribs Object mapping attribute names to attribute values.
@@ -40697,7 +40720,7 @@ function cloneNode(node2, recursive2 = false) {
     result = new Comment2(node2.data);
   } else if (isTag2(node2)) {
     const children = recursive2 ? cloneChildren(node2.children) : [];
-    const clone3 = new Element(node2.name, { ...node2.attribs }, children);
+    const clone3 = new Element2(node2.name, { ...node2.attribs }, children);
     children.forEach((child) => child.parent = clone3);
     if (node2.namespace != null) {
       clone3.namespace = node2.namespace;
@@ -40814,7 +40837,7 @@ var DomHandler = class {
   }
   onopentag(name, attribs) {
     const type = this.options.xmlMode ? ElementType.Tag : void 0;
-    const element = new Element(name, attribs, void 0, type);
+    const element = new Element2(name, attribs, void 0, type);
     this.addNode(element);
     this.tagStack.push(element);
   }
@@ -46529,7 +46552,7 @@ var create2 = (ownerDocument, element, localName) => {
 var isVoid = ({ localName, ownerDocument }) => {
   return ownerDocument[MIME].voidElements.test(localName);
 };
-var Element2 = class extends ParentNode {
+var Element3 = class extends ParentNode {
   constructor(ownerDocument, localName) {
     super(ownerDocument, localName, ELEMENT_NODE);
     this[CLASS_LIST] = null;
@@ -46984,7 +47007,7 @@ var handler3 = {
     return true;
   }
 };
-var SVGElement = class extends Element2 {
+var SVGElement = class extends Element3 {
   constructor(ownerDocument, localName, ownerSVGElement = null) {
     super(ownerDocument, localName);
     this.ownerSVGElement = ownerSVGElement;
@@ -47052,11 +47075,11 @@ function DocumentType2() {
 }
 setPrototypeOf(DocumentType2, DocumentType);
 DocumentType2.prototype = DocumentType.prototype;
-function Element3() {
+function Element4() {
   illegalConstructor();
 }
-setPrototypeOf(Element3, Element2);
-Element3.prototype = Element2.prototype;
+setPrototypeOf(Element4, Element3);
+Element4.prototype = Element3.prototype;
 function Node3() {
   illegalConstructor();
 }
@@ -47084,7 +47107,7 @@ var Facades = {
   Comment: Comment5,
   DocumentFragment: DocumentFragment2,
   DocumentType: DocumentType2,
-  Element: Element3,
+  Element: Element4,
   Node: Node3,
   ShadowRoot: ShadowRoot2,
   Text: Text5,
@@ -47108,7 +47131,7 @@ var level0 = {
       element.addEventListener(type, value, false);
   }
 };
-var HTMLElement = class extends Element2 {
+var HTMLElement = class extends Element3 {
   static get observedAttributes() {
     return [];
   }
@@ -49095,7 +49118,7 @@ var Document2 = class extends NonElementParentNode {
     return new DocumentType(this, name, publicId, systemId);
   }
   createElement(localName) {
-    return new Element2(this, localName);
+    return new Element3(this, localName);
   }
   createRange() {
     const range = new Range();
@@ -49978,15 +50001,15 @@ function parseXml2(bytes, label) {
 }
 function resolveReference(baseFile, reference) {
   if (/^[a-z][a-z0-9+.-]*:|^\/\//i.test(reference)) throw new Error("Remote EPUB resources are unsupported.");
-  let path;
+  let path2;
   try {
-    path = decodeURIComponent(reference.split("#")[0].split("?")[0]);
+    path2 = decodeURIComponent(reference.split("#")[0].split("?")[0]);
   } catch {
     throw new Error("EPUB contains an invalid resource URL.");
   }
-  if (!path) return baseFile;
-  if (path.startsWith("/") || /[\\\x00-\x1f]/.test(path)) throw new Error("EPUB contains an unsafe resource path.");
-  const resolved = posix.normalize(posix.join(posix.dirname(baseFile), path));
+  if (!path2) return baseFile;
+  if (path2.startsWith("/") || /[\\\x00-\x1f]/.test(path2)) throw new Error("EPUB contains an unsafe resource path.");
+  const resolved = posix.normalize(posix.join(posix.dirname(baseFile), path2));
   safeArchivePath(resolved);
   return resolved;
 }
@@ -50054,9 +50077,9 @@ function importEpub(filename, bytes) {
     for (const item of entries2) {
       const uri2 = item.CipherData?.CipherReference?.["@_URI"];
       if (typeof uri2 !== "string") throw new Error("EPUB font obfuscation has no resource path.");
-      const path = resolveReference("", uri2);
-      if (!/\.(otf|ttf|woff2?)$/i.test(path)) throw new Error("Encrypted EPUB reading content is unsupported; only embedded font obfuscation may be ignored.");
-      obfuscatedFonts.add(path);
+      const path2 = resolveReference("", uri2);
+      if (!/\.(otf|ttf|woff2?)$/i.test(path2)) throw new Error("Encrypted EPUB reading content is unsupported; only embedded font obfuscation may be ignored.");
+      obfuscatedFonts.add(path2);
     }
     warnings.push("Obfuscated embedded fonts were ignored.");
   }
@@ -50081,13 +50104,13 @@ function importEpub(filename, bytes) {
   const tocTitles = /* @__PURE__ */ new Map();
   const nav = items.find((item) => String(item["@_properties"] ?? "").split(/\s+/).includes("nav"));
   if (nav) {
-    const path = resolveReference(opfPath, nav["@_href"]);
-    const navDocument = htmlDocument(get(path));
+    const path2 = resolveReference(opfPath, nav["@_href"]);
+    const navDocument = htmlDocument(get(path2));
     const navs = Array.from(navDocument.querySelectorAll("nav"));
     const toc = navs.find((node2) => (node2.getAttribute("epub:type") ?? "").split(/\s+/).includes("toc") || node2.getAttribute("role") === "doc-toc") ?? navs[0];
     for (const link of Array.from(toc?.querySelectorAll("a[href]") ?? [])) {
       try {
-        const target = resolveReference(path, link.getAttribute("href"));
+        const target = resolveReference(path2, link.getAttribute("href"));
         const label = clean(link.textContent ?? "");
         if (label && !tocTitles.has(target)) tocTitles.set(target, label);
       } catch {
@@ -50096,15 +50119,15 @@ function importEpub(filename, bytes) {
   } else {
     const ncx = manifest.get(opf.spine["@_toc"]) ?? items.find((item) => item["@_media-type"] === "application/x-dtbncx+xml");
     if (ncx) {
-      const path = resolveReference(opfPath, ncx["@_href"]);
-      const parsed = parseXml2(get(path), "EPUB table of contents");
+      const path2 = resolveReference(opfPath, ncx["@_href"]);
+      const parsed = parseXml2(get(path2), "EPUB table of contents");
       const points = asArray(parsed.ncx?.navMap?.navPoint);
       const queue = [...points].reverse();
       while (queue.length) {
         const point = queue.pop();
         if (point?.content?.["@_src"]) {
           try {
-            const target = resolveReference(path, point.content["@_src"]);
+            const target = resolveReference(path2, point.content["@_src"]);
             const label = clean(stringValue(point.navLabel?.text));
             if (label && !tocTitles.has(target)) tocTitles.set(target, label);
           } catch {
@@ -50126,15 +50149,15 @@ function importEpub(filename, bytes) {
       warnings.push("A non-text item in the reading order was skipped.");
       continue;
     }
-    const path = resolveReference(opfPath, item["@_href"]);
-    if (obfuscatedFonts.has(path)) throw new Error("Encrypted EPUB reading content is unsupported.");
-    const document2 = htmlDocument(get(path));
+    const path2 = resolveReference(opfPath, item["@_href"]);
+    if (obfuscatedFonts.has(path2)) throw new Error("Encrypted EPUB reading content is unsupported.");
+    const document2 = htmlDocument(get(path2));
     const paragraphs = extractParagraphs(document2);
     if (!paragraphs.length) continue;
     paragraphCount += paragraphs.length;
     if (paragraphCount > IMPORT_LIMITS.paragraphs) throw new Error("EPUB exceeds the 500,000-paragraph limit.");
     const openingHeading = paragraphs.slice(0, 3).find(isChapterHeading);
-    const chapterTitle = openingHeading || tocTitles.get(path) || clean(document2.querySelector("h1,h2,h3")?.textContent ?? "") || clean(document2.querySelector("title")?.textContent ?? "") || `Chapter ${chapters.length + 1}`;
+    const chapterTitle = openingHeading || tocTitles.get(path2) || clean(document2.querySelector("h1,h2,h3")?.textContent ?? "") || clean(document2.querySelector("title")?.textContent ?? "") || `Chapter ${chapters.length + 1}`;
     chapters.push({ id: `chapter-${chapters.length}`, title: chapterTitle, paragraphs });
   }
   if (!chapters.length) throw new Error("This EPUB contains no readable text. Image-only, encrypted or fixed-layout books are not supported.");
@@ -50173,9 +50196,9 @@ async function atomicWrite(filename, contents) {
     throw error112;
   }
 }
-async function syncDirectory(path) {
+async function syncDirectory(path2) {
   try {
-    const handle = await fs.open(path, constants.O_RDONLY);
+    const handle = await fs.open(path2, constants.O_RDONLY);
     try {
       await handle.sync();
     } finally {
@@ -50265,8 +50288,105 @@ var ReaderStore = class {
       if (owner?.token === token) await fs.rm(lockPath, { recursive: true, force: true });
     }
   }
+  trashPath(id2) {
+    this.bookPath(id2);
+    return join(this.dataDir, "trash-v1", `${id2}.json`);
+  }
+  async isTrashed(id2) {
+    try {
+      return (await this.readTrash(id2)).state === "trashed";
+    } catch (error112) {
+      if (isMissing(error112)) return false;
+      throw error112;
+    }
+  }
+  async lifecycle(id2) {
+    try {
+      return await fs.readFile(this.trashPath(id2), "utf8");
+    } catch (error112) {
+      if (isMissing(error112)) return "";
+      throw error112;
+    }
+  }
+  async assertActive(id2) {
+    if (await this.isTrashed(id2)) throw new Error("\u8FD9\u672C\u4E66\u5DF2\u5728\u56DE\u6536\u7AD9\uFF0C\u8BF7\u5148\u6062\u590D\uFF1B\u8FDB\u5EA6\u3001\u4E66\u7B7E\u53CA\u7F13\u5B58\u5747\u5DF2\u4FDD\u7559\u3002");
+  }
+  /** Caller holds the same per-book lock used by every writer. One atomic marker
+   * gates the entire book, source bytes, bookmarks, progress and online cache.
+   * No multi-file move/copy or permanent deletion, so interruption cannot split it. */
+  async markTrashed(summary) {
+    const entry = { version: 1, summary, trashedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    const directory = join(this.dataDir, "trash-v1");
+    await fs.mkdir(directory, { recursive: true, mode: 448 });
+    await atomicWrite(this.trashPath(summary.id), JSON.stringify({ ...entry, state: "trashed", generation: randomUUID() }));
+    await syncDirectory(directory);
+    return entry;
+  }
+  async trashBook(id2) {
+    return this.locked(id2, async () => this.markTrashed((await this.readState(id2)).summary));
+  }
+  async readTrash(id2) {
+    const schema = external_exports.object({ state: external_exports.enum(["trashed", "active"]).default("trashed"), version: external_exports.literal(1), summary: summarySchema.extend({ format: external_exports.enum(["txt", "epub", "online"]), locator: locatorSchema.extend({ chapterId: external_exports.string().optional() }) }), trashedAt: external_exports.string() });
+    const entry = schema.parse(JSON.parse(await fs.readFile(this.trashPath(id2), "utf8")));
+    if (entry.summary.id !== id2) throw new Error("\u56DE\u6536\u7AD9\u8BB0\u5F55\u635F\u574F\uFF1B\u539F\u6587\u4EF6\u672A\u6539\u52A8");
+    return entry;
+  }
+  async listTrash() {
+    const directory = join(this.dataDir, "trash-v1");
+    let names2;
+    try {
+      names2 = await fs.readdir(directory);
+    } catch (error112) {
+      if (isMissing(error112)) return [];
+      throw error112;
+    }
+    const entries2 = [];
+    for (const name of names2.filter((name2) => /^[a-f0-9]{64}\.json$/.test(name2))) {
+      try {
+        const entry = await this.readTrash(name.slice(0, -5));
+        if (entry.state === "trashed") entries2.push(entry);
+      } catch (error112) {
+        if (!isMissing(error112)) throw error112;
+      }
+    }
+    return entries2.sort((a, b) => b.trashedAt.localeCompare(a.trashedAt));
+  }
+  async restoreBook(id2) {
+    const entry = await this.readTrash(id2);
+    await this.locked(entry.summary.format === "online" ? `online-${id2}` : id2, async () => {
+      const latest = await this.readTrash(id2);
+      if (latest.state !== "trashed") return;
+      const record3 = entry.summary.format === "online" ? join(this.dataDir, "online-v1", `${id2}.json`) : join(this.bookPath(id2), "record.json");
+      await fs.access(record3);
+      await atomicWrite(this.trashPath(id2), JSON.stringify({ ...entry, state: "active", generation: randomUUID() }));
+      await syncDirectory(join(this.dataDir, "trash-v1"));
+    });
+  }
+  async keyboard() {
+    try {
+      return keyboardSchema.parse(JSON.parse(await fs.readFile(join(this.dataDir, "keyboard-v1.json"), "utf8")));
+    } catch (error112) {
+      if (isMissing(error112)) return structuredClone(defaultKeyboard);
+      throw new Error("\u5FEB\u6377\u952E\u8BBE\u7F6E\u635F\u574F\uFF0C\u8BF7\u6062\u590D\u9ED8\u8BA4\uFF1B\u65E7\u8BBE\u7F6E\u4FDD\u7559\u5728\u5907\u4EFD\u4E2D\u3002");
+    }
+  }
+  async saveKeyboard(value) {
+    const checked = keyboardSchema.parse(value);
+    return this.locked("keyboard", async () => {
+      const path2 = join(this.dataDir, "keyboard-v1.json");
+      try {
+        await atomicWrite(join(this.dataDir, "keyboard-v1.before-save.json"), await fs.readFile(path2));
+      } catch (error112) {
+        if (!isMissing(error112)) throw error112;
+      }
+      await atomicWrite(path2, JSON.stringify(checked));
+      await syncDirectory(this.dataDir);
+      return checked;
+    });
+  }
   async readState(id2) {
     await this.ready;
+    await this.assertActive(id2);
     try {
       const state = stateSchema.parse(JSON.parse(await fs.readFile(join(this.bookPath(id2), "record.json"), "utf8")));
       if (state.summary.id !== id2) throw new Error("Mismatched book ID");
@@ -50323,7 +50443,9 @@ var ReaderStore = class {
     await this.ready;
     const directories = await fs.readdir(this.booksDir, { withFileTypes: true });
     const books = [];
-    for (const entry of directories) if (entry.isDirectory() && /^[a-f0-9]{64}$/.test(entry.name)) books.push((await this.readState(entry.name)).summary);
+    for (const entry of directories) if (entry.isDirectory() && /^[a-f0-9]{64}$/.test(entry.name)) await this.locked(entry.name, async () => {
+      if (!await this.isTrashed(entry.name)) books.push((await this.readState(entry.name)).summary);
+    });
     books.sort((a, b) => (b.lastReadAt ?? b.addedAt).localeCompare(a.lastReadAt ?? a.addedAt) || a.title.localeCompare(b.title));
     let settings = { ...defaultSettings };
     try {
@@ -50339,6 +50461,7 @@ var ReaderStore = class {
     const id2 = createHash2("sha256").update(bytes).digest("hex");
     return this.locked(id2, async () => {
       const directory = this.bookPath(id2);
+      await this.assertActive(id2);
       try {
         await fs.access(join(directory, "record.json"));
         const existing = await this.readBook(id2);
@@ -56925,18 +57048,18 @@ function compileRule(input2, list2 = false) {
     rule = rule.slice(0, split);
   }
   if (rule.startsWith("$")) {
-    const path = [];
+    const path2 = [];
     let rest = rule.slice(1);
     while (rest) {
       const match = rest.match(/^(?:\.([A-Za-z_][\w-]*)|\[(\d{1,5}|\*)\]|\[['"]([A-Za-z_][\w-]*)['"]\])/);
       if (!match) return deny("\u4EC5\u652F\u6301 JSONPath \u5C5E\u6027\u3001\u975E\u8D1F\u6570\u7EC4\u7D22\u5F15\u548C [*]\uFF1B\u4E0D\u652F\u6301\u8868\u8FBE\u5F0F\u3001\u8FC7\u6EE4\u3001\u9012\u5F52\u6216\u5207\u7247");
       const key2 = match[1] ?? match[3];
       if (key2 && forbiddenKeys.has(key2)) return deny("\u7981\u6B62\u539F\u578B\u5C5E\u6027");
-      path.push(key2 ?? (match[2] === "*" ? "*" : Number(match[2])));
+      path2.push(key2 ?? (match[2] === "*" ? "*" : Number(match[2])));
       rest = rest.slice(match[0].length);
-      if (path.length > 20) return invalid("JSONPath \u5C42\u7EA7\u8D85\u8FC7 20");
+      if (path2.length > 20) return invalid("JSONPath \u5C42\u7EA7\u8D85\u8FC7 20");
     }
-    return { kind: "json", path, replacement };
+    return { kind: "json", path: path2, replacement };
   }
   if (rule.startsWith("//")) return { ...xpath(rule, list2), replacement };
   rule = rule.replace(/^@?css:/i, "");
@@ -63652,6 +63775,77 @@ var ScriptSession = class {
   }
 };
 
+// src/server/online/catalog.ts
+import { createHash as createHash4 } from "node:crypto";
+var digest = (text2) => createHash4("sha256").update(text2, "utf8").digest("hex");
+var sha = external_exports.string().regex(/^[a-f0-9]{64}$/);
+var version3 = external_exports.string().regex(/^\d+\.\d+\.\d+$/);
+var path = external_exports.string().max(200).regex(/^sources\/[a-z0-9][a-z0-9-]*\/\d+\.\d+\.\d+\.json$/);
+var entrySchema = external_exports.object({
+  id: external_exports.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(80),
+  version: version3,
+  name: external_exports.string().min(1).max(200),
+  path,
+  sha256: sha,
+  bytes: external_exports.number().int().positive().max(512 * 1024),
+  minReaderVersion: version3,
+  status: external_exports.enum(["ready", "candidate", "blocked", "failed"]),
+  lastVerified: external_exports.string().datetime().nullable(),
+  rights: external_exports.object({ ruleLicense: external_exports.string().min(1).max(200), basis: external_exports.string().min(1).max(2e3), references: external_exports.array(external_exports.string().url().max(4096)).max(20) }).strict(),
+  verification: external_exports.object({ static: external_exports.string().max(40), network: external_exports.string().max(40), acceptance: external_exports.string().max(40), failureStage: external_exports.string().max(100).nullable(), reportPath: external_exports.string().max(200).regex(/^verification\/[a-z0-9-]+\.json$/) }).strict()
+}).strict();
+var catalogReceiptSchema = external_exports.object({ catalogId: external_exports.string().regex(/^[a-z0-9-]+$/).max(100), version: version3, manifestSha256: sha, channel: external_exports.enum(["ready", "candidates"]), sources: external_exports.array(entrySchema).max(50) }).strict();
+var manifestSchema = external_exports.object({ schemaVersion: external_exports.literal(1), catalogId: catalogReceiptSchema.shape.catalogId, version: version3, createdAt: external_exports.string().datetime(), channel: external_exports.enum(["ready", "candidates"]), sources: external_exports.array(entrySchema).max(50) }).strict();
+var envelopeSchema = external_exports.object({ format: external_exports.literal("reader-source-catalog-package"), schemaVersion: external_exports.literal(1), manifestSha256: sha, manifest: external_exports.string(), files: external_exports.array(external_exports.object({ path, content: external_exports.string() }).strict()).max(50) }).strict();
+function parseJson(text2) {
+  if (text2.startsWith("\uFEFF")) throw new Error("\u6E05\u5355\u5305\u5FC5\u987B\u4F7F\u7528\u4E0D\u5E26 BOM \u7684 UTF-8");
+  if (/[\uD800-\uDFFF]/u.test(text2)) throw new Error("\u6E05\u5355\u5305\u542B\u4E0D\u5B8C\u6574\u7684 Unicode \u5B57\u7B26");
+  return JSON.parse(text2, (key2, value) => {
+    if (["__proto__", "constructor", "prototype"].includes(key2)) throw new Error("\u6E05\u5355\u5305\u542B\u4E0D\u5141\u8BB8\u7684\u5BF9\u8C61\u5B57\u6BB5");
+    if (typeof value === "string" && /[\uD800-\uDFFF]/u.test(value)) throw new Error("\u6E05\u5355\u5305\u542B\u4E0D\u5B8C\u6574\u7684 Unicode \u5B57\u7B26");
+    return value;
+  });
+}
+function newer(required4, current2) {
+  const a = required4.split(".").map(Number), b = current2.split(".").map(Number);
+  for (let i3 = 0; i3 < 3; i3++) {
+    if (a[i3] !== b[i3]) return a[i3] > b[i3];
+  }
+  return false;
+}
+function parseCatalogPackage(text2, readerVersion = "0.1.8") {
+  if (Buffer.byteLength(text2) > 1024 * 1024) throw new Error("\u6E05\u5355\u5305\u8D85\u8FC7 1 MiB");
+  const pkg = envelopeSchema.parse(parseJson(text2));
+  if (digest(pkg.manifest) !== pkg.manifestSha256) throw new Error("manifest SHA-256 \u4E0D\u5339\u914D");
+  const manifest = manifestSchema.parse(parseJson(pkg.manifest));
+  const ids = /* @__PURE__ */ new Set(), paths = /* @__PURE__ */ new Set(), files = /* @__PURE__ */ new Map();
+  for (const file3 of pkg.files) {
+    if (files.has(file3.path)) throw new Error("\u6E05\u5355\u6587\u4EF6\u8DEF\u5F84\u91CD\u590D");
+    files.set(file3.path, file3.content);
+  }
+  const sources = [];
+  let total = 0;
+  for (const entry of manifest.sources) {
+    if (ids.has(entry.id) || paths.has(entry.path)) throw new Error("\u6E05\u5355 ID \u6216\u8DEF\u5F84\u91CD\u590D");
+    if (entry.path !== `sources/${entry.id}/${entry.version}.json`) throw new Error("\u6E05\u5355\u8DEF\u5F84\u4E0E\u7248\u672C\u4E0D\u4E00\u81F4");
+    ids.add(entry.id);
+    paths.add(entry.path);
+    if (newer(entry.minReaderVersion, readerVersion)) throw new Error(`${entry.name} \u9700\u8981 Reader ${entry.minReaderVersion}`);
+    if (manifest.channel === "ready" && (entry.status !== "ready" || !entry.lastVerified || entry.verification.static !== "passed" || entry.verification.network !== "passed" || entry.verification.acceptance !== "passed" || entry.verification.failureStage !== null)) throw new Error("ready \u6E05\u5355\u5305\u542B\u672A\u901A\u8FC7\u9A8C\u6536\u7684\u6761\u76EE");
+    const file3 = files.get(entry.path);
+    if (file3 === void 0) throw new Error("\u6E05\u5355\u7F3A\u5C11\u89C4\u5219\u6587\u4EF6");
+    const bytes = Buffer.byteLength(file3);
+    total += bytes;
+    if (bytes !== entry.bytes || digest(file3) !== entry.sha256) throw new Error("\u4E66\u6E90\u5B57\u8282\u6570\u6216 SHA-256 \u4E0D\u5339\u914D");
+    if (total > 512 * 1024) throw new Error("\u89C4\u5219\u603B\u5927\u5C0F\u8D85\u8FC7 512 KiB");
+    const source = parseJson(file3);
+    if (!source || typeof source !== "object" || Array.isArray(source)) throw new Error("\u6BCF\u4E2A\u6E05\u5355\u6587\u4EF6\u5FC5\u987B\u5305\u542B\u4E00\u4E2A\u4E66\u6E90\u5BF9\u8C61");
+    sources.push(source);
+  }
+  if (files.size !== paths.size) throw new Error("\u6E05\u5355\u5305\u542B\u672A\u58F0\u660E\u7684\u989D\u5916\u6587\u4EF6");
+  return { json: JSON.stringify(sources), receipt: { catalogId: manifest.catalogId, version: manifest.version, channel: manifest.channel, manifestSha256: pkg.manifestSha256, sources: manifest.sources } };
+}
+
 // src/server/online/service.ts
 var idSchema = external_exports.string().regex(/^[a-f0-9]{64}$/);
 var chapterSchema2 = external_exports.object({ id: idSchema, title: external_exports.string().max(500), url: external_exports.string().max(4096) });
@@ -63660,12 +63854,12 @@ var recordSchema = external_exports.object({ version: external_exports.literal(1
 var missing = (error112) => error112?.code === "ENOENT";
 var err2 = (error112) => error112 instanceof Error ? error112.message : "\u8054\u7F51\u64CD\u4F5C\u5931\u8D25";
 var cleanTitle = (value) => value.replace(/\s+/g, " ").trim().slice(0, 500);
-function changedFields(before2, after2, path = "") {
+function changedFields(before2, after2, path2 = "") {
   if (JSON.stringify(before2) === JSON.stringify(after2)) return [];
   if (before2 && after2 && typeof before2 === "object" && typeof after2 === "object" && !Array.isArray(before2) && !Array.isArray(after2)) {
-    return [.../* @__PURE__ */ new Set([...Object.keys(before2), ...Object.keys(after2)])].flatMap((key2) => changedFields(before2[key2], after2[key2], path ? `${path}.${key2}` : key2));
+    return [.../* @__PURE__ */ new Set([...Object.keys(before2), ...Object.keys(after2)])].flatMap((key2) => changedFields(before2[key2], after2[key2], path2 ? `${path2}.${key2}` : key2));
   }
-  return [path];
+  return [path2];
 }
 var OnlineSourceService = class {
   constructor(store, http = new SafeHttpClient()) {
@@ -63706,8 +63900,29 @@ var OnlineSourceService = class {
       throw new Error("\u5728\u7EBF\u4E66\u6E90\u5B58\u50A8\u635F\u574F\uFF1B\u672C\u5730\u4E66\u7C4D\u4E0D\u53D7\u5F71\u54CD");
     }
   }
-  async writeSources(sources) {
-    await atomicWrite(join2(this.directory, "sources.json"), JSON.stringify({ version: 1, sources }));
+  async receipts() {
+    try {
+      return external_exports.array(catalogReceiptSchema).parse(JSON.parse(await fs2.readFile(join2(this.directory, "sources.json"), "utf8")).catalogReceipts ?? []);
+    } catch (error112) {
+      if (missing(error112)) return [];
+      throw new Error("\u6E05\u5355\u56DE\u6267\u635F\u574F\uFF1B\u672A\u8986\u76D6\u539F\u6587\u4EF6");
+    }
+  }
+  async writeSources(sources, receipts) {
+    await atomicWrite(join2(this.directory, "sources.json"), JSON.stringify({ version: 1, sources, catalogReceipts: receipts ?? await this.receipts() }));
+  }
+  async previewCatalog(packageJson) {
+    const { json: json5, receipt } = parseCatalogPackage(packageJson);
+    const prior = (await this.receipts()).find((item) => item.catalogId === receipt.catalogId && item.version === receipt.version);
+    if (prior && prior.manifestSha256 !== receipt.manifestSha256) throw new Error("\u8BE5\u6E05\u5355\u7248\u672C\u5DF2\u7ECF\u5BFC\u5165\u8FC7\u4E0D\u540C\u5185\u5BB9\uFF1B\u8BF7\u53D1\u5E03\u65B0\u7248\u672C");
+    if (!receipt.sources.length) return { token: "", sources: [], changes: [], catalog: receipt };
+    const preview = await this.preview(json5);
+    if (new Set(preview.sources.map((source) => source.id)).size !== receipt.sources.length) {
+      this.previews.delete(preview.token);
+      throw new Error("\u6E05\u5355\u7684\u4E0D\u540C\u6761\u76EE\u6307\u5411\u91CD\u590D\u4E66\u6E90");
+    }
+    this.previews.get(preview.token).catalog = receipt;
+    return { ...preview, catalog: receipt };
   }
   async listSources() {
     return (await this.sources()).map((s) => s.report);
@@ -63725,7 +63940,7 @@ var OnlineSourceService = class {
   }
   async previewUrl(url3, signal) {
     const response = await this.http.get(url3, signal);
-    return this.preview(response.text);
+    return JSON.parse(response.text)?.format === "reader-source-catalog-package" ? this.previewCatalog(response.text) : this.preview(response.text);
   }
   fingerprint(sources) {
     return hash2(JSON.stringify(sources.map((s) => [s.report.id, s.report.revision, s.report.enabled, s.generation])));
@@ -63735,6 +63950,15 @@ var OnlineSourceService = class {
     if (!entry || entry.expires < Date.now()) throw new Error("\u5BFC\u5165\u9884\u89C8\u5DF2\u8FC7\u671F\uFF0C\u8BF7\u91CD\u65B0\u9884\u89C8");
     return this.store.locked("online-sources", async () => {
       const existing = await this.sources();
+      const receipts = await this.receipts();
+      if (entry.catalog) {
+        const prior = receipts.find((item) => item.catalogId === entry.catalog.catalogId && item.version === entry.catalog.version);
+        if (prior && prior.manifestSha256 !== entry.catalog.manifestSha256) throw new Error("\u6E05\u5355\u7248\u672C\u5185\u5BB9\u51B2\u7A81\uFF0C\u8BF7\u91CD\u65B0\u9884\u89C8");
+        if (!prior) {
+          if (receipts.length >= 100) throw new Error("\u6E05\u5355\u56DE\u6267\u5DF2\u8FBE 100 \u6761\uFF0C\u8BF7\u5148\u5907\u4EFD\u7EF4\u62A4");
+          receipts.push(entry.catalog);
+        }
+      }
       if (this.fingerprint(existing) !== entry.previous) throw new Error("\u4E66\u6E90\u5DF2\u53D1\u751F\u53D8\u5316\uFF0C\u8BF7\u91CD\u65B0\u9884\u89C8\u5E76\u786E\u8BA4\u5DEE\u5F02");
       for (const source of entry.sources) {
         const index = existing.findIndex((s) => s.report.id === source.report.id);
@@ -63744,7 +63968,14 @@ var OnlineSourceService = class {
         else existing.push(source);
       }
       if (existing.length > SOURCE_LIMITS.stored) throw new Error("\u6700\u591A\u4FDD\u5B58 100 \u4E2A\u4E66\u6E90");
-      await this.writeSources(existing);
+      if (entry.catalog) {
+        try {
+          await fs2.copyFile(join2(this.directory, "sources.json"), join2(this.directory, "sources.before-catalog-v1.json"), 1);
+        } catch (error112) {
+          if (!missing(error112) && error112.code !== "EEXIST") throw error112;
+        }
+      }
+      await this.writeSources(existing, receipts);
       this.previews.delete(token);
       return existing.map((s) => s.report);
     });
@@ -63981,6 +64212,7 @@ var OnlineSourceService = class {
     }
   }
   async read(id2) {
+    await this.store.assertActive(id2);
     const book = recordSchema.parse(JSON.parse(await fs2.readFile(this.path(id2), "utf8")));
     if (book.id !== id2) throw new Error("\u5728\u7EBF\u4E66\u7C4D ID \u4E0D\u4E00\u81F4");
     return book;
@@ -63992,10 +64224,15 @@ var OnlineSourceService = class {
   summary(book) {
     return { id: book.id, title: book.title, author: book.author, format: "online", addedAt: book.addedAt, lastReadAt: book.lastReadAt, chapterCount: book.chapters.length, wordCount: 0, progress: book.chapters.length <= 1 ? 0 : book.locator.chapter / (book.chapters.length - 1), locator: book.locator };
   }
+  async trashBook(id2) {
+    return this.store.locked(`online-${id2}`, async () => this.store.markTrashed(this.summary(await this.read(id2))));
+  }
   async listBooks() {
     await this.ready();
     const books = [];
-    for (const name of await fs2.readdir(this.directory)) if (/^[a-f0-9]{64}\.json$/.test(name)) books.push(this.summary(await this.read(name.slice(0, -5))));
+    for (const name of await fs2.readdir(this.directory)) if (/^[a-f0-9]{64}\.json$/.test(name)) await this.store.locked(`online-${name.slice(0, -5)}`, async () => {
+      if (!await this.store.isTrashed(name.slice(0, -5))) books.push(this.summary(await this.read(name.slice(0, -5))));
+    });
     return books;
   }
   cachePath(book, chapterId) {
@@ -64020,6 +64257,7 @@ var OnlineSourceService = class {
     const id2 = hash2(`online:${detail2.sourceId}:${detail2.revision}:${canonicalUrl}`);
     if (!["supported", "partial"].includes(source.report.stages.content.syntax)) throw new Error("ruleContent\uFF1A\u6B63\u6587\u8BED\u6CD5\u4E0D\u53EF\u7528\uFF0C\u8BF7\u67E5\u770B\u4E66\u6E90\u5B57\u6BB5\u8BCA\u65AD");
     if (await this.has(id2)) return this.open(id2, signal);
+    await this.store.assertActive(id2);
     const chapters = await this.toc(source, detail2.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: detail2.url, name: detail2.title, author: detail2.author });
     const book = { version: 1, id: id2, sourceId: detail2.sourceId, revision: detail2.revision, url: canonicalUrl, tocUrl: detail2.tocUrl, title: detail2.title, author: detail2.author, chapters, locator: { chapter: 0, paragraph: 0, chapterId: chapters[0].id }, bookmarks: [], addedAt: (/* @__PURE__ */ new Date()).toISOString() };
     await this.store.locked("online-sources", () => this.store.locked(`online-${id2}`, async () => {
@@ -64040,6 +64278,7 @@ var OnlineSourceService = class {
     });
   }
   async chapter(id2, chapterId, signal) {
+    const lifecycle = await this.store.lifecycle(id2);
     const book = await this.read(id2), chapter = book.chapters.find((c) => c.id === chapterId);
     if (!chapter) throw new Error("\u7AE0\u8282\u5DF2\u4E0D\u5728\u76EE\u5F55\u4E2D\uFF0C\u8BF7\u5237\u65B0\u4E66\u7C4D");
     if (await this.cached(book, chapterId)) return this.asDetail(book, chapterId);
@@ -64061,10 +64300,11 @@ var OnlineSourceService = class {
       signal.throwIfAborted();
       await this.source(book.sourceId, book.revision, source.generation);
       const current2 = await this.read(id2);
+      if (await this.store.lifecycle(id2) !== lifecycle) throw new Error("\u4E66\u7C4D\u5DF2\u79FB\u5165\u6216\u6062\u590D\u81EA\u56DE\u6536\u7AD9\uFF0C\u8FC7\u671F\u8BF7\u6C42\u5DF2\u4E22\u5F03");
       if (current2.revision !== book.revision || !current2.chapters.some((c) => c.id === chapterId)) throw new Error("\u76EE\u5F55\u6216\u4E66\u6E90\u5DF2\u53D8\u5316\uFF0C\u5DF2\u4E22\u5F03\u8FC7\u671F\u6B63\u6587");
-      const path = this.cachePath(book, chapterId), directory = join2(path, "..");
+      const path2 = this.cachePath(book, chapterId), directory = join2(path2, "..");
       await fs2.mkdir(directory, { recursive: true, mode: 448 });
-      await atomicWrite(path, JSON.stringify(paragraphs));
+      await atomicWrite(path2, JSON.stringify(paragraphs));
       const entries2 = await Promise.all((await fs2.readdir(directory)).filter((name) => /^[a-f0-9]{64}\.json$/.test(name)).map(async (name) => ({ name, stat: await fs2.stat(join2(directory, name)) })));
       let size = entries2.reduce((n, e) => n + e.stat.size, 0);
       for (const entry of entries2.sort((a, b) => a.stat.mtimeMs - b.stat.mtimeMs)) {
@@ -64077,11 +64317,13 @@ var OnlineSourceService = class {
     return this.asDetail(await this.read(id2), chapterId);
   }
   async refresh(id2, signal) {
+    const lifecycle = await this.store.lifecycle(id2);
     const book = await this.read(id2), source = await this.source(book.sourceId, book.revision), chapters = await this.toc(source, book.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author });
     return this.store.locked("online-sources", () => this.store.locked(`online-${id2}`, async () => {
       signal.throwIfAborted();
       await this.source(book.sourceId, book.revision, source.generation);
       const current2 = await this.read(id2);
+      if (await this.store.lifecycle(id2) !== lifecycle) throw new Error("\u4E66\u7C4D\u5DF2\u79FB\u5165\u6216\u6062\u590D\u81EA\u56DE\u6536\u7AD9\uFF0C\u8FC7\u671F\u76EE\u5F55\u5DF2\u4E22\u5F03");
       const align = (loc) => {
         const chapter = chapters.findIndex((c) => c.id === loc.chapterId);
         if (chapter < 0) throw new Error("\u65B0\u76EE\u5F55\u7F3A\u5C11\u8FDB\u5EA6\u6216\u4E66\u7B7E\u7AE0\u8282\uFF1B\u65E7\u76EE\u5F55\u5DF2\u4FDD\u7559");
@@ -64175,9 +64417,16 @@ var MAX_FILE = 32 * 1024 * 1024;
 var MAX_CHUNK = 256 * 1024;
 var TTL = 15 * 60 * 1e3;
 var actionSchemas = {
+  reader_keyboard: external_exports.object({}).strict(),
+  reader_keyboard_save: external_exports.object({ settings: keyboardSchema }).strict(),
+  reader_keyboard_reset: external_exports.object({}).strict(),
+  reader_trash_list: external_exports.object({}).strict(),
+  reader_trash: external_exports.object({ id }).strict(),
+  reader_restore: external_exports.object({ id }).strict(),
   reader_list: external_exports.object({}).strict(),
   reader_get: external_exports.object({ id, requestId: requestId.optional() }).strict(),
   reader_online_sources: external_exports.object({}).strict(),
+  reader_catalog_preview: external_exports.object({ packageJson: external_exports.string().max(1024 * 1024) }).strict(),
   reader_online_preview: external_exports.object({ json: external_exports.string().max(512 * 1024) }).strict(),
   reader_online_preview_url: external_exports.object({ url: external_exports.string().max(4096), requestId }).strict(),
   reader_online_commit: external_exports.object({ token: external_exports.string().uuid() }).strict(),
@@ -64211,6 +64460,19 @@ var ReaderService = class {
     if (!Object.hasOwn(actionSchemas, name)) throw new Error("\u672A\u77E5\u7684 Reader \u64CD\u4F5C");
     const args = actionSchemas[name].parse(input2);
     switch (name) {
+      case "reader_keyboard":
+        return this.store.keyboard();
+      case "reader_keyboard_save":
+        return this.store.saveKeyboard(args.settings);
+      case "reader_keyboard_reset":
+        return this.store.saveKeyboard(defaultKeyboard);
+      case "reader_trash_list":
+        return this.store.listTrash();
+      case "reader_trash":
+        return (await this.online.has(args.id) ? this.online : this.store).trashBook(args.id);
+      case "reader_restore":
+        await this.store.restoreBook(args.id);
+        return { restored: true };
       case "reader_list": {
         const library = await this.store.list();
         return { ...library, books: [...library.books, ...await this.online.listBooks()] };
@@ -64227,6 +64489,8 @@ var ReaderService = class {
         return (await this.online.has(args.id) ? this.online : this.store).removeBookmark(args.id, args.bookmarkId);
       case "reader_online_sources":
         return this.online.listSources();
+      case "reader_catalog_preview":
+        return this.online.previewCatalog(args.packageJson);
       case "reader_online_preview":
         return this.online.preview(args.json);
       case "reader_online_preview_url":
@@ -64659,8 +64923,8 @@ function getErrorMap2() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data: data3, path, errorMaps, issueData } = params;
-  const fullPath = [...path, ...issueData.path || []];
+  const { data: data3, path: path2, errorMaps, issueData } = params;
+  const fullPath = [...path2, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -64775,11 +65039,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path, key2) {
+  constructor(parent, value, path2, key2) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path;
+    this._path = path2;
     this._key = key2;
   }
   get path() {
@@ -65158,11 +65422,11 @@ function datetimeRegex(args) {
   regex2 = `${regex2}(${opts.join("|")})`;
   return new RegExp(`^${regex2}$`);
 }
-function isValidIP(ip, version4) {
-  if ((version4 === "v4" || !version4) && ipv4Regex.test(ip)) {
+function isValidIP(ip, version5) {
+  if ((version5 === "v4" || !version5) && ipv4Regex.test(ip)) {
     return true;
   }
-  if ((version4 === "v6" || !version4) && ipv6Regex.test(ip)) {
+  if ((version5 === "v6" || !version5) && ipv6Regex.test(ip)) {
     return true;
   }
   return false;
@@ -65189,11 +65453,11 @@ function isValidJWT2(jwt3, alg) {
     return false;
   }
 }
-function isValidCidr(ip, version4) {
-  if ((version4 === "v4" || !version4) && ipv4CidrRegex.test(ip)) {
+function isValidCidr(ip, version5) {
+  if ((version5 === "v4" || !version5) && ipv4CidrRegex.test(ip)) {
     return true;
   }
-  if ((version4 === "v6" || !version4) && ipv6CidrRegex.test(ip)) {
+  if ((version5 === "v6" || !version5) && ipv6CidrRegex.test(ip)) {
     return true;
   }
   return false;
@@ -68342,11 +68606,11 @@ function normalizeObjectSchema(schema) {
   }
   return void 0;
 }
-function getDotPath(path) {
-  if (path.length === 0) {
+function getDotPath(path2) {
+  if (path2.length === 0) {
     return "object root";
   }
-  return path.reduce((acc, seg, index) => {
+  return path2.reduce((acc, seg, index) => {
     if (index === 0) {
       return String(seg);
     }
@@ -72883,7 +73147,7 @@ __export(core_exports4, {
   toJSONSchema: () => toJSONSchema2,
   treeifyError: () => treeifyError2,
   util: () => util_exports2,
-  version: () => version3
+  version: () => version4
 });
 
 // node_modules/@openai/mcp-extensions/node_modules/zod/v4/core/core.js
@@ -73130,10 +73394,10 @@ function mergeDefs2(...defs) {
 function cloneDef2(schema) {
   return mergeDefs2(schema._zod.def);
 }
-function getElementAtPath2(obj, path) {
-  if (!path)
+function getElementAtPath2(obj, path2) {
+  if (!path2)
     return obj;
-  return path.reduce((acc, key2) => acc?.[key2], obj);
+  return path2.reduce((acc, key2) => acc?.[key2], obj);
 }
 function promiseAllObject2(promisesObj) {
   const keys2 = Object.keys(promisesObj);
@@ -73542,11 +73806,11 @@ function explicitlyAborted2(x2, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues2(path, issues) {
+function prefixIssues2(path2, issues) {
   return issues.map((iss) => {
     var _a8;
     (_a8 = iss).path ?? (_a8.path = []);
-    iss.path.unshift(path);
+    iss.path.unshift(path2);
     return iss;
   });
 }
@@ -73693,16 +73957,16 @@ function flattenError2(error112, mapper = (issue3) => issue3.message) {
 }
 function formatError2(error112, mapper = (issue3) => issue3.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error113, path = []) => {
+  const processError = (error113, path2 = []) => {
     for (const issue3 of error113.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path2, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path2, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path2, ...issue3.path]);
       } else {
-        const fullpath = [...path, ...issue3.path];
+        const fullpath = [...path2, ...issue3.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue3));
         } else {
@@ -73729,17 +73993,17 @@ function formatError2(error112, mapper = (issue3) => issue3.message) {
 }
 function treeifyError2(error112, mapper = (issue3) => issue3.message) {
   const result = { errors: [] };
-  const processError = (error113, path = []) => {
+  const processError = (error113, path2 = []) => {
     var _a8, _b2;
     for (const issue3 of error113.issues) {
       if (issue3.code === "invalid_union" && issue3.errors.length) {
-        issue3.errors.map((issues) => processError({ issues }, [...path, ...issue3.path]));
+        issue3.errors.map((issues) => processError({ issues }, [...path2, ...issue3.path]));
       } else if (issue3.code === "invalid_key") {
-        processError({ issues: issue3.issues }, [...path, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path2, ...issue3.path]);
       } else if (issue3.code === "invalid_element") {
-        processError({ issues: issue3.issues }, [...path, ...issue3.path]);
+        processError({ issues: issue3.issues }, [...path2, ...issue3.path]);
       } else {
-        const fullpath = [...path, ...issue3.path];
+        const fullpath = [...path2, ...issue3.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue3));
           continue;
@@ -73771,8 +74035,8 @@ function treeifyError2(error112, mapper = (issue3) => issue3.message) {
 }
 function toDotPath2(_path) {
   const segs = [];
-  const path = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path) {
+  const path2 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path2) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -73958,10 +74222,10 @@ var nanoid3 = /^[a-zA-Z0-9_-]{21}$/;
 var duration3 = /^P(?:(\d+W)|(?!.*W)(?=\d|T\d)(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+([.,]\d+)?S)?)?)$/;
 var extendedDuration2 = /^[-+]?P(?!$)(?:(?:[-+]?\d+Y)|(?:[-+]?\d+[.,]\d+Y$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:(?:[-+]?\d+W)|(?:[-+]?\d+[.,]\d+W$))?(?:(?:[-+]?\d+D)|(?:[-+]?\d+[.,]\d+D$))?(?:T(?=[\d+-])(?:(?:[-+]?\d+H)|(?:[-+]?\d+[.,]\d+H$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:[-+]?\d+(?:[.,]\d+)?S)?)??$/;
 var guid3 = /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
-var uuid3 = (version4) => {
-  if (!version4)
+var uuid3 = (version5) => {
+  if (!version5)
     return /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/;
-  return new RegExp(`^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-${version4}[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$`);
+  return new RegExp(`^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-${version5}[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$`);
 };
 var uuid42 = /* @__PURE__ */ uuid3(4);
 var uuid62 = /* @__PURE__ */ uuid3(6);
@@ -74630,7 +74894,7 @@ var Doc2 = class {
 };
 
 // node_modules/@openai/mcp-extensions/node_modules/zod/v4/core/versions.js
-var version3 = {
+var version4 = {
   major: 4,
   minor: 4,
   patch: 3
@@ -74642,7 +74906,7 @@ var $ZodType2 = /* @__PURE__ */ $constructor2("$ZodType", (inst, def) => {
   inst ?? (inst = {});
   inst._zod.def = def;
   inst._zod.bag = inst._zod.bag || {};
-  inst._zod.version = version3;
+  inst._zod.version = version4;
   const checks = [...inst._zod.def.checks ?? []];
   if (inst._zod.traits.has("$ZodCheck")) {
     checks.unshift(inst);
@@ -86464,13 +86728,13 @@ function resolveRef2(ref2, ctx) {
   if (!ref2.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path = ref2.slice(1).split("/").filter(Boolean);
-  if (path.length === 0) {
+  const path2 = ref2.slice(1).split("/").filter(Boolean);
+  if (path2.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path[0] === defsKey) {
-    const key2 = path[1];
+  if (path2[0] === defsKey) {
+    const key2 = path2[1];
     if (!key2 || !ctx.defs[key2]) {
       throw new Error(`Reference not found: ${ref2}`);
     }
@@ -86837,10 +87101,10 @@ function fromJSONSchema2(schema, params) {
   } catch {
     throw new Error("fromJSONSchema input is not valid JSON (possibly cyclic); use $defs/$ref for recursive schemas");
   }
-  const version4 = detectVersion2(normalized, params?.defaultTarget);
+  const version5 = detectVersion2(normalized, params?.defaultTarget);
   const defs = normalized.$defs || normalized.definitions || {};
   const ctx = {
-    version: version4,
+    version: version5,
     defs,
     refs: /* @__PURE__ */ new Map(),
     processing: /* @__PURE__ */ new Set(),
@@ -88372,10 +88636,10 @@ var OpenAIFileEntrypointInputSchema = external_exports2.object({
 });
 
 // src/server/mcp.ts
-var UI_URI = "ui://reader/v0.1.7/bookshelf.html";
+var UI_URI = "ui://reader/v0.1.8/bookshelf.html";
 var names = { reader_list: "\u8BFB\u53D6\u4E66\u67B6", reader_get: "\u6253\u5F00\u4E66\u7C4D", reader_import_begin: "\u5F00\u59CB\u5BFC\u5165\u4E66\u7C4D", reader_import_chunk: "\u4F20\u8F93\u4E66\u7C4D\u5206\u5757", reader_import_finish: "\u5B8C\u6210\u4E66\u7C4D\u5BFC\u5165", reader_import_cancel: "\u53D6\u6D88\u4E66\u7C4D\u5BFC\u5165", reader_progress: "\u4FDD\u5B58\u9605\u8BFB\u8FDB\u5EA6", reader_settings: "\u4FDD\u5B58\u9605\u8BFB\u8BBE\u7F6E", reader_bookmark_add: "\u6DFB\u52A0\u4E66\u7B7E", reader_bookmark_remove: "\u79FB\u9664\u4E66\u7B7E" };
 function createMcpServer(service2, htmlPath) {
-  const server = new McpServer({ name: "reader-plugin", version: "0.1.7" });
+  const server = new McpServer({ name: "reader-plugin", version: "0.1.8" });
   new OpenAIExtensions(server);
   const meta5 = { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] }, prefersBorder: false }, "openai/ui": { preferredDisplayMode: "fullscreen", availableDisplayModes: ["inline", "fullscreen"] } };
   N3(server, "Reader", UI_URI, { _meta: meta5 }, async () => ({ contents: [{ uri: UI_URI, mimeType: p, text: await readFile3(htmlPath, "utf8"), _meta: meta5 }] }));
@@ -88398,7 +88662,7 @@ function createMcpServer(service2, htmlPath) {
       title: names[name] ?? name,
       description: "Private Reader UI operation. Not intended for model invocation.",
       inputSchema: schema,
-      annotations: { readOnlyHint: name === "reader_list" || name === "reader_online_sources", destructiveHint: name === "reader_bookmark_remove" || name === "reader_online_remove", openWorldHint: name.startsWith("reader_online_") || name === "reader_get" },
+      annotations: { readOnlyHint: ["reader_list", "reader_online_sources", "reader_keyboard", "reader_trash_list"].includes(name), destructiveHint: ["reader_bookmark_remove", "reader_online_remove", "reader_trash"].includes(name), openWorldHint: name.startsWith("reader_online_") || name === "reader_get" },
       _meta: { ui: { visibility: ["app"] } }
     }, async (args) => {
       try {
@@ -90536,7 +90800,7 @@ var StreamableHTTPServerTransport = class {
 };
 
 // src/server/http.ts
-var MAX_BODY = 1024 * 1024;
+var MAX_BODY = 2 * 1024 * 1024 + 4096;
 function json4(response, code, value) {
   response.writeHead(code, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   response.end(JSON.stringify(value));
@@ -90575,7 +90839,7 @@ function createReaderHttpServer(service2, htmlPath) {
         return;
       }
       if (request.method === "GET" && pathname === "/health") {
-        json4(response, 200, { status: "ok", mode: "loopback-preview", version: "0.1.7" });
+        json4(response, 200, { status: "ok", mode: "loopback-preview", version: "0.1.8" });
         return;
       }
       if (request.method === "POST" && (pathname === "/api/tool" || pathname === "/mcp")) {
