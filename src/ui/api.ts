@@ -22,6 +22,7 @@ function unwrap(result: any): unknown {
 }
 export function createReaderApi(): ReaderApi {
   let call: Rpc;
+  let hostClose: (() => Promise<void>) | undefined;
   let beforeClose: (() => Promise<unknown>) | undefined;
   let onBook: ((book: BookDetail) => void) | undefined;
   let onError: ((message: string) => void) | undefined;
@@ -85,9 +86,26 @@ export function createReaderApi(): ReaderApi {
       });
     };
     ready = app.connect(undefined, { timeout: 15000 }).then(() => applyContext(app.getHostContext()));
+    hostClose = async () => { await ready; await app.requestTeardown(); };
     call = async (name, args) => { await ready; return unwrap(await app.callServerTool({ name, arguments: args })); };
   }
   return {
+    keyboard: () => call('reader_keyboard', {}) as ReturnType<ReaderApi['keyboard']>,
+    saveKeyboard: settings => call('reader_keyboard_save', { settings }) as ReturnType<ReaderApi['saveKeyboard']>,
+    resetKeyboard: () => call('reader_keyboard_reset', {}) as ReturnType<ReaderApi['resetKeyboard']>,
+    trashList: () => call('reader_trash_list', {}) as ReturnType<ReaderApi['trashList']>,
+    trash: id => call('reader_trash', { id }) as ReturnType<ReaderApi['trash']>,
+    restore: async id => { await call('reader_restore', { id }); },
+    async requestHostClose() {
+      const openai = (window as Window & { openai?: { requestClose?: () => void | Promise<void> } }).openai;
+      if (!openai?.requestClose && !hostClose) return { status: 'unsupported', message: '当前预览没有宿主关闭接口。请使用宿主面板的关闭按钮；Esc 只返回 Reader 或关闭弹层。' };
+      await beforeClose?.();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([Promise.resolve().then(() => openai?.requestClose ? openai.requestClose() : hostClose!()), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('宿主未在 5 秒内完成关闭请求；面板状态未知，请用宿主关闭按钮')), 5000); })]);
+      } finally { if (timer) clearTimeout(timer); }
+      return { status: 'requested', message: '已发送关闭请求，是否关闭由宿主决定。若面板仍显示，请使用宿主关闭按钮。' };
+    },
     onBeforeClose(listener) { beforeClose = listener; return () => { beforeClose = undefined; }; },
     list: () => call('reader_list', {}) as ReturnType<ReaderApi['list']>,
     importBook: importFile,
@@ -95,6 +113,7 @@ export function createReaderApi(): ReaderApi {
     online: {
       sources: () => call('reader_online_sources', {}) as any,
       preview: input => call('json' in input ? 'reader_online_preview' : 'reader_online_preview_url', input) as any,
+      catalogPreview: packageJson => call('reader_catalog_preview', { packageJson }) as any,
       commit: token => call('reader_online_commit', { token }) as any,
       setEnabled: (id, enabled) => call('reader_online_enable', { id, enabled }) as any,
       removeSource: id => call('reader_online_remove', { id }) as any,

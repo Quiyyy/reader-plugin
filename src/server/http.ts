@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createMcpServer } from './mcp.js';
 import type { ReaderService } from './service.js';
-const MAX_BODY = 1024 * 1024;
+// A <=1 MiB catalog JSON string is escaped once more inside the RPC envelope.
+// Each action retains its own narrower schema/byte budget.
+const MAX_BODY = 2 * 1024 * 1024 + 4096;
 function json(response: ServerResponse, code: number, value: unknown) { response.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(value)); }
 async function readBody(request: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = []; let size = 0;

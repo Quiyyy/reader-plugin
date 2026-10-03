@@ -12,6 +12,7 @@ import { documentContext } from './rules.js';
 import { RuleEvaluator } from './evaluate.js';
 import { ScriptSession, type ScriptGlobals } from './script.js';
 import { parseRate } from './rate.js';
+import { parseCatalogPackage, catalogReceiptSchema, type CatalogReceipt } from './catalog.js';
 import { SCRIPT_LIMITS } from './script-syntax.js';
 
 const idSchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -34,7 +35,7 @@ function changedFields(before: any, after: any, path = ''): string[] {
 /** Separate versioned records and per-chapter caches; local TXT/EPUB schema stays v1. */
 export class OnlineSourceService {
   private readonly directory: string;
-  private previews = new Map<string, { sources: Source[]; previous: string; expires: number }>();
+  private previews = new Map<string, { catalog?: CatalogReceipt; sources: Source[]; previous: string; expires: number }>();
   private jobs = new Map<string, { controller: AbortController; promise: Promise<unknown>; key: string; users: Set<string> }>();
   constructor(private readonly store: ReaderStore, private readonly http = new SafeHttpClient()) { this.directory = join(store.dataDir, 'online-v1'); }
   private async ready() { await fs.mkdir(this.directory, { recursive: true, mode: 0o700 }); }
@@ -57,7 +58,21 @@ export class OnlineSourceService {
       });
     } catch (error) { if (missing(error)) return []; throw new Error('在线书源存储损坏；本地书籍不受影响'); }
   }
-  private async writeSources(sources: Source[]) { await atomicWrite(join(this.directory, 'sources.json'), JSON.stringify({ version: 1, sources })); }
+  private async receipts(): Promise<CatalogReceipt[]> {
+    try { return z.array(catalogReceiptSchema).parse(JSON.parse(await fs.readFile(join(this.directory, 'sources.json'), 'utf8')).catalogReceipts ?? []); }
+    catch (error) { if (missing(error)) return []; throw new Error('清单回执损坏；未覆盖原文件'); }
+  }
+  private async writeSources(sources: Source[], receipts?: CatalogReceipt[]) { await atomicWrite(join(this.directory, 'sources.json'), JSON.stringify({ version: 1, sources, catalogReceipts: receipts ?? await this.receipts() })); }
+  async previewCatalog(packageJson: string): Promise<SourcePreview> {
+    const { json, receipt } = parseCatalogPackage(packageJson);
+    const prior = (await this.receipts()).find(item => item.catalogId === receipt.catalogId && item.version === receipt.version);
+    if (prior && prior.manifestSha256 !== receipt.manifestSha256) throw new Error('该清单版本已经导入过不同内容；请发布新版本');
+    if (!receipt.sources.length) return { token: '', sources: [], changes: [], catalog: receipt };
+    const preview = await this.preview(json);
+    if (new Set(preview.sources.map(source => source.id)).size !== receipt.sources.length) { this.previews.delete(preview.token); throw new Error('清单的不同条目指向重复书源'); }
+    this.previews.get(preview.token)!.catalog = receipt;
+    return { ...preview, catalog: receipt };
+  }
   async listSources(): Promise<SourceReport[]> { return (await this.sources()).map(s => s.report); }
   async preview(json: string): Promise<SourcePreview> {
     const sources = importSources(json), existing = await this.sources();
@@ -67,13 +82,19 @@ export class OnlineSourceService {
     this.previews.set(token, { sources, previous: this.fingerprint(existing), expires: Date.now() + 10 * 60_000 });
     return { token, sources: sources.map(s => s.report), changes: sources.map(source => { const old = existing.find(s => s.report.id === source.report.id); return { id: source.report.id, kind: !old ? 'new' : old.report.revision === source.report.revision ? 'unchanged' : 'replace', previousName: old?.report.name, fields: old ? changedFields(old.raw, source.raw) : Object.keys(source.raw) }; }) };
   }
-  async previewUrl(url: string, signal: AbortSignal) { const response = await this.http.get(url, signal); return this.preview(response.text); }
+  async previewUrl(url: string, signal: AbortSignal) { const response = await this.http.get(url, signal); return JSON.parse(response.text)?.format === 'reader-source-catalog-package' ? this.previewCatalog(response.text) : this.preview(response.text); }
   private fingerprint(sources: Source[]) { return hash(JSON.stringify(sources.map(s => [s.report.id, s.report.revision, s.report.enabled, s.generation]))); }
   async commit(token: string) {
     const entry = this.previews.get(token);
     if (!entry || entry.expires < Date.now()) throw new Error('导入预览已过期，请重新预览');
     return this.store.locked('online-sources', async () => {
       const existing = await this.sources();
+      const receipts = await this.receipts();
+      if (entry.catalog) {
+        const prior = receipts.find(item => item.catalogId === entry.catalog!.catalogId && item.version === entry.catalog!.version);
+        if (prior && prior.manifestSha256 !== entry.catalog.manifestSha256) throw new Error('清单版本内容冲突，请重新预览');
+        if (!prior) { if (receipts.length >= 100) throw new Error('清单回执已达 100 条，请先备份维护'); receipts.push(entry.catalog); }
+      }
       if (this.fingerprint(existing) !== entry.previous) throw new Error('书源已发生变化，请重新预览并确认差异');
       for (const source of entry.sources) {
         const index = existing.findIndex(s => s.report.id === source.report.id);
@@ -82,7 +103,11 @@ export class OnlineSourceService {
         if (index >= 0) existing[index] = source; else existing.push(source);
       }
       if (existing.length > SOURCE_LIMITS.stored) throw new Error('最多保存 100 个书源');
-      await this.writeSources(existing); this.previews.delete(token);
+      if (entry.catalog) {
+        try { await fs.copyFile(join(this.directory, 'sources.json'), join(this.directory, 'sources.before-catalog-v1.json'), 1); }
+        catch (error) { if (!missing(error) && (error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; }
+      }
+      await this.writeSources(existing, receipts); this.previews.delete(token);
       return existing.map(s => s.report);
     });
   }
@@ -256,12 +281,13 @@ export class OnlineSourceService {
     }, { book });
   }
   async has(id: string) { try { await fs.access(this.path(id)); return true; } catch (error) { if (missing(error)) return false; throw error; } }
-  private async read(id: string): Promise<RecordBook> { const book = recordSchema.parse(JSON.parse(await fs.readFile(this.path(id), 'utf8'))); if (book.id !== id) throw new Error('在线书籍 ID 不一致'); return book; }
+  private async read(id: string): Promise<RecordBook> { await this.store.assertActive(id); const book = recordSchema.parse(JSON.parse(await fs.readFile(this.path(id), 'utf8'))); if (book.id !== id) throw new Error('在线书籍 ID 不一致'); return book; }
   private async write(book: RecordBook) { await this.ready(); await atomicWrite(this.path(book.id), JSON.stringify(recordSchema.parse(book))); }
   private summary(book: RecordBook): BookSummary { return { id: book.id, title: book.title, author: book.author, format: 'online', addedAt: book.addedAt, lastReadAt: book.lastReadAt, chapterCount: book.chapters.length, wordCount: 0, progress: book.chapters.length <= 1 ? 0 : book.locator.chapter / (book.chapters.length - 1), locator: book.locator }; }
+  async trashBook(id: string) { return this.store.locked(`online-${id}`, async () => this.store.markTrashed(this.summary(await this.read(id)))); }
   async listBooks(): Promise<BookSummary[]> {
     await this.ready(); const books: BookSummary[] = [];
-    for (const name of await fs.readdir(this.directory)) if (/^[a-f0-9]{64}\.json$/.test(name)) books.push(this.summary(await this.read(name.slice(0, -5))));
+    for (const name of await fs.readdir(this.directory)) if (/^[a-f0-9]{64}\.json$/.test(name)) await this.store.locked(`online-${name.slice(0, -5)}`, async () => { if (!await this.store.isTrashed(name.slice(0, -5))) books.push(this.summary(await this.read(name.slice(0, -5)))); });
     return books;
   }
   private cachePath(book: RecordBook, chapterId: string) { idSchema.parse(chapterId); return join(this.directory, 'cache', book.id, book.revision, `${chapterId}.json`); }
@@ -279,6 +305,7 @@ export class OnlineSourceService {
     const id = hash(`online:${detail.sourceId}:${detail.revision}:${canonicalUrl}`);
     if (!['supported', 'partial'].includes(source.report.stages.content.syntax)) throw new Error('ruleContent：正文语法不可用，请查看书源字段诊断');
     if (await this.has(id)) return this.open(id, signal);
+    await this.store.assertActive(id);
     const chapters = await this.toc(source, detail.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: detail.url, name: detail.title, author: detail.author });
     const book: RecordBook = { version: 1, id, sourceId: detail.sourceId, revision: detail.revision, url: canonicalUrl, tocUrl: detail.tocUrl, title: detail.title, author: detail.author, chapters, locator: { chapter: 0, paragraph: 0, chapterId: chapters[0]!.id }, bookmarks: [], addedAt: new Date().toISOString() };
     await this.store.locked('online-sources', () => this.store.locked(`online-${id}`, async () => { signal.throwIfAborted(); await this.source(source.report.id, source.report.revision, source.generation); if (!await this.has(id)) await this.write(book); }));
@@ -290,6 +317,7 @@ export class OnlineSourceService {
     return this.store.locked(`online-${id}`, async () => { const current = await this.read(id); current.lastReadAt = new Date().toISOString(); await this.write(current); return this.asDetail(current); });
   }
   async chapter(id: string, chapterId: string, signal: AbortSignal): Promise<BookDetail> {
+    const lifecycle = await this.store.lifecycle(id);
     const book = await this.read(id), chapter = book.chapters.find(c => c.id === chapterId);
     if (!chapter) throw new Error('章节已不在目录中，请刷新书籍');
     if (await this.cached(book, chapterId)) return this.asDetail(book, chapterId);
@@ -308,7 +336,7 @@ export class OnlineSourceService {
     }, { book: { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author, durChapterTitle: chapter.title }, chapter: { title: chapter.title, url: chapter.url, index: book.chapters.indexOf(chapter) } });
     await this.store.locked('online-sources', () => this.store.locked(`online-${id}`, async () => {
       signal.throwIfAborted(); await this.source(book.sourceId, book.revision, source.generation);
-      const current = await this.read(id); if (current.revision !== book.revision || !current.chapters.some(c => c.id === chapterId)) throw new Error('目录或书源已变化，已丢弃过期正文');
+      const current = await this.read(id); if (await this.store.lifecycle(id) !== lifecycle) throw new Error('书籍已移入或恢复自回收站，过期请求已丢弃'); if (current.revision !== book.revision || !current.chapters.some(c => c.id === chapterId)) throw new Error('目录或书源已变化，已丢弃过期正文');
       const path = this.cachePath(book, chapterId), directory = join(path, '..');
       await fs.mkdir(directory, { recursive: true, mode: 0o700 });
       await atomicWrite(path, JSON.stringify(paragraphs));
@@ -325,10 +353,12 @@ export class OnlineSourceService {
     return this.asDetail(await this.read(id), chapterId);
   }
   async refresh(id: string, signal: AbortSignal): Promise<BookDetail> {
+    const lifecycle = await this.store.lifecycle(id);
     const book = await this.read(id), source = await this.source(book.sourceId, book.revision), chapters = await this.toc(source, book.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author });
     return this.store.locked('online-sources', () => this.store.locked(`online-${id}`, async () => {
       signal.throwIfAborted(); await this.source(book.sourceId, book.revision, source.generation);
       const current = await this.read(id);
+      if (await this.store.lifecycle(id) !== lifecycle) throw new Error('书籍已移入或恢复自回收站，过期目录已丢弃');
       const align = (loc: RecordBook['locator']) => { const chapter = chapters.findIndex(c => c.id === loc.chapterId); if (chapter < 0) throw new Error('新目录缺少进度或书签章节；旧目录已保留'); return { ...loc, chapter }; };
       current.locator = align(current.locator); current.bookmarks = current.bookmarks.map(b => ({ ...b, locator: align(b.locator) })); current.chapters = chapters;
       await this.write(current); return this.asDetail(current);

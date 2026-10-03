@@ -5,6 +5,8 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { defaultSettings, type BookDetail, type BookSummary, type Bookmark, type LibraryState, type Locator, type ReaderSettings } from '../shared/types.js';
+import { keyboardSchema, defaultKeyboard, type KeyboardSettings } from '../shared/keyboard.js';
+import type { TrashEntry } from '../shared/types.js';
 import { importDocument, IMPORT_LIMITS, normalizeEncoding } from './importers.js';
 
 const locatorSchema = z.object({ chapter: z.number().int().nonnegative(), paragraph: z.number().int().nonnegative() });
@@ -113,8 +115,65 @@ export class ReaderStore {
     }
   }
 
+  private trashPath(id: string) { this.bookPath(id); return join(this.dataDir, 'trash-v1', `${id}.json`); }
+  async isTrashed(id: string): Promise<boolean> {
+    try { return (await this.readTrash(id)).state === 'trashed'; } catch (error) { if (isMissing(error)) return false; throw error; }
+  }
+  async lifecycle(id: string): Promise<string> { try { return await fs.readFile(this.trashPath(id), 'utf8'); } catch (error) { if (isMissing(error)) return ''; throw error; } }
+  async assertActive(id: string) { if (await this.isTrashed(id)) throw new Error('这本书已在回收站，请先恢复；进度、书签及缓存均已保留。'); }
+  /** Caller holds the same per-book lock used by every writer. One atomic marker
+   * gates the entire book, source bytes, bookmarks, progress and online cache.
+   * No multi-file move/copy or permanent deletion, so interruption cannot split it. */
+  async markTrashed(summary: BookSummary): Promise<TrashEntry> {
+    const entry: TrashEntry = { version: 1, summary, trashedAt: new Date().toISOString() };
+    const directory = join(this.dataDir, 'trash-v1');
+    await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+    await atomicWrite(this.trashPath(summary.id), JSON.stringify({ ...entry, state: 'trashed', generation: randomUUID() })); await syncDirectory(directory);
+    return entry;
+  }
+  async trashBook(id: string): Promise<TrashEntry> { return this.locked(id, async () => this.markTrashed((await this.readState(id)).summary)); }
+  private async readTrash(id: string): Promise<TrashEntry & { state: 'trashed' | 'active' }> {
+    const schema = z.object({ state: z.enum(['trashed', 'active']).default('trashed'), version: z.literal(1), summary: summarySchema.extend({ format: z.enum(['txt', 'epub', 'online']), locator: locatorSchema.extend({ chapterId: z.string().optional() }) }), trashedAt: z.string() });
+    const entry = schema.parse(JSON.parse(await fs.readFile(this.trashPath(id), 'utf8')));
+    if (entry.summary.id !== id) throw new Error('回收站记录损坏；原文件未改动');
+    return entry;
+  }
+  async listTrash(): Promise<TrashEntry[]> {
+    const directory = join(this.dataDir, 'trash-v1');
+    let names: string[]; try { names = await fs.readdir(directory); } catch (error) { if (isMissing(error)) return []; throw error; }
+    const entries: TrashEntry[] = [];
+    for (const name of names.filter(name => /^[a-f0-9]{64}\.json$/.test(name))) {
+      try { const entry = await this.readTrash(name.slice(0, -5)); if (entry.state === 'trashed') entries.push(entry); } catch (error) { if (!isMissing(error)) throw error; }
+    }
+    return entries.sort((a, b) => b.trashedAt.localeCompare(a.trashedAt));
+  }
+  async restoreBook(id: string): Promise<void> {
+    const entry = await this.readTrash(id);
+    await this.locked(entry.summary.format === 'online' ? `online-${id}` : id, async () => {
+      const latest = await this.readTrash(id);
+      if (latest.state !== 'trashed') return;
+      // IDs, not titles, are identities. Same-title books coexist unchanged.
+      const record = entry.summary.format === 'online' ? join(this.dataDir, 'online-v1', `${id}.json`) : join(this.bookPath(id), 'record.json');
+      await fs.access(record);
+      await atomicWrite(this.trashPath(id), JSON.stringify({ ...entry, state: 'active', generation: randomUUID() })); await syncDirectory(join(this.dataDir, 'trash-v1'));
+    });
+  }
+  async keyboard(): Promise<KeyboardSettings> {
+    try { return keyboardSchema.parse(JSON.parse(await fs.readFile(join(this.dataDir, 'keyboard-v1.json'), 'utf8'))); }
+    catch (error) { if (isMissing(error)) return structuredClone(defaultKeyboard); throw new Error('快捷键设置损坏，请恢复默认；旧设置保留在备份中。'); }
+  }
+  async saveKeyboard(value: KeyboardSettings): Promise<KeyboardSettings> {
+    const checked = keyboardSchema.parse(value);
+    return this.locked('keyboard', async () => {
+      const path = join(this.dataDir, 'keyboard-v1.json');
+      try { await atomicWrite(join(this.dataDir, 'keyboard-v1.before-save.json'), await fs.readFile(path)); } catch (error) { if (!isMissing(error)) throw error; }
+      await atomicWrite(path, JSON.stringify(checked)); await syncDirectory(this.dataDir); return checked;
+    });
+  }
+
   private async readState(id: string): Promise<z.infer<typeof stateSchema>> {
     await this.ready;
+    await this.assertActive(id);
     try {
       const state = stateSchema.parse(JSON.parse(await fs.readFile(join(this.bookPath(id), 'record.json'), 'utf8')));
       if (state.summary.id !== id) throw new Error('Mismatched book ID');
@@ -177,7 +236,7 @@ export class ReaderStore {
     const directories = await fs.readdir(this.booksDir, { withFileTypes: true });
     const books: BookSummary[] = [];
     // Fail explicitly on corruption rather than making a stored book silently disappear.
-    for (const entry of directories) if (entry.isDirectory() && /^[a-f0-9]{64}$/.test(entry.name)) books.push((await this.readState(entry.name)).summary);
+    for (const entry of directories) if (entry.isDirectory() && /^[a-f0-9]{64}$/.test(entry.name)) await this.locked(entry.name, async () => { if (!await this.isTrashed(entry.name)) books.push((await this.readState(entry.name)).summary); });
     books.sort((a, b) => (b.lastReadAt ?? b.addedAt).localeCompare(a.lastReadAt ?? a.addedAt) || a.title.localeCompare(b.title));
     let settings = { ...defaultSettings };
     try { settings = settingsSchema.parse(JSON.parse(await fs.readFile(join(this.dataDir, 'settings.json'), 'utf8'))); }
@@ -191,6 +250,7 @@ export class ReaderStore {
     const id = createHash('sha256').update(bytes).digest('hex');
     return this.locked(id, async () => {
       const directory = this.bookPath(id);
+      await this.assertActive(id);
       // Exact-byte duplicates retain the existing title, progress, bookmarks and chosen decoding.
       try {
         await fs.access(join(directory, 'record.json'));

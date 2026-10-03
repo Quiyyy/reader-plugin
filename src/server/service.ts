@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { keyboardSchema, defaultKeyboard } from '../shared/keyboard.js';
 import type { ReaderStore } from './store.js';
 import { OnlineSourceService } from './online/service.js';
 
@@ -12,9 +13,16 @@ const MAX_FILE = 32 * 1024 * 1024;
 const MAX_CHUNK = 256 * 1024;
 const TTL = 15 * 60 * 1000;
 export const actionSchemas = {
+  reader_keyboard: z.object({}).strict(),
+  reader_keyboard_save: z.object({ settings: keyboardSchema }).strict(),
+  reader_keyboard_reset: z.object({}).strict(),
+  reader_trash_list: z.object({}).strict(),
+  reader_trash: z.object({ id }).strict(),
+  reader_restore: z.object({ id }).strict(),
   reader_list: z.object({}).strict(),
   reader_get: z.object({ id, requestId: requestId.optional() }).strict(),
   reader_online_sources: z.object({}).strict(),
+  reader_catalog_preview: z.object({ packageJson: z.string().max(1024 * 1024) }).strict(),
   reader_online_preview: z.object({ json: z.string().max(512 * 1024) }).strict(),
   reader_online_preview_url: z.object({ url: z.string().max(4096), requestId }).strict(),
   reader_online_commit: z.object({ token: z.string().uuid() }).strict(),
@@ -46,6 +54,12 @@ export class ReaderService {
     if (!Object.hasOwn(actionSchemas, name)) throw new Error('未知的 Reader 操作');
     const args = actionSchemas[name as ActionName].parse(input) as any;
     switch (name as ActionName) {
+      case 'reader_keyboard': return this.store.keyboard();
+      case 'reader_keyboard_save': return this.store.saveKeyboard(args.settings);
+      case 'reader_keyboard_reset': return this.store.saveKeyboard(defaultKeyboard);
+      case 'reader_trash_list': return this.store.listTrash();
+      case 'reader_trash': return (await this.online.has(args.id) ? this.online : this.store).trashBook(args.id);
+      case 'reader_restore': await this.store.restoreBook(args.id); return { restored: true };
       case 'reader_list': { const library = await this.store.list(); return { ...library, books: [...library.books, ...await this.online.listBooks()] }; }
       case 'reader_get': return await this.online.has(args.id) ? this.online.run(args.requestId ?? randomUUID(), `open:${args.id}`, signal => this.online.open(args.id, signal)) : this.store.open(args.id);
       case 'reader_progress': return (await this.online.has(args.id) ? this.online : this.store).saveProgress(args.id, args.locator);
@@ -53,6 +67,7 @@ export class ReaderService {
       case 'reader_bookmark_add': return (await this.online.has(args.id) ? this.online : this.store).addBookmark(args.id, args.locator, args.label);
       case 'reader_bookmark_remove': return (await this.online.has(args.id) ? this.online : this.store).removeBookmark(args.id, args.bookmarkId);
       case 'reader_online_sources': return this.online.listSources();
+      case 'reader_catalog_preview': return this.online.previewCatalog(args.packageJson);
       case 'reader_online_preview': return this.online.preview(args.json);
       case 'reader_online_preview_url': return this.online.run(args.requestId, `preview:${args.url}`, signal => this.online.previewUrl(args.url, signal));
       case 'reader_online_commit': return this.online.commit(args.token);

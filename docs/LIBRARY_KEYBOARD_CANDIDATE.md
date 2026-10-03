@@ -1,0 +1,42 @@
+# Reader library / keyboard / catalog candidate
+
+Base: formal 0.1.7 `d7da13d98e2847bd580af3b848dfa24033f2cb09`. Candidate branch: `feature/legado-reader-library-keyboard`. No merge, release, user-library operation, formal installation change, Mac workflow change, or QuickJS/network-policy relaxation is part of this work. Runtime version remains 0.1.7 during review: identify this candidate by its commit and package SHA-256, never version alone.
+
+## User behavior
+
+- Bookshelf cards and compact list have a more menu → move to recycle bin. Undo or restore brings back the same book ID, original text, progress, bookmarks and cached chapters. Different content with the same title remains separate (recycle bin shows an ID suffix). Importing the same content while trashed explicitly asks for restoration. Sources are independent and are never removed by trashing a book.
+- Reading appearance → book more actions permits trashing the current book after pending progress finishes. Failed progress prevents the operation. The view returns to the shelf and stale navigation responses are discarded.
+- With Reader focus, ↑/↓ scroll the current reading container by 80 px, ←/→ select previous/next chapter. These are chapter changes, not simulated page turns. Shelf arrows move focus spatially; Enter opens the focused book. Esc closes Reader menus/dialogs or returns from reading. Inputs, selects, editable content, IME composition and AltGraph keep their keys.
+- Keyboard settings are reachable from the shelf and reading appearance. Record a replacement, detect duplicate Reader bindings and known/reserved chords, clear bindings, or reset defaults. Conservative combinations are Ctrl+Shift with a digit, period, comma or semicolon; direction keys are available for reading. Alt/Meta/Win, function keys, navigation keys and letter chords are excluded to avoid common system, browser and host actions. Host/user custom conflicts cannot be enumerated by an iframe and are not claimed to be fully detected.
+- Host-close binding defaults to unset. The button or configured chord requests the public host API, after flushing pending saves. Unsupported, rejected, timed-out and merely requested states are explicit. Nothing hides the iframe, patches the host, installs global hooks or sends a private RPC.
+
+## Official close/display APIs checked 2026-10-03
+
+- [OpenAI Plugin UI reference](https://developers.openai.com/plugins/reference): `window.openai.requestClose()` requests closing the current UI. Feature-detected at invocation. Its presence is not proof of actual sidebar removal.
+- [MCP Apps App API](https://apps.extensions.modelcontextprotocol.io/api/classes/app.App.html#requestTeardown): `requestTeardown()` sends a fire-and-forget notification. Host approval produces `ui/resource-teardown`; `App.close()` only closes the protocol connection. The pinned ext-apps 1.7.5 already contains requestTeardown, so no dependency upgrade was required.
+- [OpenAI Extensions specification](https://github.com/openai/mcp-extensions/blob/main/docs/spec.md#display-modes): display modes are presentation choices, not a close command. No hidden display mode was invented.
+- The fallback uses the standard MCP Apps request notification when connected; this protocol has no negotiated capability confirming that a particular host will honor it. UI says **request sent, host decides**, never **closed**. Preview has no host and reports unsupported. Host context was not patched or reverse engineered.
+
+## Storage, backup and recovery
+
+Book/document/online-record schemas remain v1. A `trash-v1/<book-id>.json` file is the single atomic visibility gate for the complete book. It retains a summary, timestamp, lifecycle generation and active/trashed state. Original bytes and online cache stay in their original locations: recycle bin deliberately does not reclaim disk space. Restore atomically changes that gate; titles are not filesystem keys. Per-book cross-process locks coordinate all writes. Online chapter/TOC work captures the lifecycle and rejects results spanning a trash/restore cycle. No split file move can leave half a book restored.
+
+`keyboard-v1.json` is additive, validated, and independent of the old appearance settings. Before overwriting it, Reader atomically saves the previous bytes to `keyboard-v1.before-save.json`. Missing files use defaults; malformed settings are reported and can be reset while retaining damaged bytes in the backup. To recover an earlier valid backup, close all Reader clients, back up the entire isolated data directory, validate the backup against `keyboardSchema`, then replace `keyboard-v1.json` with it. Do not overwrite active files while Reader is running.
+
+Catalog receipts live beside sources in the same atomic `online-v1/sources.json` write. Before the first catalog modification of an existing source file, a create-only `sources.before-catalog-v1.json` backup is retained. Source enable/remove operations preserve receipts. To roll back that schema addition, close all Reader clients, copy the data directory, and restore the retained source snapshot (or remove only `catalogReceipts` in the copied file after validating sources). Books, progress and caches are separate and unchanged. An older Reader ignores trash markers, so rolling back the application makes all retained books visible; this is not permanent deletion. All paths use platform-neutral Node APIs and tests run under Windows and CI Mac/Linux.
+
+## Catalog import contract
+
+Implements the independent `reader-sources` task's `reader-source-catalog-package` schema v1: exact UTF-8 manifest string + SHA-256 + embedded path/content files. Limits: package 1 MiB; at most 50 rules; each and combined source data at most 512 KiB. Hashes, byte counts, canonical ID/version paths, duplicates, extra/missing files, minimum Reader version, prototype fields, malformed UTF-8 and unpaired Unicode are checked. Hashes establish integrity, not publisher authenticity.
+
+UI: Find books → Manage sources → Import sources → select `.reader-catalog.json`. Native app-only tool: `reader_catalog_preview({packageJson})`; confirm via existing `reader_online_commit({token})`. Preview includes catalog/version, source version/hash, rights/verification date, compatibility and changed fields. New/updated rules remain disabled. Source network reports remain untested until Reader actually executes each stage. Reimport is idempotent; a different manifest for an already imported catalog/version is rejected. Empty ready catalogs have no actionable token and explicitly show no accepted sources.
+
+The transport-independent adapter is `parseCatalogPackage`. Explicit public URL preview also passes a catalog package through the same adapter and existing SafeHttpClient. It does not follow catalog paths, guess a private GitHub URL, embed tokens, subscribe, or import a remote collection automatically. The private source project distributes local packages until a public distribution decision is made. No third-party source is promoted to ready by schema acceptance.
+
+## Evidence boundaries
+
+Unit/integration tests cover exact duplicate imports, same-title restoration, current-book deletion, concurrent writers, cached online recovery, unchanged sources, stale in-flight responses, receipt integrity/version conflicts, settings backup/reset, IME/editable boundaries, focus movement and custom close requests.
+
+Browser screenshots `artifacts/candidate-{cards,list,trash,keyboard}-{320,390,1280}.png` and `candidate-catalog-harness.png` are isolated Chromium/Edge previews. The AppBridge harness intentionally declines teardown: the UI must remain visible and report only a request. Its iframe allows script/form events, has opaque origin and CSP blocking network/forms; no production policy is changed.
+
+`scripts/test-candidate-installed.mjs <runtime-package-root>` installs only into a fresh `artifacts/installed-candidate-*` directory, serves package UI through AppBridge, proxies calls to the package's **native stdio MCP process**, and restarts that process to verify persistence. Its output explicitly marks `realHostCloseVerified: false` and `sourceReadabilityVerified: false`. This is stronger than preview HTTP/schema-only testing but is still not the actual ChatGPT application. Real ChatGPT side-panel closure and independently maintained sources' live end-to-end acceptance remain separate gates; no success is fabricated for them.

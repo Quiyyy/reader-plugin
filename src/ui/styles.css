@@ -381,3 +381,35 @@ kbd { font-family: var(--font-sans); font-size: 10px; min-width: 24px; height: 2
   .import-backdrop { padding: 10px; }
   .online-dialog { width: 100%; padding: 18px; max-height: calc(100dvh - 20px); }
 }
+.book-entry { position: relative; min-width: 0; }
+.book-entry .book-card { width: 100%; }
+.book-more { position: absolute; top: 8px; right: 8px; z-index: 2; }
+.book-more summary { cursor: pointer; list-style: none; background: var(--surface, #fff); color: var(--text, #222); border-radius: 6px; padding: 4px 8px; box-shadow: 0 1px 4px #0002; }
+.book-more summary::-webkit-details-marker { display: none; }
+.book-more > div { position: absolute; right: 0; min-width: 135px; padding: 8px; border-radius: 8px; background: var(--surface, #fff); color: var(--text, #222); box-shadow: 0 4px 22px #0003; }
+.book-more button { padding: 7px; width: 100%; text-align: left; }
+.book-more:focus-within, .book-more[open] { z-index: 4; }
+.shelf-list { grid-template-columns: 1fr !important; }
+.shelf-list .book-card { display: flex; text-align: left; gap: 18px; align-items: center; padding-right: 45px; }
+.shelf-list .book-cover { width: 74px; min-width: 74px; height: 96px; padding: 8px; }
+.shelf-list .cover-title { font-size: 12px; line-height: 1.4; }
+.shelf-list .cover-author, .shelf-list .cover-bottom, .shelf-list .cover-top { display: none; }
+.shelf-list .book-card-info { flex: 1; min-width: 0; }
+.host-close-message, .undo-banner { padding: 10px 16px; background: var(--surface, #fff); color: var(--text, #222); border-bottom: 1px solid #8884; font-size: 13px; }
+.host-close-message { position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+.undo-banner { display: flex; align-items: center; gap: 12px; }
+.reader-app .help-dialog { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.shortcut-setting { display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 6px; align-items: center; padding: 6px 0; font-size: 13px; }
+.shortcut-setting > button { font-size: 12px; min-height: 32px; padding: 4px 7px; }
+.keyboard-editor > p { font-size: 12px; line-height: 1.65; }
+.keyboard-buttons { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 12px 0; }
+.trash-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #8883; }
+.trash-row > div { min-width: 0; overflow-wrap: anywhere; }
+.trash-row small { display: block; opacity: .65; margin-top: 4px; font-size: 11px; }
+.trash-row button { flex-shrink: 0; }
+.reading-more { margin-bottom: 12px; font-size: 13px; }
+
+.undo-banner { position: fixed; bottom: 10px; right: 10px; z-index: 30; border: 1px solid var(--border); border-radius: 8px; max-width: calc(100vw - 20px); }
+.shelf-list .book-cover { min-height: 96px; }
+.catalog-receipt code { font-size: 10px; overflow-wrap: anywhere; }
+.catalog-receipt { font-size: 12px; }
