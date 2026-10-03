@@ -4,6 +4,23 @@ import { promisify } from 'node:util';
 import { compileRule, documentContext, extract, select } from '../src/server/online/rules.js';
 
 describe('synchronous rule resource budgets', () => {
+  it('bounds repeated regex compilation/matching under a 128 MiB heap', async () => {
+    const code = `
+      import assert from 'node:assert/strict';
+      import { compileRule, documentContext, extract } from './src/server/online/rules.ts';
+      const text = 'a'.repeat(4096) + '!';
+      for (let i = 0; i < 200; i++) {
+        assert.throws(() => compileRule('text##(ab){1000}'), /计数/);
+        const rule = compileRule('text##(?:a+)+$|unique' + i);
+        assert.equal(extract(rule, documentContext(text))[0], text);
+      }
+      assert.equal(extract(compileRule('text##(?:)##!'), documentContext('😀甲'))[0], '!😀!甲!');
+      console.log(JSON.stringify({ alive: true, patterns: 200, heapUsed: process.memoryUsage().heapUsed }));
+    `;
+    const child = await promisify(execFile)(process.execPath, ['--max-old-space-size=128', '--import', 'tsx', '--input-type=module', '-e', code], { timeout: 15000, maxBuffer: 1024 * 1024 });
+    expect(JSON.parse(child.stdout)).toMatchObject({ alive: true, patterns: 200 });
+    expect(child.stderr).not.toContain('FATAL');
+  }, 20000);
   it('walks real HTML documents with a doctype without unbounded DOM queries', () => {
     const context = documentContext('<!doctype html><html><head><title>Example</title></head><body><div class="book"><a href="book.html">Story</a></div></body></html>');
     expect(select(compileRule('.book', true), context)).toHaveLength(1);

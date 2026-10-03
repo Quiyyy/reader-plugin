@@ -2,6 +2,7 @@ import { createServer, request, type RequestListener, type RequestOptions } from
 import { SafeHttpClient } from '../../src/server/online/http.js';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { declarativePages } from './declarative.js';
 
 export { fixtureSource } from './source.js';
 export async function fixtureServer(handler?: RequestListener) {
@@ -13,6 +14,7 @@ export async function fixtureServer(handler?: RequestListener) {
     if (handler) return handler(req, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     const url = new URL(req.url!, 'http://fixture.local'), path = url.pathname;
+    if (declarativePages[path]) { res.end(declarativePages[path]); return; }
     const example = path.split('/examples/online/')[1];
     if (example && /^(?:reader-demo(?:-array)?\.json|demo\/(?:search-[12]|book|toc-[12]|chapter-(?:1[ab]|2))\.html)$/.test(example)) {
       try { res.end(await readFile(resolve('examples/online', example))); }

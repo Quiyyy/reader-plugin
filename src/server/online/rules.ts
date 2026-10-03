@@ -1,13 +1,14 @@
 import { DOMParser, Node as DomNode } from 'linkedom';
 import { Parser } from 'htmlparser2';
+import { compileReplacement, replaceText, type Replacement } from './replacement.js';
 
 export class RuleError extends Error {
   constructor(public readonly status: 'blocked' | 'invalid', message: string) { super(message); }
 }
 type Context = any;
-type Compound = { tag?: string; attributes: { name: string; value?: string; word?: boolean }[] };
-type Step = { selector: string; index?: number; compounds: Compound[]; relations: (' ' | '>')[] };
-export type Rule = { kind: 'css'; steps: Step[]; output?: string } | { kind: 'json'; path: (string | number | '*')[] };
+type Compound = { tag?: string; text?: { value: string; exact: boolean }; attributes: { name: string; value?: string; word?: boolean; suffix?: boolean; negate?: boolean }[] };
+type Step = { selector: string; index?: number; exclude?: boolean; children?: boolean; compounds: Compound[]; relations: (' ' | '>')[] };
+export type Rule = ({ kind: 'css'; steps: Step[]; output?: string } | { kind: 'json'; path: (string | number | '*')[] }) & { replacement?: Replacement };
 const deny = (message: string): never => { throw new RuleError('blocked', message); };
 const invalid = (message: string): never => { throw new RuleError('invalid', message); };
 const forbiddenKeys = new Set(['__proto__', 'prototype', 'constructor']);
@@ -29,34 +30,65 @@ function budgetFor(context: Context): Budget {
   if (!budget) { budget = new Budget(); budgets.set(owner, budget); }
   return budget;
 }
-function cssStep(selector: string, index?: number): Step {
-  const pieces = selector.trim().split(/(\s*>\s*|\s+)/);
+const outputs = new Set(['text', 'ownText', 'textNodes', 'html', 'href', 'src', 'content', 'title', 'value', 'alt']);
+function cssStep(selector: string, index?: number, exclude = false): Step {
   const compounds: Compound[] = [], relations: (' ' | '>')[] = [];
-  if (pieces.length > 39) return invalid('CSS 选择器超过 20 层');
-  for (let i = 0; i < pieces.length; i++) {
-    if (i % 2) { relations.push(pieces[i].includes('>') ? '>' : ' '); continue; }
-    let rest = pieces[i];
+  let rest = selector.trim();
+  if (!rest) return invalid('CSS 选择器不能为空');
+  while (rest) {
     const tag = rest.match(/^(\*|[A-Za-z][\w-]*)/);
     if (tag) rest = rest.slice(tag[0].length);
     const attributes: Compound['attributes'] = [];
-    while (rest) {
+    while (rest && !/^[\s>]/.test(rest)) {
       const simple = rest.match(/^([.#])([A-Za-z_][\w-]*)/);
-      const attribute = rest.match(/^\[([A-Za-z_][\w-]*)(?:=(["'])([A-Za-z0-9_/:.-]+)\2)?\]/);
+      const attribute = rest.match(/^(:(?:not)\()?\[([A-Za-z_][\w-]*)(?:(\$?=)(?:(["'])([^"'\[\]\r\n]*)\4|([A-Za-z0-9_:#/.-]+)))?\](\))?/);
       if (simple) { attributes.push({ name: simple[1] === '.' ? 'class' : 'id', value: simple[2], word: simple[1] === '.' }); rest = rest.slice(simple[0].length); }
-      else if (attribute) { attributes.push({ name: attribute[1], value: attribute[3] }); rest = rest.slice(attribute[0].length); }
-      else return deny(`不支持的 CSS/经典选择器：${selector.slice(0, 80)}`);
+      else if (attribute && Boolean(attribute[1]) === Boolean(attribute[7])) {
+        attributes.push({ name: attribute[2], value: attribute[5] ?? attribute[6], suffix: attribute[3] === '$=', negate: !!attribute[1] }); rest = rest.slice(attribute[0].length);
+      } else return deny('不支持的 CSS/经典选择器；仅支持简单属性和 :not([属性])');
     }
     if (!tag && !attributes.length) return invalid('CSS 选择器含空步骤');
     compounds.push({ tag: tag?.[1].toLowerCase(), attributes });
+    if (compounds.length > 20) return invalid('CSS 选择器超过 20 层');
+    if (!rest) break;
+    const separator = rest.match(/^\s*>\s*|^\s+/)!;
+    relations.push(separator[0].includes('>') ? '>' : ' '); rest = rest.slice(separator[0].length);
+    if (!rest) return invalid('CSS 选择器含空步骤');
   }
-  return { selector, index, compounds, relations };
+  return { selector, index, exclude, compounds, relations };
+}
+function xpath(rule: string, list: boolean): Rule {
+  // A small path grammar mapped to the same bounded DOM matcher. No XPath
+  // evaluator, functions, axes, unions or script-capable query engine.
+  const attribute = rule.match(/\/@([A-Za-z_][\w-]*)$/);
+  const output = attribute?.[1] ?? 'text';
+  if (list && attribute || !outputs.has(output)) return deny('XPath 只支持元素路径及受支持的末尾属性');
+  let rest = attribute ? rule.slice(0, attribute.index) : rule;
+  if (!rest.startsWith('//')) return deny('XPath 路径须以 // 开始');
+  const compounds: Compound[] = [], relations: (' ' | '>')[] = [];
+  while (rest) {
+    const step = rest.match(/^(\/\/|\/)([A-Za-z][\w-]*)(?:\[(?:@([A-Za-z_][\w-]*)|text\(\))=(["'])([^"'\[\]\r\n]*)\4\])?/);
+    if (!step) return deny('不支持此 XPath；仅支持路径、属性相等或 text() 相等条件');
+    if (compounds.length) relations.push(step[1] === '//' ? ' ' : '>');
+    compounds.push({ tag: step[2].toLowerCase(), attributes: step[3] ? [{ name: step[3], value: step[5] }] : [], text: step[5] !== undefined && !step[3] ? { value: step[5], exact: true } : undefined });
+    if (compounds.length > 20) return invalid('XPath 超过 20 层');
+    rest = rest.slice(step[0].length);
+  }
+  return { kind: 'css', steps: [{ selector: rule, compounds, relations }], output: list ? undefined : output };
 }
 
 /** A grammar, not a JavaScript evaluator. The whole input must be recognized. */
 export function compileRule(input: string, list = false): Rule {
   if (!input.trim() || input.length > 2048) return invalid('规则为空或超过 2048 字符');
   let rule = input.trim();
-  if (/@js:|<\/?js>|javascript:|\{\{|##|&&|\|\||@(?:get|put|json):/i.test(rule)) return deny('不支持脚本、模板表达式、替换、组合或变量规则');
+  if (/@js:|<\/?js>|javascript:|\{\{|&&|\|\||@(?:get|put|json):/i.test(rule)) return deny('此字段需要脚本、模板表达式、组合或变量规则，暂不支持');
+  let replacement: Replacement | undefined;
+  const split = rule.indexOf('##');
+  if (split >= 0) {
+    if (list) return deny('列表规则不支持文本替换');
+    try { replacement = compileReplacement(rule.slice(split)); } catch (error) { return deny((error as Error).message); }
+    rule = rule.slice(0, split);
+  }
   if (rule.startsWith('$')) {
     const path: (string | number | '*')[] = [];
     let rest = rule.slice(1);
@@ -69,30 +101,32 @@ export function compileRule(input: string, list = false): Rule {
       rest = rest.slice(match[0].length);
       if (path.length > 20) return invalid('JSONPath 层级超过 20');
     }
-    return { kind: 'json', path };
+    return { kind: 'json', path, replacement };
   }
+  if (rule.startsWith('//')) return { ...xpath(rule, list), replacement };
   rule = rule.replace(/^@?css:/i, '');
   const parts = rule.split('@');
   let output: string | undefined;
   if (!list) {
     output = parts.pop();
-    if (!output || !['text', 'ownText', 'href', 'src', 'content', 'title', 'value'].includes(output)) return deny('文本规则需以 @text/@ownText 或受支持属性结尾；HTML 不作为正文执行');
+    if (!output || !outputs.has(output)) return deny('文本规则需以 text/html/textNodes 或受支持属性结尾；HTML 仅提取纯文本');
   }
   if (parts.length > 20) return invalid('选择器链超过 20 层');
   const rootText = !list && parts.length === 1 && parts[0] === '';
   if (!rootText && parts.some(part => !part)) return invalid('选择器链含空步骤');
   const steps: Step[] = (rootText ? [] : parts).map(part => {
-    const classic = part.match(/^(class|tag|id)\.([A-Za-z_][\w-]*)(?:\.(\d{1,5}))?$/);
-    if (classic) return cssStep(`${classic[1] === 'class' ? '.' : classic[1] === 'id' ? '#' : ''}${classic[2]}`, classic[3] === undefined ? undefined : Number(classic[3]));
-    // Restrict CSS to simple compounds with descendant/child combinators. No
-    // pseudo-classes, escapes, regex, selector lists or unknown dialect suffixes.
-    const atom = /^(?:[A-Za-z][\w-]*|\*)?(?:[.#][A-Za-z_][\w-]*|\[[A-Za-z_][\w-]*(?:=["'][A-Za-z0-9_/:.-]+["'])?\])*$/;
-    const compounds = part.trim().split(/\s*>\s*|\s+/);
-    if (compounds.length > 20 || compounds.some(c => !c || !atom.test(c)) || /(?:^|@)(?:class|tag|id)\./.test(part)) return deny(`不支持的 CSS/经典选择器：${part.slice(0, 80)}`);
-    return cssStep(part);
+    const classic = part.match(/^(class|tag|id)\.([A-Za-z_][\w-]*)(?:\.(!?)(-?\d{1,5}))?$/);
+    if (classic) return cssStep(`${classic[1] === 'class' ? '.' : classic[1] === 'id' ? '#' : ''}${classic[2]}`, classic[4] === undefined ? undefined : Number(classic[4]), !!classic[3]);
+    const children = part.match(/^children(?:\[(-?\d{1,5})\])?$/);
+    if (children) return { ...cssStep('*', children[1] === undefined ? undefined : Number(children[1])), children: true };
+    const text = part.match(/^text\.([^@\[\]{}]+?)(?:\.(-?\d{1,5}))?$/);
+    if (text) return { ...cssStep('*', text[2] === undefined ? undefined : Number(text[2])), compounds: [{ attributes: [], text: { value: text[1], exact: false } }] };
+    if (/^(class|tag|id|text)\./.test(part)) return deny('不支持此经典选择器索引或切片');
+    const indexed = part.match(/^(.*?)(?:\.(-?\d{1,5})|!(-?\d{1,5}))$/);
+    return indexed ? cssStep(indexed[1], Number(indexed[2] ?? indexed[3]), indexed[3] !== undefined) : cssStep(part);
   });
   if (list && !steps.length) return invalid('列表选择器不能为空');
-  return { kind: 'css', steps, output };
+  return { kind: 'css', steps, output, replacement };
 }
 
 export function documentContext(body: string): Context {
@@ -165,11 +199,17 @@ function matchesCompound(node: Context, compound: Compound, budget: Budget): boo
   for (const attribute of compound.attributes) {
     budget.spend(RULE_LIMITS.attributes);
     const value = node.getAttribute(attribute.name);
-    if (value === null) return false;
-    if (attribute.value !== undefined) {
+    let matched = value !== null;
+    if (matched && attribute.value !== undefined) {
       budget.spend(value.length);
-      if (attribute.word ? !new RegExp(`(?:^|\\s)${attribute.value}(?:\\s|$)`).test(value) : value !== attribute.value) return false;
+      matched = attribute.word ? value.split(/\s+/).includes(attribute.value) : attribute.suffix ? value.endsWith(attribute.value) : value === attribute.value;
     }
+    if (attribute.negate ? matched : !matched) return false;
+  }
+  if (compound.text) {
+    const value = plain(node, budget, true).replace(/\s+/g, ' ');
+    budget.spend(value.length + compound.text.value.length);
+    if (compound.text.exact ? value !== compound.text.value : !value.includes(compound.text.value)) return false;
   }
   return true;
 }
@@ -195,14 +235,14 @@ function matches(node: Context, step: Step, budget: Budget): boolean {
   }
   return previous[previous.length - 1];
 }
-function plain(node: Context, budget: Budget, own = false): string {
+function plain(node: Context, budget: Budget, own = false, textNodes = false): string {
   const chunks: string[] = [];
   const append = (text: string) => { budget.output(text.length); chunks.push(text); };
   if (!node?.nodeType) {
     if (typeof node === 'string' || typeof node === 'number') append(String(node));
   } else if (!ignored.has(node.localName?.toLowerCase())) {
     if (own) {
-      for (let child = node.firstChild; child; child = child.nextSibling) { budget.spend(); if (child.nodeType === 3) append(child.nodeValue ?? ''); }
+      for (let child = node.firstChild; child; child = child.nextSibling) { budget.spend(); if (child.nodeType === 3) { append(child.nodeValue ?? ''); if (textNodes) append('\n'); } }
     } else {
       for (const item of walk(node, budget, child => ignored.has(child.localName?.toLowerCase()))) {
         if (!item.exit && (item.node.nodeType === 3 || item.node.nodeType === 4)) append(item.node.nodeValue ?? '');
@@ -236,16 +276,24 @@ export function select(rule: Rule, context: Context, options: { strictJson?: boo
     const next: Context[] = [], seen = new Set<Context>(), visited = new Set<Context>();
     for (const root of nodes) {
       if (!isDomNode(root) || ![1, 9, 11].includes(root.nodeType)) throw new Error('CSS 规则需要 HTML 响应');
-      let index = 0;
-      for (const item of walk(root, budget, node => step.index === undefined && visited.has(node))) {
+      const candidates: Context[] = [];
+      const indexed = step.index !== undefined;
+      for (const item of walk(root, budget, node => ignored.has(node.localName?.toLowerCase()) || (!indexed && visited.has(node)) || !!step.children && node.parentNode !== root)) {
         if (item.exit) continue;
         const node = item.node;
         if (visited.size >= RULE_LIMITS.nodes && !visited.has(node)) throw new Error('DOM 节点预算超限');
         visited.add(node);
         if (node.nodeType !== 1 || !matches(node, step, budget)) continue;
-        if (step.index !== undefined && index++ !== step.index) continue;
+        if (candidates.length >= RULE_LIMITS.results) throw new Error('规则结果超过 10000 项');
+        candidates.push(node);
+        if (indexed && !step.exclude && step.index! >= 0 && candidates.length > step.index!) break;
+      }
+      const index = indexed ? (step.index! < 0 ? candidates.length + step.index! : step.index!) : undefined;
+      for (let i = 0; i < candidates.length; i++) {
+        budget.spend();
+        if (index !== undefined && (step.exclude ? i === index : i !== index)) continue;
+        const node = candidates[i];
         if (!seen.has(node)) { if (next.length >= RULE_LIMITS.results) throw new Error('规则结果超过 10000 项'); seen.add(node); next.push(node); }
-        if (step.index !== undefined) break;
       }
     }
     nodes = next;
@@ -257,8 +305,9 @@ export function extract(rule: Rule, context: Context): string[] {
   for (const node of select(rule, context)) {
     let text: string;
     if (rule.kind === 'json') { text = typeof node === 'string' || typeof node === 'number' ? String(node) : ''; budget.output(text.length); }
-    else if (rule.output === 'text' || rule.output === 'ownText') text = plain(node, budget, rule.output === 'ownText');
+    else if (['text', 'html', 'ownText', 'textNodes'].includes(rule.output!)) text = plain(node, budget, rule.output === 'ownText' || rule.output === 'textNodes', rule.output === 'textNodes');
     else { budget.spend(RULE_LIMITS.attributes); text = node.getAttribute?.(rule.output!) ?? ''; budget.output(text.length); }
+    if (rule.replacement) text = replaceText(text, rule.replacement, budget);
     if (text.trim()) values.push(text.trim());
   }
   return values;
@@ -267,4 +316,8 @@ export function extract(rule: Rule, context: Context): string[] {
 export function template(input: string, key: string, page: number): string {
   if (/[{}]/.test(input.replace(/\{\{(?:key|page)\}\}/g, ''))) throw new RuleError('blocked', '仅支持 {{key}} 和 {{page}} 模板');
   return input.replace(/\{\{key\}\}/g, encodeURIComponent(key)).replace(/\{\{page\}\}/g, String(page));
+}
+
+export function cleanContent(value: string, replacement: string, context: Context): string {
+  return replaceText(value, compileReplacement(replacement), budgetFor(context));
 }

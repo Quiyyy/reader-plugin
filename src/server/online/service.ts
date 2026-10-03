@@ -7,7 +7,8 @@ import type { OnlineDetail, OnlineResult, SourcePreview, SourceReport, Stage } f
 import { atomicWrite, ReaderStore } from '../store.js';
 import { hash, importSources, inspectSource, SOURCE_LIMITS, stageKeys, type Source } from './import.js';
 import { SafeHttpClient, sameOriginUrl } from './http.js';
-import { compileRule, documentContext, extract, select, template } from './rules.js';
+import { searchRequest } from './request.js';
+import { compileRule, documentContext, extract, select, cleanContent } from './rules.js';
 
 const idSchema = z.string().regex(/^[a-f0-9]{64}$/);
 const chapterSchema = z.object({ id: idSchema, title: z.string().max(500), url: z.string().max(4096) });
@@ -114,7 +115,9 @@ export class OnlineSourceService {
   private values(source: Source, stage: Stage, field: string, context: any, required = false): string[] {
     try {
       const text = this.rule(source, stage, field);
-      const values = text ? extract(compileRule(text), context) : [];
+      let values = text ? extract(compileRule(text), context) : [];
+      const replacement = field === 'content' && this.rule(source, stage, 'replaceRegex');
+      if (replacement) values = values.map(value => cleanContent(value, replacement, context)).filter(value => value.trim());
       if ((required || text && !['nextTocUrl', 'nextContentUrl'].includes(field)) && !values.length) throw new Error('没有匹配到非空结果');
       return values;
     } catch (error) { throw new Error(`${stageKeys[stage]}.${field}：${err(error)}`); }
@@ -134,8 +137,9 @@ export class OnlineSourceService {
     const source = await this.source(sourceId);
     return this.tracked(source, 'search', signal, async () => {
       if (page > 1 && !source.raw.searchUrl.includes('{{page}}')) throw new Error('searchUrl：该源未声明 {{page}}，不支持搜索翻页');
-      const url = this.url(source, template(source.raw.searchUrl, key, page), source.report.url, 'searchUrl');
-      const response = await this.http.get(url, signal, new URL(source.report.url).origin);
+      const request = searchRequest(source.raw.searchUrl, key, page);
+      const url = this.url(source, request.url, source.report.url, 'searchUrl');
+      const response = request.method === 'POST' ? await this.http.post(url, request.body!, signal, new URL(source.report.url).origin) : await this.http.get(url, signal, new URL(source.report.url).origin);
       let context: any;
       try { context = documentContext(response.text); }
       catch (error) { throw new Error(`ruleSearch.bookList：响应解析失败：${err(error)}`); }

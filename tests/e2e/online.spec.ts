@@ -23,8 +23,8 @@ for (const width of [320, 390, 1280]) {
     await expect(preview.getByText('untested', { exact: true })).toHaveCount(4);
     await dialog.getByRole('button', { name: '确认导入' }).click();
     await dialog.getByRole('button', { name: '查看书源', exact: true }).click();
-    await expect(dialog.getByRole('button', { name: `启用 ${name}`, exact: true })).toBeEnabled();
-    await dialog.getByRole('button', { name: `启用 ${name}`, exact: true }).click();
+    await expect(dialog.getByRole('switch', { name: `启用 ${name}`, exact: true })).toBeEnabled();
+    await dialog.getByRole('switch', { name: `启用 ${name}`, exact: true }).click();
     await dialog.getByRole('button', { name: '找书', exact: true }).click();
     await dialog.getByLabel('搜索书源').selectOption({ label: name });
     await dialog.getByLabel('在线搜索关键词').fill('不存在的书');
@@ -86,10 +86,11 @@ for (const width of [320, 390, 1280]) {
     await expect(results.getByRole('button', { name: /^原创河岸故事/ })).toBeFocused();
     await page.screenshot({ path: `artifacts/redesign-find-${width}.png`, fullPage: true });
     await dialog.getByRole('button', { name: '管理书源' }).click();
-    const row = dialog.locator('.source-row').filter({ hasText: name });
-    await row.locator('summary').click();
+    const row = dialog.locator('.managed-source').filter({ hasText: name });
+    await row.locator('.source-menu > summary').click();
+    await row.getByRole('button', { name: '查看详情', exact: true }).click();
     await expect(row.getByText('passed', { exact: true })).toHaveCount(4);
-    await dialog.getByRole('button', { name: `停用 ${name}`, exact: true }).click();
+    await dialog.getByRole('switch', { name: `停用 ${name}`, exact: true }).click();
     await page.screenshot({ path: `artifacts/online-sources-${width}.png`, fullPage: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await dialog.getByRole('button', { name: '书架', exact: true }).click();
@@ -112,5 +113,5 @@ test('blocked script source displays exact field diagnosis and cannot be enabled
   await expect(preview.locator('img')).toHaveCount(0);
   await dialog.getByRole('button', { name: '确认导入' }).click();
     await dialog.getByRole('button', { name: '查看书源', exact: true }).click();
-  await expect(dialog.getByRole('button', { name: '启用 <img onerror=alert(1)>', exact: true })).toBeDisabled();
+  await expect(dialog.getByRole('switch', { name: '启用 <img onerror=alert(1)>', exact: true })).toBeDisabled();
 });

@@ -38,7 +38,7 @@ describe('complete no-script grammar and source diagnostics', () => {
     expect(extract(compileRule('#body@text'), documentContext('<div id="body">Safe<script>SECRET</script><img onerror="evil()"></div>'))).toEqual(['Safe']);
     expect(template('/s?q={{key}}&p={{page}}', '中文 /&', 2)).toBe('/s?q=%E4%B8%AD%E6%96%87%20%2F%26&p=2');
   });
-  it.each(['$.x[?(@.secret)]', '$..name', '$.constructor', '$[0:2]', '@js:java.readFile("secret")', 'a@href##evil', 'a@text||b@text', 'a@html', 'class.book.-1@text', 'a:nth-child(2)@text', '{{java.get()}}', 'a@text@js:evil'])('rejects all of an unsupported rule: %s', rule => { expect(() => compileRule(rule)).toThrow(); });
+  it.each(['$.x[?(@.secret)]', '$..name', '$.constructor', '$[0:2]', '@js:java.readFile("secret")', 'a@text||b@text', 'a:nth-child(2)@text', '{{java.get()}}', 'a@text@js:evil'])('rejects all of an unsupported rule: %s', rule => { expect(() => compileRule(rule)).toThrow(); });
   it('imports single/array JSON; separates syntax from untested network; reports every stage and unknown field', () => {
     const [source] = importSources(JSON.stringify(fixtureSource));
     expect(source.report.syntax).toBe('supported');

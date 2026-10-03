@@ -26,9 +26,9 @@ test('sample source imports through file and URL UI, paginates, restarts and rea
     await expect(preview).toHaveCount(0);
   }
   const name = 'Reader 原创公开示例';
-  await dialog.getByRole('button', { name: `启用 ${name}`, exact: true }).click();
-  await dialog.getByRole('button', { name: `停用 ${name}`, exact: true }).click();
-  await dialog.getByRole('button', { name: `启用 ${name}`, exact: true }).click();
+  await dialog.getByRole('switch', { name: `启用 ${name}`, exact: true }).click();
+  await dialog.getByRole('switch', { name: `停用 ${name}`, exact: true }).click();
+  await dialog.getByRole('switch', { name: `启用 ${name}`, exact: true }).click();
   await dialog.getByRole('button', { name: '找书', exact: true }).click();
     await dialog.getByLabel('搜索书源').selectOption({ label: name });
   await dialog.getByLabel('在线搜索关键词').fill('河岸');

@@ -38,7 +38,7 @@ for (const width of [320, 390, 1280]) {
     await expect(wizard.getByRole('button', { name: '关闭导入' })).toBeFocused();
     await page.screenshot({ path: `artifacts/redesign-import-${width}.png` });
     await upload(page);
-    await expect(wizard).toContainText('保存成功不代表能搜到书或读到正文');
+    await expect(wizard).toContainText('只检查格式；导入后需启用并试读。');
     await page.screenshot({ path: `artifacts/redesign-review-${width}.png` });
     await page.keyboard.press('Escape');
     await expect(wizard).toHaveCount(0);
@@ -60,7 +60,7 @@ for (const width of [320, 390, 1280]) {
     await wizard.getByRole('button', { name: '关闭导入' }).click();
     await expect(page.getByText('还没有启用的书源')).toBeVisible();
     await page.getByRole('button', { name: '去启用书源' }).click();
-    await page.getByRole('button', { name: '启用 原创公开文本测试源', exact: true }).click();
+    await page.getByRole('switch', { name: '启用 原创公开文本测试源', exact: true }).click();
     await page.getByRole('button', { name: '找书', exact: true }).click();
     }
     await expect(page.getByLabel('在线搜索关键词')).toBeFocused();

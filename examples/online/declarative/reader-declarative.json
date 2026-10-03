@@ -1,0 +1,29 @@
+{
+  "bookSourceName": "Reader 原创声明式验证样例",
+  "bookSourceUrl": "https://raw.githubusercontent.com/Quiyyy/reader-plugin/refs/heads/feature/legado-reader-0.1.7-validation/examples/online/declarative/",
+  "bookSourceType": 0,
+  "searchUrl": "search.html?q={{key}}&page={{page}},{'method':'GET','charset':'UTF-8'}",
+  "ruleSearch": {
+    "bookList": "#matches@tbody@tr!0",
+    "name": ".title.0@text##《|》",
+    "author": ".writer@text##作者：",
+    "bookUrl": "a.0@href"
+  },
+  "ruleBookInfo": {
+    "name": "//meta[@property='reader:title']/@content",
+    "author": "[property$=author]@content",
+    "intro": ".about@html",
+    "tocUrl": "text.章节入口@href"
+  },
+  "ruleToc": {
+    "chapterList": "class.contents@children[0]@tag.a",
+    "chapterName": "text",
+    "chapterUrl": "href",
+    "nextTocUrl": "@css:#pages .more:not([href='#'])@href"
+  },
+  "ruleContent": {
+    "content": "id.prose.0@html",
+    "nextContentUrl": "//div[@class='pager']/span/a[text()='下一页']/@href",
+    "replaceRegex": "##\\n?[（(]本章完[）)]$"
+  }
+}

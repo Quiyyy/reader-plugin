@@ -1,4 +1,4 @@
-# Legado 无脚本书源 MVP
+# Legado 无脚本书源兼容子集（0.1.7 候选）
 
 这是 Reader 自行实现的有限兼容子集，不是完整 Legado 引擎。未复制或依赖 GPL 上游规则代码、Rhino、WebView 或许可不明确的 `LegadoTeam/legado-rule`。没有内置第三方小说书源集合。
 
@@ -30,11 +30,13 @@ URL 导入是一次性操作，不订阅、不定时更新。变更需要再次�
 
 | 功能 | 示例与边界 |
 | --- | --- |
-| CSS | `.book a@text`、`@css:#content@text`、`div > a@href`；简单 tag/class/id 复合选择器，后代/子代关系和简单属性匹配；不支持伪类、转义和选择器列表 |
-| 经典链 | `class.books.0@tag.a.1@text`、`id.content@text`；class/tag/id 名称及单个非负索引，索引从 0 开始 |
-| 文本/属性 | `text`、`ownText`、`href`、`src`、`content`、`title`、`value`；`@text` 和 `@href` 可相对当前列表项提取 |
+| CSS | `.book a@text`、`@css:#content@text`、`div > a@href`；简单 tag/class/id 复合选择器，后代/子代关系和简单属性匹配；额外支持 `:not([href='#'])` 和属性后缀匹配；不支持其他伪类、转义和选择器列表 |
+| 经典链 | `class.books.0@tag.a.1@text`、`id.content@text`；class/tag/id 名称及单个正负索引；负数从末尾计数。支持 `a.0`、`tr!0`、`tag.p.!-1`、`children[0]`、`text.下一页.0`；不支持切片 |
+| 文本/属性 | `text`、`ownText`、`textNodes`、`html`、`href`、`src`、`content`、`title`、`value`、`alt`；裸 `text`/`href` 可相对当前项提取。`html` 只输出移除活跃节点后的纯文本，`textNodes` 只输出直接文本节点并以换行分隔 |
+| XPath 子集 | `//meta[@property='reader:title']/@content`、`//div[@class='pager']/span/a[text()='下一页']/@href`；只支持元素路径、属性相等、直接文本相等及末尾受支持属性，不支持其他函数、轴、逻辑组合或任意 XPath |
+| 文本清理 | `text##前缀`、`text##旧词##新词`、正文 `replaceRegex`；RE2JS 2.8.6 的有限正则子集和字面量替换，不执行 JavaScript 或捕获组替换 |
 | JSONPath | `$.books[*]`、`$.name`、`$['books'][0].title`；只有属性、非负数组索引和数组通配；不支持过滤、表达式、切片、递归、原型属性 |
-| URL 模板 | 仅搜索 URL 的 `{{key}}`（UTF-8 百分号编码）和 `{{page}}`（1–5）；GET，无请求选项后缀 |
+| URL 模板 | 仅搜索 URL 的 `{{key}}`（UTF-8 百分号编码）和 `{{page}}`（1–5）；GET；也支持字符串字面量 `method`、`body`、UTF-8 `charset` 请求选项。POST 只用于包含 `{{key}}` 的有界搜索表单；单/双引号仅作为数据语法，不求值 |
 | URL | 支持相对 URL；只允许书源声明的同一 origin（协议、域、标准端口）。目录不能以 URL fragment 区分章节 |
 | 响应编码 | 复用 `normalizeEncoding`，支持 UTF-8、GB18030/GBK、Big5、UTF-16；按 BOM、HTTP charset、前 4096 字节的简单 HTML meta charset、UTF-8 的次序判断，解码失败明确报错 |
 | 分页 | 搜索手动 1–5 页；`nextTocUrl`、`nextContentUrl` 最多 5 页。拒绝循环、多个下一页链接、超限和不完整结果 |
@@ -46,11 +48,11 @@ URL 导入是一次性操作，不订阅、不定时更新。变更需要再次�
 - `ruleSearch`: `bookList`, `name`, `author`, `bookUrl`。
 - `ruleBookInfo`: `name`, `author`, `intro`, `tocUrl`。未声明时保留搜索元数据，并把详情 URL 当作目录 URL；仍实际请求详情。
 - `ruleToc`: `chapterList`, `chapterName`, `chapterUrl`, `nextTocUrl`。
-- `ruleContent`: `content`, `nextContentUrl`。
+- `ruleContent`: `content`, `nextContentUrl`, `replaceRegex`。
 
-配置了的文本字段提取为空会报告字段名；可选下一页没有匹配表示分页结束。`coverUrl`、`kind`、`wordCount`、`lastChapter`、`updateTime` 明确标记为未提取。远程封面不加载。
+配置了的文本字段提取为空会报告字段名；可选下一页没有匹配表示分页结束。`coverUrl`、`kind`、`wordCount`、`lastChapter`、`updateTime` 明确标记为未提取。远程封面不加载。发现/展示/下载入口不参与当前阅读流程：`ruleExplore`、`exploreUrl`、`bookUrlPattern`、搜索 `intro/checkKeyWord`、详情 `downloadUrls`、正文 `imageStyle` 整体忽略并明确诊断，即使这些未使用字段含脚本也不会执行。`enabledCookieJar: true` 只允许尝试无状态公开请求，不创建 Cookie jar；这不证明网站允许匿名访问。
 
-禁止 JS、Rhino、`node:vm`、WebView、登录、Cookie/Authorization/自定义请求头、POST/源内依赖、环境变量、本机文件规则、正则替换、组合/回退、未知操作字段和任意脚本执行。整条规则必须被语法识别，不能截断脚本继续执行。
+禁止 JS、Rhino、`node:vm`、WebView、登录、Cookie/Authorization/自定义请求头、源内依赖、环境变量、本机文件规则、脚本替换、组合/回退、未知操作字段和任意脚本执行。实际使用的整条规则必须被语法识别，不能截断脚本继续执行。`loginUrl/loginUi/header` 仍保守阻止整个来源；这是声明了未支持访问配置，并不等于已证明网站必须登录。`concurrentRate` 策略尚不支持，保留阻止状态，不忽略它发起请求。
 
 ## 网络与资源边界
 
@@ -58,11 +60,12 @@ URL 导入是一次性操作，不订阅、不定时更新。变更需要再次�
 
 - 只允许 HTTP 80 或 HTTPS 443，无 URL 用户名/密码，不继承 Cookie、认证、浏览器、环境代理或其他凭据。
 - 禁止回环、私网、链路本地、CGNAT、元数据地址、保留/文档/组播 IPv4、非全球单播 IPv6、IPv4 映射、NAT64/6to4 等转换范围及本地主机名。
-- 检查 DNS 返回的全部地址，任何一个非公网即拒绝；把批准地址固定到 Node 请求的 `lookup`，保留原域 Host/SNI/TLS 校验。连接重置或不可达时，仅在同次已校验的 DNS 结果中顺序尝试最多 3 个不同地址，共用原来的 10 秒总超时及并发名额；不重新解析，不重试证书错误、HTTP 拒绝或已取消的请求。每次重定向重新校验，不在校验后调用普通 fetch 再次解析 DNS。
+- 检查 DNS 返回的全部地址，任何一个非公网即拒绝；把批准地址固定到 Node 请求的 `lookup`，保留原域 Host/SNI/TLS 校验。GET 连接重置或不可达时，仅在同次已校验的 DNS 结果中顺序尝试最多 3 个不同地址，共用原来的 10 秒总超时及并发名额；不重新解析，不重试证书错误、HTTP 拒绝或已取消的请求。POST 不自动重试；301/302/303 转为 GET 并去掉表单，307/308 保留表单但只能同源。每次重定向重新校验，不在校验后调用普通 fetch 再次解析 DNS。
 - 仅同源重定向，最多 3 次；单个请求（含排队和 DNS）10 秒，整个操作 45 秒；全局最多 4 个请求、16 个等待者。支持取消和操作去重。
 - 每响应 2 MiB、headers 16 KiB；首版发送 `Accept-Encoding: identity`，拒绝压缩响应，因而不解压潜在炸弹。目录最多 5000 章；搜索最多 200 项；正文每章最多 4 MiB / 50000 段。超限报错，不保存截断结果。
 - 同步解析也有独立上限，不依赖异步超时器：DOM 创建前用已锁定的 `htmlparser2` 10.1.0 流式检查，深度最多 128、节点/属性/文本片段合计 20000，每元素属性最多 128，名称最长 128 字符，属性值最长 8192 字符；标记与实体符号最多 40000。JSON 在分配对象前检查深度和结构数量。
 - 选择器使用有界指针遍历与祖先动态规划，不调用无界 `querySelectorAll` 或递归回溯。每层最多 10000 个唯一 DOM 结果，添加前检查；重叠祖先作用域按节点身份去重，保留首次遇见顺序。索引仍在各作用域内计数。一个响应页面的所有规则和逐行字段共享 200 万同步工作单位及 4 Mi 字符输出预算。文本逐节点读取，不复制整棵 DOM。预算耗尽明确失败，不返回截断结果。
+- 正则使用纯 JavaScript RE2JS 2.8.6（MIT），不调用原生回溯 RegExp 执行源模式。模式/替换各最多 512 字符，分组最多 16 层，禁止计数重复以避免编译展开，编译程序最多 1024，最多保留 64 个编译表达式，每次匹配完成或失败后释放引擎的运行缓存。单次输入最多 128 Ki 字符、输出最多 256 Ki 字符、512 次匹配；每次查找按输入长度 × 编译大小消耗页面共享工作预算，输出在追加前检查。不支持反向引用、环视、动态替换、捕获组替换或输出请求选项。零宽模式和 emoji 有回归用例。
 - 源/正文从不执行。HTML 只在服务器解析为文本，移除活跃节点；UI 使用 React 文本节点，不插入书源 HTML，不加载远程资源。CSP 仍禁止外部连接和嵌入。
 - 不记录书源原文、查询词、URL 查询串、正文或凭据；错误不会包含底层请求选项。
 
@@ -87,3 +90,5 @@ URL 导入是一次性操作，不订阅、不定时更新。变更需要再次�
 格式行为参考入口：[Legado 文档](https://gedoor.github.io/docs/GettingStarted)、[历史公开源码入口](https://github.com/galaxypluto/legado-book)。参考不构成完整兼容承诺；原 `gedoor/legado` 默认分支现状与第三方规则包许可争议不作为引入依赖的依据。
 
 0.1.6 将找书和书源管理改版纳入统一发行流程。正式分发须通过候选及 main 的全部 CI 和六平台市场安装验证；实际安装版本以运行包清单和宿主资源 URI 为准。
+
+0.1.7 独立候选的逐阶段兼容性复查、剩余限制与原创样例证据见 [声明式兼容性说明](DECLARATIVE_COMPATIBILITY.md)。此候选尚未发布或替换正式安装。

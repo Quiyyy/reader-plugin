@@ -7,7 +7,7 @@ import { normalizeEncoding } from '../importers.js';
 export const HTTP_LIMITS = Object.freeze({ timeout: 10000, bytes: 2 * 1024 * 1024, redirects: 3, addresses: 3, concurrent: 4, queue: 16 });
 class ConnectionFailure extends Error {}
 const retryableConnectionErrors = new Set(['ECONNRESET', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETUNREACH', 'ETIMEDOUT', 'EPIPE']);
-type ResponseData = { location?: string; bytes?: Buffer; type?: string };
+type ResponseData = { redirectStatus?: number; location?: string; bytes?: Buffer; type?: string };
 export function publicAddress(address: string): boolean {
   const family = isIP(address);
   if (family === 4) {
@@ -51,7 +51,12 @@ export class SafeHttpClient {
   private active = 0;
   private waiters: (() => void)[] = [];
   constructor(private readonly dependencies: Dependencies = {}) {}
-  async get(value: string, signal?: AbortSignal, origin?: string): Promise<TextResponse> {
+  async get(value: string, signal?: AbortSignal, origin?: string): Promise<TextResponse> { return this.request(value, signal, origin); }
+  async post(value: string, body: string, signal?: AbortSignal, origin?: string): Promise<TextResponse> {
+    if (Buffer.byteLength(body) > 8192 || /[^\x21-\x7e]/.test(body)) throw new Error('POST 搜索表单无效或超过 8192 字节');
+    return this.request(value, signal, origin, body);
+  }
+  private async request(value: string, signal?: AbortSignal, origin?: string, body?: string): Promise<TextResponse> {
     const controller = new AbortController();
     const stop = () => controller.abort(new Error('请求已取消'));
     signal?.addEventListener('abort', stop, { once: true });
@@ -68,9 +73,10 @@ export class SafeHttpClient {
         if (url.origin !== allowedOrigin) throw new Error('禁止跨域重定向');
         if (visited.has(url.href)) throw new Error('检测到重定向循环');
         visited.add(url.href);
-        const result = await this.once(url, controller.signal);
+        const result = await this.once(url, controller.signal, body);
         if (result.location !== undefined) {
           if (redirects >= HTTP_LIMITS.redirects) throw new Error('重定向次数超过 3');
+          if ([301, 302, 303].includes(result.redirectStatus!)) body = undefined;
           url = safeUrl(result.location, url.href);
           continue;
         }
@@ -98,7 +104,7 @@ export class SafeHttpClient {
       });
     } else this.active++;
   }
-  private async once(url: URL, signal: AbortSignal): Promise<ResponseData> {
+  private async once(url: URL, signal: AbortSignal, body?: string): Promise<ResponseData> {
     const host = url.hostname.replace(/^\[|\]$/g, '');
     const resolved = isIP(host) ? [{ address: host, family: isIP(host) }] : await this.abortable((this.dependencies.resolve ?? (name => dnsLookup(name, { all: true, verbatim: true })))(host), signal);
     signal.throwIfAborted();
@@ -110,19 +116,19 @@ export class SafeHttpClient {
     let failure: Error = new Error('连接失败；请检查书源地址或稍后重试');
     for (const pinned of candidates) {
       signal.throwIfAborted();
-      try { return await this.connect(url, signal, pinned); }
+      try { return await this.connect(url, signal, pinned, body); }
       catch (error) {
-        if (!(error instanceof ConnectionFailure) || signal.aborted) throw error;
+        if (!(error instanceof ConnectionFailure) || signal.aborted || body !== undefined) throw error;
         failure = error;
       }
     }
     throw failure;
   }
-  private connect(url: URL, signal: AbortSignal, pinned: { address: string; family: number }): Promise<ResponseData> {
+  private connect(url: URL, signal: AbortSignal, pinned: { address: string; family: number }, body?: string): Promise<ResponseData> {
     return new Promise((resolve, reject) => {
       const options: RequestOptions = {
-        agent: false, method: 'GET', signal, maxHeaderSize: 16384,
-        headers: { Accept: 'text/html,application/json,text/plain', 'Accept-Encoding': 'identity', 'User-Agent': 'Reader-Safe-Online/1' },
+        agent: false, method: body === undefined ? 'GET' : 'POST', signal, maxHeaderSize: 16384,
+        headers: { Accept: 'text/html,application/json,text/plain', 'Accept-Encoding': 'identity', 'User-Agent': 'Reader-Safe-Online/1', ...(body === undefined ? {} : { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'Content-Length': String(Buffer.byteLength(body)) }) },
         // Host/SNI/TLS retain the original hostname. Every connection uses only
         // the validated address, so a second DNS answer cannot rebind it.
         lookup: (_name: string, opts: any, callback: any) => opts?.all ? callback(null, [pinned]) : callback(null, pinned.address, pinned.family),
@@ -131,7 +137,7 @@ export class SafeHttpClient {
       const request = transport(url, options, response => {
         if ([301, 302, 303, 307, 308].includes(response.statusCode ?? 0)) {
           const location = response.headers.location; response.destroy();
-          if (!location) reject(new Error('重定向缺少 Location')); else resolve({ location });
+          if (!location) reject(new Error('重定向缺少 Location')); else resolve({ location, redirectStatus: response.statusCode });
           return;
         }
         if (response.statusCode !== 200) { response.destroy(); reject(new Error(`HTTP ${response.statusCode ?? '未知'}；未绕过访问限制`)); return; }
@@ -146,7 +152,7 @@ export class SafeHttpClient {
       });
       request.on('error', (error: NodeJS.ErrnoException) => reject(signal.aborted ? signal.reason :
         retryableConnectionErrors.has(error.code ?? '') ? new ConnectionFailure('连接失败；请检查书源地址或稍后重试') : new Error('连接失败；请检查书源地址或稍后重试')));
-      request.end();
+      request.end(body);
     });
   }
   private abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
