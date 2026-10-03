@@ -14,6 +14,9 @@ import { OnlineSourceService } from '../src/server/online/service.js';
 import { fixtureServer } from './online/fixture.js';
 const cleanup: (() => Promise<unknown> | void)[] = [];
 afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn(); vi.useRealTimers(); });
+// These outer test deadlines include several cold trusted loaders/WASM
+// instances. Inner 500 ms / 2 s enforcement and elapsed-time assertions remain.
+const isolatedTestMs = 30_000;
 const signal = () => new AbortController().signal;
 const globals = { baseUrl: 'https://reader.example.com/', key: '河岸', page: 2, book: { origin: 'https://reader.example.com', name: '原创河岸', durChapterTitle: '第一章' }, chapter: { index: 0 } };
 function session(ajax: (url: string) => Promise<string> = async () => '<p>原创</p>', sig = signal()) { const s = new ScriptSession(sig, ajax); cleanup.push(() => s.close()); return s; }
@@ -31,20 +34,20 @@ describe('isolated QuickJS host and lifecycle', () => {
     expect(await r.init('$.data', { data: { name: 'original' } })).toEqual({ name: 'original' });
     expect(await r.clean('第一章 原创\n正文', '##{{book.durChapterTitle}}.*\n', '')).toBe('正文');
     const other = session(); expect(await other.run('java.get("part")', '', '', globals)).toBe('');
-  }, 15000);
+  }, isolatedTestMs);
   it('awaits bounded host ajax synchronously and rejects browser requirements even if caught', async () => {
     const ajax = vi.fn(async () => '<p>原创</p>'), s = session(ajax);
     expect(await s.run('java.ajax(baseUrl) + java.ajax(baseUrl)', '', '', globals)).toBe('<p>原创</p><p>原创</p>');
     expect(ajax).toHaveBeenCalledTimes(2);
     await expect(s.run('try { java.startBrowserAwait(baseUrl) } catch(e) {} "pretend success"', '', '', globals)).rejects.toThrow('真实浏览器');
-  }, 15000);
+  }, isolatedTestMs);
   it.each(['while(true) {}', '/(a+)+$/.test("a".repeat(100)+"!")', '({toJSON(){while(true){}}})'])('terminates excessive CPU without blocking the parent event loop: %s', async code => {
     const s = session(); await s.run('0', '', '', globals);
     let ticks = 0; const started = Date.now(), timer = setInterval(() => ticks++, 10);
     try { await expect(s.run(code, '', '', globals)).rejects.toThrow(/interrupt|超时|终止/i); expect(ticks).toBeGreaterThan(1); expect(Date.now() - started).toBeLessThan(3500); }
     finally { clearInterval(timer); }
     expect(await session().run('1+1', '', '', globals)).toBe(2);
-  }, 15000);
+  }, isolatedTestMs);
   it('enforces output, variable and bulk WASM memory ceilings', async () => {
     await expect(session().run('"x".repeat(3*1024*1024)', '', '', globals)).rejects.toThrow(/输出|memory/);
     await expect(session().run('java.put("x","x".repeat(40000))', '', '', globals)).rejects.toThrow(/参数|变量/);
@@ -52,7 +55,7 @@ describe('isolated QuickJS host and lifecycle', () => {
     // 32 MiB WebAssembly.Memory maximum (regression for upstream #271).
     await expect(session().run('let keep=[]; for(let i=0;i<80;i++) keep.push(new Uint8Array(1024*1024)); "unbounded"', '', '', globals)).rejects.toThrow(/memory|分配|退出|abort|null/i);
     expect(await session().run('40+2', '', '', globals)).toBe(42);
-  }, 15000);
+  }, isolatedTestMs);
   it('cancels a suspended script and refuses dynamic compilation', async () => {
     const controller = new AbortController();
     // Cancel after the guest actually reaches the suspended network call, not
@@ -61,13 +64,13 @@ describe('isolated QuickJS host and lifecycle', () => {
     await expect(s.run('java.ajax(baseUrl)', '', '', globals)).rejects.toThrow('取消');
     await expect(session().run('eval("1+1")', '', '', globals)).rejects.toThrow('动态');
     await expect(session().run('import("node:fs")', '', '', globals)).rejects.toThrow('动态');
-  }, 15000);
+  }, isolatedTestMs);
   it('cancels trusted engine initialization before any source code is sent', async () => {
     const controller = new AbortController(), ajax = vi.fn(async () => 'must not run'), s = session(ajax, controller.signal);
     const pending = expect(s.run('java.ajax(baseUrl)', '', '', globals)).rejects.toThrow('取消');
     controller.abort(); await pending; expect(ajax).not.toHaveBeenCalled();
     expect(await session().run('6*7', '', '', globals)).toBe(42);
-  }, 15000);
+  }, isolatedTestMs);
   it('keeps the cumulative guest execution limit inside the worker, including across ajax suspension', async () => {
     const s = session();
     await s.run('0', '', '', globals);
@@ -80,7 +83,7 @@ describe('isolated QuickJS host and lifecycle', () => {
     (resumed as any).budget = 60;
     await expect(resumed.run('var t=Date.now();while(Date.now()-t<35){};java.ajax(baseUrl);t=Date.now();while(Date.now()-t<50){};42', '', '', globals)).rejects.toThrow(/interrupt|预算/i);
     expect(await session().run('6*7', '', '', globals)).toBe(42);
-  }, 15000);
+  }, isolatedTestMs);
 });
 
 describe('request encoding and per-source limits', () => {
@@ -169,4 +172,4 @@ it('extracts reversed classic ranges, fallback/combined fields and safe capture 
   expect(await r.rule('p@text##(Original){2}##$1', '<p>OriginalOriginal</p>')).toEqual(['Original']);
   expect(await r.rule('@css:a.more,.pager>a@href', '<a class="more" href="/one">A</a><div class="pager"><a href="/two">B</a></div>')).toEqual(['/one','/two']);
   expect(await r.rule('<js>if(false) java.startBrowserAwait(baseUrl); result;</js>p@text', '<p>Public</p>')).toEqual(['Public']);
-});
+}, isolatedTestMs);
