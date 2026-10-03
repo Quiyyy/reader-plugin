@@ -68,6 +68,19 @@ describe('isolated QuickJS host and lifecycle', () => {
     controller.abort(); await pending; expect(ajax).not.toHaveBeenCalled();
     expect(await session().run('6*7', '', '', globals)).toBe(42);
   }, 15000);
+  it('keeps the cumulative guest execution limit inside the worker, including across ajax suspension', async () => {
+    const s = session();
+    await s.run('0', '', '', globals);
+    // A deliberately small remaining budget proves that the cumulative limit,
+    // rather than only the 500 ms per-call interrupt, reaches the worker.
+    (s as any).budget = 40;
+    await expect(s.run('var t=Date.now();while(Date.now()-t<100){};42', '', '', globals)).rejects.toThrow(/interrupt|预算/i);
+    const resumed = session(async () => 'ready');
+    await resumed.run('0', '', '', globals);
+    (resumed as any).budget = 60;
+    await expect(resumed.run('var t=Date.now();while(Date.now()-t<35){};java.ajax(baseUrl);t=Date.now();while(Date.now()-t<50){};42', '', '', globals)).rejects.toThrow(/interrupt|预算/i);
+    expect(await session().run('6*7', '', '', globals)).toBe(42);
+  }, 15000);
 });
 
 describe('request encoding and per-source limits', () => {

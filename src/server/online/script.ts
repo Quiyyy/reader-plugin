@@ -13,6 +13,7 @@ export class ScriptSession {
   private callLimit: number = SCRIPT_LIMITS.calls;
   private started = Date.now();
   private budget = SCRIPT_LIMITS.cpuMs * 10;
+  get shouldPause() { return this.budget < SCRIPT_LIMITS.cpuMs; }
   async beginPage() { this.calls = 0; this.callLimit = 15000; await this.recycle(); }
   private async recycle() {
     const worker = this.worker;
@@ -70,24 +71,26 @@ export class ScriptSession {
     if (this.dead) throw this.dead;
     const worker = this.worker;
     return new Promise((resolve, reject) => {
-      let settled = false, elapsed = 0, tick = Date.now();
-      const cleanup = () => { if (this.timer) clearTimeout(this.timer); worker.off('message', receive); this.reject = undefined; this.budget -= elapsed + Date.now() - tick; };
+      let settled = false;
+      const cleanup = () => { if (this.timer) clearTimeout(this.timer); worker.off('message', receive); this.reject = undefined; };
       const failure = (error: Error) => { if (settled) return; settled = true; cleanup(); reject(error); };
       this.reject = failure;
-      const arm = () => { tick = Date.now(); this.timer = setTimeout(() => this.fail(new Error('隔离脚本超时，Worker 已强制终止')), SCRIPT_LIMITS.commandMs); };
+      const arm = () => { this.timer = setTimeout(() => this.fail(new Error('隔离脚本超时，Worker 已强制终止')), SCRIPT_LIMITS.commandMs); };
       const receive = (message: any) => {
         if (settled) return;
         if (message.type === 'ajax') {
-          if (this.timer) clearTimeout(this.timer); elapsed += Date.now() - tick;
+          if (this.timer) clearTimeout(this.timer);
           // Network has its own deadline. A hard overall watchdog remains live.
           this.timer = setTimeout(() => this.fail(new Error('规则网络阶段超时，Worker 已终止')), 12000);
           void this.ajax(message.input).then(text => { if (!settled) { clearTimeout(this.timer); arm(); worker.postMessage({ type: 'network', text }); } }, error => this.fail(error instanceof Error ? error : new Error('规则网络失败')));
         } else if (message.type === 'done') {
+          if (!Number.isFinite(message.executionMs) || message.executionMs < 0 || message.executionMs > this.budget) { this.fail(new Error('隔离引擎执行计时无效或超限')); return; }
+          this.budget -= message.executionMs;
           settled = true; cleanup(); this.variables = message.variables; resolve(message.value);
         } else if (message.type === 'error') this.fail(new Error(message.error));
       };
       worker.on('message', receive); arm();
-      worker.postMessage({ type: 'run', code, result, context, globals, variables: this.variables });
+      worker.postMessage({ type: 'run', code, result, context, globals, variables: this.variables, budgetMs: this.budget });
     });
   }
 }

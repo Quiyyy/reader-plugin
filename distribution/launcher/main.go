@@ -40,7 +40,7 @@ func verifyFile(path, expected string, size int64) error {
 	if !info.Mode().IsRegular() || (size >= 0 && info.Size() != size) {
 		return fmt.Errorf("unexpected file type or size: %s", path)
 	}
-	f, err := os.Open(path)
+	f, err := openForVerification(path)
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,9 @@ func materializeNode(root, data string, p payload) (string, error) {
 		}
 		return path, nil
 	}
-	if err = os.Rename(temporaryName, path); err != nil {
+	// Publish without replacing an existing cache entry. A competing launcher
+	// may already be verifying/using it after the preceding Lstat.
+	if err = publishNode(temporaryName, path); err != nil {
 		if verifyFile(path, p.NodeSHA256, p.NodeBytes) == nil {
 			return path, nil
 		}

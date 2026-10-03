@@ -100,6 +100,24 @@ func TestCorruptAndOverlongPayloadNeverActivates(t *testing.T) {
 	}
 }
 
+func TestPublicationNeverReplacesAnExistingCacheEntry(t *testing.T) {
+	dir := t.TempDir()
+	source, target := filepath.Join(dir, "temporary"), filepath.Join(dir, "active")
+	if err := os.WriteFile(source, []byte("verified candidate"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte("existing content"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := publishNode(source, target); err == nil {
+		t.Fatal("publication replaced an existing cache entry")
+	}
+	bytes, err := os.ReadFile(target)
+	if err != nil || string(bytes) != "existing content" {
+		t.Fatal("existing cache changed")
+	}
+}
+
 func TestPathsAndCacheSymlinksAreRejected(t *testing.T) {
 	root, data, p, _ := fixture(t)
 	for _, name := range []string{"../escape", "payload/../node.gz", "/absolute", "payload\\node.gz"} {
