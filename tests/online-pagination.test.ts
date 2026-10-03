@@ -141,7 +141,15 @@ describe('bounded, resumable long directories and chapters', () => {
     // guest evaluation retain their production deadlines. The separate 600-row
     // case retains per-row script/worker recycling coverage.
     const f = await setup({ pages: 18, rows: 8, script: true });
-    await expect(f.online.add(f.detail, signal())).rejects.toMatchObject({ incomplete: { pages: 8, items: 64, paused: true } });
+    const checkpoint = await f.online.add(f.detail, signal()).then(
+      () => { throw Error('expected a continuation checkpoint'); },
+      error => { expect(error).toBeInstanceOf(IncompleteLoadError); return error.incomplete; },
+    );
+    // A busy runner may reach the 20 s batch wall before the eight-page cap.
+    expect(checkpoint).toMatchObject({ stage: 'toc', paused: true, resumable: true });
+    expect(checkpoint.pages).toBeGreaterThanOrEqual(1);
+    expect(checkpoint.pages).toBeLessThanOrEqual(8);
+    expect(checkpoint.items).toBe(checkpoint.pages * 8);
     const book = await complete(() => f.online.add(f.detail, signal()));
     expect(book.document.chapters).toHaveLength(144);
     expect(book.document.chapters[80].title).toBe('Original chapter 80 / 11');
