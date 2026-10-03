@@ -11,7 +11,7 @@ import { SafeHttpClient } from '../src/server/online/http.js';
 import { OnlineSourceService } from '../src/server/online/service.js';
 import { ReaderStore } from '../src/server/store.js';
 import { fixtureServer, fixtureSource } from './online/fixture.js';
-import { declarativeSource } from './online/declarative.js';
+import { declarativeSource, declarativePages } from './online/declarative.js';
 
 const cleanups: (() => Promise<unknown>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
@@ -20,6 +20,37 @@ async function fixture(handler?: Parameters<typeof fixtureServer>[0]) { const f 
 const read = (rule: string, html: string) => extract(compileRule(rule), documentContext(html));
 
 describe('bounded declarative syntax', () => {
+  it('accepts bounded inert embedded bitmaps without widening other attribute limits', () => {
+    const data = 'data:image/png;base64,' + 'A'.repeat(26000);
+    expect(read('h1@text', `<img src="${data}"><h1>原创标题</h1>`)).toEqual(['原创标题']);
+    expect(read('div@html', `<div><img src="${data}" onload="throw Error('never')">原创正文</div>`)).toEqual(['原创正文']);
+    for (const html of [`<img src="data:image/png;base64,${'A'.repeat(65536)}">`, `<img src="data:image/svg+xml;base64,${'A'.repeat(26000)}">`, `<img src="${'x'.repeat(9000)}">`, `<div src="${data}"></div>`, `<img title="${data}">`]) expect(() => documentContext(html)).toThrow('属性长度');
+  });
+  it('charges observed attribute work for a large chapter list under the unchanged page budget', () => {
+    const html = '<div class="chapters"><ul>' + Array.from({ length: 2500 }, (_, i) => `<li><a href="/chapter/${i}" title="原创">第${i}章</a></li>`).join('') + '</ul></div>';
+    const doc = documentContext(html), rows = select(compileRule('.chapters li a', true), doc);
+    expect(rows).toHaveLength(2500);
+    const urls = rows.map(row => extract(compileRule('href'), row)[0]);
+    expect(urls[2499]).toBe('/chapter/2499');
+    expect(rows.map(row => extract(compileRule('text'), row)[0])[2499]).toBe('第2499章');
+    // Repeated scans still exhaust the shared budget; it is not reset per row.
+    expect(() => { for (let i = 0; i < 1000; i++) select(compileRule('.chapters li a', true), doc); }).toThrow('工作预算');
+  });
+  it('supplies omitted table bodies without merging explicit sections or nested tables', () => {
+    const html = '<table id="results"><tr><th>标题</th></tr>\n<!-- boundary --><tr><td><a href="/one">原创甲</a></td></tr><tbody><tr><td><a href="/two">原创乙</a></td></tr></tbody><tr><td><a href="/three">原创丙</a><table><tr><td>内表</td></tr></table></td></tr><tfoot><tr><td>页尾</td></tr></tfoot></table>';
+    const doc = documentContext(html);
+    expect(extract(compileRule('#results@tbody@tr!0@a@href'), doc)).toEqual(['/one']);
+    expect(extract(compileRule('#results>tbody>tr>td>a@href'), doc)).toEqual(['/one', '/two', '/three']);
+    expect(doc.querySelectorAll('#results > tbody')).toHaveLength(3);
+    expect(doc.querySelectorAll('#results > tbody > tr')).toHaveLength(4);
+    expect(doc.querySelectorAll('tbody tbody')).toHaveLength(1);
+    expect(doc.querySelectorAll('tfoot > tr')).toHaveLength(1);
+    const reparsed = documentContext(doc.toString());
+    expect(reparsed.querySelectorAll('tbody')).toHaveLength(4);
+    // The added nodes must not evade the original structure/depth budgets.
+    expect(() => documentContext('<table><tr><td>'.repeat(40) + 'x' + '</td></tr></table>'.repeat(40))).toThrow('深度');
+    expect(() => documentContext('<table><tr></tr></table>'.repeat(7000))).toThrow('节点预算');
+  });
   it('extracts current-node attributes, sanitized html and direct text nodes', () => {
     const doc = documentContext('<a href="/chapter" title="name">甲<br>乙<script>secret</script><span>丙</span>丁</a>');
     const [a] = select(compileRule('a', true), doc);
@@ -49,7 +80,19 @@ describe('bounded declarative syntax', () => {
     expect(read('[property$=title]@content', html)).toEqual(['原创故事']);
     expect(read('[content="原创故事"]@content', html)).toEqual(['原创故事']);
   });
-  it.each(['@css:', 'a:nth-child(2)@text', '//div[last()]/a/@href', '//div/following-sibling::a/@href', 'a,b@href', 'class.items.-1:0@text', 'a:not(:hover)@text', 'a@href##$##,{"webView":true}', 'a@text##(a)\\1', 'a@text##a(?=b)', 'a@text##x##y##z', '@js:1', '{{java.get()}}', '$..data'])('rejects unsupported whole rule %s', rule => {
+  it('selects chapters after each final heading with bounded XPath steps', () => {
+    const html = '<div id="chapters"><dl><dt>旧卷</dt><dd><a href="/old">旧</a></dd><dt>正文</dt><dd><a href="/one">甲</a></dd><dd><a href="/two">乙</a></dd></dl><dl><dt>附录</dt><dd><a href="/three">丙</a></dd></dl></div>';
+    const list = '//div[@id="chapters"]/dl/dt[last()]/following-sibling::dd/a';
+    expect(read(list + '/@href', html)).toEqual(['/one', '/two', '/three']);
+    expect(select(compileRule(list, true), documentContext(html))).toHaveLength(3);
+    expect(read('//dt[last()]', html)).toEqual(['正文', '附录']);
+    expect(read('//dt/following-sibling::dd/a/@href', html)).toEqual(['/old', '/one', '/two', '/three']);
+    expect(read('//dt/following-sibling::dd[last()]/a/@href', html)).toEqual(['/two', '/three']);
+    expect(read('//dd/a[last()]/@href', html)).toEqual(['/old', '/one', '/two', '/three']);
+    expect(read('//div/p', '<div><div><p>甲</p></div><p>乙</p></div>')).toEqual(['甲', '乙']);
+    expect(() => read('//dt/following-sibling::dd/@title', '<dl>' + '<dt>x</dt>'.repeat(2000) + '<dd title="x"></dd>'.repeat(2000) + '</dl>')).toThrow(/预算|超限/);
+  });
+  it.each(['@css:', 'a:nth-child(2)@text', '//div[position()>1]/a/@href', '//div/preceding-sibling::a/@href', '//div[last()-1]/a/@href', 'a,b@href', 'class.items.-1:0@text', 'a:not(:hover)@text', 'a@href##$##,{"webView":true}', 'a@text##(a)\\1', 'a@text##a(?=b)', 'a@text##x##y##z', '@js:1', '{{java.get()}}', '$..data'])('rejects unsupported whole rule %s', rule => {
     expect(() => compileRule(rule)).toThrow();
   });
   it('cleans text with RE2 and bounds zero-width, amplification, work and input', () => {
@@ -123,10 +166,17 @@ describe('literal search form requests', () => {
   });
 });
 
-it('runs original declarative source through search, detail, paginated toc/body, restart and offline cache', async () => {
+it.each(['classic', 'xpath'])('runs original %s source through search, detail, paginated toc/body, restart and offline cache', async mode => {
   const dir = await mkdtemp(join(tmpdir(), 'reader-declarative-')); cleanups.push(() => rm(dir, { recursive: true, force: true }));
-  const f = await fixture(), online = new OnlineSourceService(new ReaderStore(dir), f.client);
-  const preview = await online.preview(JSON.stringify(declarativeSource));
+  const source = structuredClone(declarativeSource);
+  const pages = { ...declarativePages };
+  if (mode === 'xpath') {
+    source.ruleToc.chapterList = '//div[@id="chapters"]/dl/dt[last()]/following-sibling::dd/a';
+    pages['/grammar/toc'] = '<div id="chapters"><dl><dt>推荐</dt><dd><a href="/ignore">不读取</a></dd><dt>正文</dt><dd><a href="/grammar/one">第一章 纸桥</a></dd></dl></div><div id="pages"><a class="more" href="/grammar/toc-2">下页</a></div>';
+    pages['/grammar/toc-2'] = '<div id="chapters"><dl><dt>正文</dt><dd><a href="/grammar/two">第二章 灯笼</a></dd></dl></div><div id="pages"><a class="more" href="#">末页</a></div>';
+  }
+  const f = await fixture((req, res) => { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(pages[req.url!] ?? 'Missing fixture'); }), online = new OnlineSourceService(new ReaderStore(dir), f.client);
+  const preview = await online.preview(JSON.stringify(source));
   expect(f.requests).toEqual([]);
   await online.commit(preview.token); await online.manage(preview.sources[0].id, true);
   const results = await online.search(preview.sources[0].id, '原创', 1, signal());

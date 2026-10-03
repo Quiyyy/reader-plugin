@@ -232,6 +232,17 @@ describe('online source service and durable lazy reading', () => {
     expect(await online.search(indexedId, 'none', 1, signal())).toEqual([]);
     expect((await online.listSources()).find(source => source.id === indexedId)!.stages.search.network).toBe('passed');
   });
+  it('does not count a known site notice page as a successful empty search', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'reader-notice-')); cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    let body = '<html><head><title>提示信息</title></head><body><p>原创错误提示</p><script>throw Error("never")</script></body></html>';
+    const server = await fixture((_req, res) => res.end(body)), online = new OnlineSourceService(new ReaderStore(dir), server.client);
+    const id = await enable(online, fixtureSource);
+    await expect(online.search(id, 'none', 1, signal())).rejects.toThrow('不能确认搜索结果为空');
+    expect((await online.listSources())[0].stages.search.network).toBe('failed');
+    body = '<html><head><title>搜索结果</title></head><body><p>没有匹配书籍</p></body></html>';
+    expect(await online.search(id, 'none', 1, signal())).toEqual([]);
+    expect((await online.listSources())[0].stages.search.network).toBe('passed');
+  });
   it('keeps invalid list selectors blocked instead of converting them to empty search results', async () => {
     const { online, requests } = await setup();
     const sourceId = await enable(online, { ...fixtureSource, ruleSearch: { ...fixtureSource.ruleSearch, bookList: 'div[' } });

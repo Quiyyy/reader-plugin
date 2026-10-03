@@ -11,7 +11,7 @@ export const declarativeSource = {
   ruleContent: { content: 'id.prose.0@html', nextContentUrl: "//div[@class='pager']/span/a[text()='下一页']/@href", replaceRegex: '##\\n?[（(]本章完[）)]$' },
 };
 export const declarativePages: Record<string, string> = {
-  '/grammar/search': '<table id="matches"><tbody><tr><th>测试列表</th></tr><tr><td class="title"><a href="/grammar/book">《原创纸桥》</a></td><td class="writer">作者：样例作者</td></tr></tbody></table>',
+  '/grammar/search': '<table id="matches"><tr><th>测试列表</th></tr><tr><td class="title"><a href="/grammar/book">《原创纸桥》</a></td><td class="writer">作者：样例作者</td></tr></table>',
   '/grammar/book': '<html><head><meta property="reader:title" content="原创纸桥"><meta property="reader:author" content="样例作者"></head><body><div class="about">原创的两章短文。<script>throw Error("never")</script></div><a href="/grammar/toc">章节入口</a></body></html>',
   '/grammar/toc': '<div class="contents"><section><a href="/grammar/one">第一章 纸桥</a></section><footer><a href="/not-a-chapter">忽略页脚</a></footer></div><div id="pages"><a class="more" href="/grammar/toc-2">下页</a></div>',
   '/grammar/toc-2': '<div class="contents"><section><a href="/grammar/two">第二章 灯笼</a></section></div><div id="pages"><a class="more" href="#">末页</a></div>',

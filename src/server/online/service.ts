@@ -190,6 +190,10 @@ export class OnlineSourceService {
       catch (error) { throw new Error(`ruleSearch.bookList：响应解析失败：${err(error)}`); }
       const results = new Map<string, OnlineResult>();
       const rows = await this.rows(rules, source, 'search', 'bookList', context, true), sourceVariables = { ...rules.script.variables };
+      if (!rows.length && context?.nodeType) {
+        const title = (await rules.rule('title@text', context)).join('').trim();
+        if (/^(?:提示信息|系统提示|错误提示|访问错误|Error|Access Denied)$/i.test(title)) throw new Error('ruleSearch.bookList：网站返回提示或错误页，不能确认搜索结果为空；请检查书源访问条件');
+      }
       for (const row of rows) {
         rules.script.variables = { ...sourceVariables };
         rules.globals.book = { origin: new URL(source.report.url).origin };

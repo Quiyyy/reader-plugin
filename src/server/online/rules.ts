@@ -8,11 +8,12 @@ export class RuleError extends Error {
 type Context = any;
 type Compound = { tag?: string; text?: { value: string; exact: boolean }; attributes: { name: string; value?: string; word?: boolean; suffix?: boolean; negate?: boolean }[] };
 type Step = { selector: string; index?: number; exclude?: boolean; children?: boolean; range?: [number, number]; compounds: Compound[]; relations: (' ' | '>')[] };
-export type Rule = ({ kind: 'combined'; mode: 'or' | 'and'; rules: Rule[] } | { kind: 'css'; steps: Step[]; output?: string } | { kind: 'json'; path: (string | number | '*')[] }) & { replacement?: Replacement };
+type XPathStep = { axis: 'descendant' | 'child' | 'following-sibling'; match: Compound; last: boolean };
+export type Rule = ({ kind: 'combined'; mode: 'or' | 'and'; rules: Rule[] } | { kind: 'css'; steps: Step[]; output?: string } | { kind: 'xpath'; steps: XPathStep[]; output?: string } | { kind: 'json'; path: (string | number | '*')[] }) & { replacement?: Replacement };
 const deny = (message: string): never => { throw new RuleError('blocked', message); };
 const invalid = (message: string): never => { throw new RuleError('invalid', message); };
 const forbiddenKeys = new Set(['__proto__', 'prototype', 'constructor']);
-export const RULE_LIMITS = Object.freeze({ bytes: 2 * 1024 * 1024, nodes: 20000, depth: 128, attributes: 128, name: 128, attributeValue: 8192, results: 10000, work: 2_000_000, text: 4 * 1024 * 1024 });
+export const RULE_LIMITS = Object.freeze({ bytes: 2 * 1024 * 1024, nodes: 20000, depth: 128, attributes: 128, name: 128, attributeValue: 8192, imageDataAttribute: 65536, results: 10000, work: 2_000_000, text: 4 * 1024 * 1024 });
 class Budget {
   private work = 0;
   private text = 0;
@@ -21,6 +22,7 @@ class Budget {
 }
 // A page shares one synchronous budget across all field and per-row evaluations.
 const budgets = new WeakMap<object, Budget>();
+const attributeWork = new WeakMap<object, number>();
 const isDomNode = (value: unknown): boolean => value instanceof DomNode;
 function budgetFor(context: Context): Budget {
   if (context && typeof context === 'object' && budgets.has(context)) return budgets.get(context)!;
@@ -58,23 +60,23 @@ function cssStep(selector: string, index?: number, exclude = false): Step {
   return { selector, index, exclude, compounds, relations };
 }
 function xpath(rule: string, list: boolean): Rule {
-  // A small path grammar mapped to the same bounded DOM matcher. No XPath
-  // evaluator, functions, axes, unions or script-capable query engine.
+  // Whole-input grammar for the paths consumed by reading stages. last() and
+  // following-sibling support chapter lists after the final volume heading;
+  // no expression evaluator, arbitrary axes, extension functions or scripts.
   const attribute = rule.match(/\/@([A-Za-z_][\w-]*)$/);
   const output = attribute?.[1] ?? 'text';
   if (list && attribute || !outputs.has(output)) return deny('XPath 只支持元素路径及受支持的末尾属性');
   let rest = attribute ? rule.slice(0, attribute.index) : rule;
   if (!rest.startsWith('//')) return deny('XPath 路径须以 // 开始');
-  const compounds: Compound[] = [], relations: (' ' | '>')[] = [];
+  const steps: XPathStep[] = [];
   while (rest) {
-    const step = rest.match(/^(\/\/|\/)([A-Za-z][\w-]*)(?:\[(?:@([A-Za-z_][\w-]*)|text\(\))=(["'])([^"'\[\]\r\n]*)\4\])?/);
-    if (!step) return deny('不支持此 XPath；仅支持路径、属性相等或 text() 相等条件');
-    if (compounds.length) relations.push(step[1] === '//' ? ' ' : '>');
-    compounds.push({ tag: step[2].toLowerCase(), attributes: step[3] ? [{ name: step[3], value: step[5] }] : [], text: step[5] !== undefined && !step[3] ? { value: step[5], exact: true } : undefined });
-    if (compounds.length > 20) return invalid('XPath 超过 20 层');
+    const step = rest.match(/^(\/\/|\/following-sibling::|\/)([A-Za-z][\w-]*)(?:\[(?:@([A-Za-z_][\w-]*)|text\(\))=(["'])([^"'\[\]\r\n]*)\4\]|\[(last\(\))\])?/);
+    if (!step) return deny('不支持此 XPath；仅支持路径、相等条件、last() 与 following-sibling 元素轴');
+    steps.push({ axis: step[1] === '//' ? 'descendant' : step[1].includes('following-sibling') ? 'following-sibling' : 'child', last: !!step[6], match: { tag: step[2].toLowerCase(), attributes: step[3] ? [{ name: step[3], value: step[5] }] : [], text: step[5] !== undefined && !step[3] ? { value: step[5], exact: true } : undefined } });
+    if (steps.length > 20) return invalid('XPath 超过 20 层');
     rest = rest.slice(step[0].length);
   }
-  return { kind: 'css', steps: [{ selector: rule, compounds, relations }], output: list ? undefined : output };
+  return { kind: 'xpath', steps, output: list ? undefined : output };
 }
 
 /** A grammar, not a JavaScript evaluator. The whole input must be recognized. */
@@ -177,14 +179,48 @@ export function documentContext(body: string): Context {
   // can be allocated by the real DOM parse. Even unmatched closing tags count.
   let tokens = 0;
   for (const char of body) if ((char === '<' || char === '&') && ++tokens > RULE_LIMITS.nodes * 2) throw new Error('HTML 标记/实体预算超限');
-  let depth = 0, nodes = 0, attributes = 0;
+  let depth = 0, nodes = 0, attributes = 0, tag = '';
   const node = () => { if (++nodes > RULE_LIMITS.nodes) throw new Error('DOM 节点预算超限'); };
   new Parser({
-    onopentagname(name) { node(); attributes = 0; if (name.length > RULE_LIMITS.name) throw new Error('DOM 名称预算超限'); if (++depth > RULE_LIMITS.depth) throw new Error('DOM 深度超过 128 层'); },
-    onattribute(name, value) { node(); if (++attributes > RULE_LIMITS.attributes) throw new Error('单个元素属性超过 128 项'); if (name.length > RULE_LIMITS.name || value.length > RULE_LIMITS.attributeValue) throw new Error('DOM 属性长度预算超限'); },
+    onopentagname(name) { node(); attributes = 0; tag = name.toLowerCase(); if (name.length > RULE_LIMITS.name) throw new Error('DOM 名称预算超限'); if (++depth > RULE_LIMITS.depth) throw new Error('DOM 深度超过 128 层'); },
+    onattribute(name, value) {
+      node(); if (++attributes > RULE_LIMITS.attributes) throw new Error('单个元素属性超过 128 项');
+      // Some metadata pages embed a small cover/icon in an img src. It remains
+      // inert data: no decoding, display or fetch, and the 2 MiB page cap still
+      // applies. Keep all other attributes (including SVG/active URIs) at 8 KiB.
+      const bitmap = value.length <= RULE_LIMITS.imageDataAttribute && tag === 'img' && name.toLowerCase() === 'src' && /^data:image\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+=*$/.test(value);
+      if (name.length > RULE_LIMITS.name || value.length > (bitmap ? RULE_LIMITS.imageDataAttribute : RULE_LIMITS.attributeValue)) throw new Error('DOM 属性长度预算超限');
+    },
     onclosetag() { depth--; }, ontext: node, oncomment: node, onprocessinginstruction: node,
   }, { lowerCaseAttributeNames: false, decodeEntities: true, xmlMode: false }).end(body);
   const document = new DOMParser().parseFromString(body, 'text/html');
+  // linkedom retains table > tr whereas HTML parsing implies a tbody. Source
+  // selectors written against browser/Jsoup trees consume that missing node.
+  // Normalize this bounded, common omitted-tag case only; this is not a full
+  // HTML5 tree builder and never executes page scripts or follows resources.
+  for (const table of document.querySelectorAll('table')) {
+    let group: ReturnType<typeof document.createElement> | undefined;
+    for (const child of [...table.childNodes]) {
+      budget.spend();
+      if (child.nodeType === 1 && (child as any).localName === 'tr') {
+        if (!group) { node(); group = document.createElement('tbody', {}); table.insertBefore(group, child); }
+        group.appendChild(child);
+      } else if (child.nodeType === 1) group = undefined;
+      else if (group) group.appendChild(child);
+    }
+  }
+  // Implied elements also count toward depth; nested tables may otherwise
+  // grow beyond the tokenizer's pre-allocation depth ceiling.
+  const pending: { node: any; depth: number }[] = [{ node: document, depth: 0 }];
+  while (pending.length) {
+    const item = pending.pop()!; budget.spend();
+    if (item.depth > RULE_LIMITS.depth) throw new Error('DOM 深度超过 128 层');
+    if (item.node.nodeType === 1) {
+      const count = item.node.attributes.length; budget.spend(count);
+      attributeWork.set(item.node, count + 1);
+    }
+    for (const child of item.node.childNodes) pending.push({ node: child, depth: item.depth + (child.nodeType === 1 ? 1 : 0) });
+  }
   budgets.set(document, budget);
   return document;
 }
@@ -215,7 +251,7 @@ function matchesCompound(node: Context, compound: Compound, budget: Budget): boo
   budget.spend();
   if (node.nodeType !== 1 || compound.tag && compound.tag !== '*' && node.localName.toLowerCase() !== compound.tag) return false;
   for (const attribute of compound.attributes) {
-    budget.spend(RULE_LIMITS.attributes);
+    budget.spend(attributeWork.get(node) ?? RULE_LIMITS.attributes);
     const value = node.getAttribute(attribute.name);
     let matched = value !== null;
     if (matched && attribute.value !== undefined) {
@@ -300,6 +336,37 @@ export function select(rule: Rule, context: Context, options: { strictJson?: boo
     }
     return nodes;
   }
+  if (rule.kind === 'xpath') {
+    const order = new Map<Context, number>();
+    if (isDomNode(context)) for (const item of walk(context.ownerDocument ?? context, budget)) if (!item.exit) order.set(item.node, order.size);
+    for (const step of rule.steps) {
+      const next = new Set<Context>();
+      for (const root of nodes) {
+        if (!isDomNode(root) || ![1, 9, 11].includes(root.nodeType)) throw new Error('XPath 规则需要 HTML 响应');
+        const candidates: Context[] = [];
+        const add = (node: Context) => {
+          if (ignored.has(node.localName?.toLowerCase()) || !matchesCompound(node, step.match, budget)) return;
+          if (candidates.length >= RULE_LIMITS.results) throw new Error('规则结果超过 10000 项');
+          candidates.push(node);
+        };
+        if (step.axis === 'descendant') {
+          for (const item of walk(root, budget, node => ignored.has(node.localName?.toLowerCase()))) if (!item.exit) add(item.node);
+        } else {
+          for (let node = step.axis === 'child' ? root.firstChild : root.nextSibling; node; node = node.nextSibling) { budget.spend(); add(node); }
+        }
+        // //x[last()] is the last x child of each parent, not a global last x.
+        const last = new Map<Context, Context>();
+        if (step.last) for (const node of candidates) { budget.spend(); last.set(node.parentNode, node); }
+        for (const node of candidates) {
+          budget.spend();
+          if (step.last && last.get(node.parentNode) !== node) continue;
+          next.add(node); if (next.size > RULE_LIMITS.results) throw new Error('规则结果超过 10000 项');
+        }
+      }
+      nodes = [...next].sort((a, b) => { budget.spend(); return order.get(a)! - order.get(b)!; });
+    }
+    return nodes;
+  }
   for (const step of rule.steps) {
     const next: Context[] = [], seen = new Set<Context>(), visited = new Set<Context>();
     for (const root of nodes) {
@@ -343,7 +410,7 @@ export function extract(rule: Rule, context: Context): string[] {
     let text: string;
     if (rule.kind === 'json') { text = typeof node === 'string' || typeof node === 'number' ? String(node) : ''; budget.output(text.length); }
     else if (['text', 'html', 'ownText', 'textNodes'].includes(rule.output!)) text = plain(node, budget, rule.output === 'ownText' || rule.output === 'textNodes', rule.output === 'textNodes');
-    else { budget.spend(RULE_LIMITS.attributes); text = node.getAttribute?.(rule.output!) ?? ''; budget.output(text.length); }
+    else { budget.spend(attributeWork.get(node) ?? RULE_LIMITS.attributes); text = node.getAttribute?.(rule.output!) ?? ''; budget.output(text.length); }
     if (rule.replacement) text = replaceText(text, rule.replacement, budget);
     if (text.trim()) values.push(text.trim());
   }
