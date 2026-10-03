@@ -161,7 +161,11 @@ export class OnlineSourceService {
           } catch (error) { if ((error as Error).message.includes('登录入口')) throw error; }
         }
         bytes += Buffer.byteLength(response.text); if (bytes > SCRIPT_LIMITS.networkBytes) throw Error('单阶段响应合计超过 8 MiB');
-        if (/<title[^>]*>\s*(?:Just a moment|Attention Required|人机验证|用户登录|会员登录)/i.test(response.text) || /(?:cf-chl-|challenge-platform)/i.test(response.text)) throw Error('网站要求登录或人机验证；未绕过访问限制');
+        // These two documented JSD assets can be injected into ordinary public
+        // pages. Ignore only their exact paths as blocking signals; no page
+        // script is executed/fetched. All other challenge markers still stop.
+        const challengeSignals = response.text.replace(/\/cdn-cgi\/challenge-platform\/scripts\/jsd\/(?:main|api)\.js(?=[\s"'<>?#]|$)/gi, '');
+        if (/<title[^>]*>\s*(?:Just a moment|Attention Required|人机验证|用户登录|会员登录)/i.test(response.text) || /(?:cf-chl-|challenge-platform)/i.test(challengeSignals)) throw Error('网站要求登录或人机验证；未绕过访问限制');
         return response;
       };
       signal.addEventListener('abort', abort, { once: true }); if (signal.aborted) abort();
