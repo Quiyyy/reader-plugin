@@ -11,12 +11,12 @@ var __require = /* @__PURE__ */ ((x2) => typeof require !== "undefined" ? requir
   if (typeof require !== "undefined") return require.apply(this, arguments);
   throw Error('Dynamic require of "' + x2 + '" is not supported');
 });
-var __esm = (fn, res, err2) => function __init() {
-  if (err2) throw err2[0];
+var __esm = (fn, res, err3) => function __init() {
+  if (err3) throw err3[0];
   try {
     return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
   } catch (e) {
-    throw err2 = [e], e;
+    throw err3 = [e], e;
   }
 };
 var __commonJS = (cb, mod) => function __require2() {
@@ -744,10 +744,10 @@ function defineLazyInternal(inst, key2, compute) {
           Object.defineProperty(this, key2, { configurable: true, writable: true, value });
         broke = broke || outer;
         return value;
-      } catch (err2) {
+      } catch (err3) {
         delete this[key2];
         broke = broke || outer;
-        throw err2;
+        throw err3;
       }
     },
     set(value) {
@@ -2393,16 +2393,16 @@ function handleUnionResults(results, final, inst, ctx) {
   return final;
 }
 function handleExclusiveUnionResults(results, final, inst, ctx) {
-  const matches2 = [];
+  const matches3 = [];
   for (let i2 = 0; i2 < results.length; i2++) {
     if (results[i2].issues.length === 0)
-      matches2.push(i2);
+      matches3.push(i2);
   }
-  if (matches2.length === 1) {
-    final.value = results[matches2[0]].value;
+  if (matches3.length === 1) {
+    final.value = results[matches3[0]].value;
     return final;
   }
-  if (matches2.length === 0) {
+  if (matches3.length === 0) {
     final.issues.push({
       code: "invalid_union",
       input: final.value,
@@ -2416,7 +2416,7 @@ function handleExclusiveUnionResults(results, final, inst, ctx) {
       inst,
       errors: [],
       inclusive: false,
-      matches: matches2
+      matches: matches3
     });
   }
   return final;
@@ -12896,9 +12896,9 @@ function compile(schema, options) {
     const clone3 = withParser(schema, parser);
     clone3._zod.bag.validator = compileValidator(schema, parser);
     return clone3;
-  } catch (err2) {
+  } catch (err3) {
     if (options?.strict)
-      throw err2;
+      throw err3;
     return schema;
   }
 }
@@ -12988,8 +12988,8 @@ ${code}
   try {
     const factory = new F(...constantNames, factoryCode);
     fn = factory(...constantValues);
-  } catch (err2) {
-    throw new ZodCompileUnsupportedError(`this schema (generated code failed to evaluate: ${err2.message})`);
+  } catch (err3) {
+    throw new ZodCompileUnsupportedError(`this schema (generated code failed to evaluate: ${err3.message})`);
   }
   if (options?.debug) {
     fn.code = fullCode;
@@ -13027,9 +13027,9 @@ function compileChild(doc, ctx, schema, accessor, needsValue = true) {
   const varCounter = ctx.varCounter;
   try {
     return generateCheck(doc, ctx, schema, accessor, needsValue);
-  } catch (err2) {
-    if (!(err2 instanceof ZodCompileUnsupportedError) || !err2.islandable)
-      throw err2;
+  } catch (err3) {
+    if (!(err3 instanceof ZodCompileUnsupportedError) || !err3.islandable)
+      throw err3;
     doc.content.length = contentLen;
     if (ctx.constants.size > constantCount) {
       const trailing = Array.from(ctx.constants.keys()).slice(constantCount);
@@ -15464,12 +15464,12 @@ function describe(description) {
   return ch;
 }
 // @__NO_SIDE_EFFECTS__
-function meta(metadata) {
+function meta(metadata2) {
   const ch = new $ZodCheck({ check: "meta" });
   ch._zod.onattach = [
     (inst) => {
       const existing = globalRegistry.get(inst) ?? {};
-      globalRegistry.add(inst, { ...existing, ...metadata });
+      globalRegistry.add(inst, { ...existing, ...metadata2 });
     }
   ];
   ch._zod.check = () => {
@@ -15801,7 +15801,7 @@ function foldObjects(members2) {
     objects.push(member);
   }
   const properties = {};
-  const required3 = /* @__PURE__ */ new Set();
+  const required4 = /* @__PURE__ */ new Set();
   for (const object4 of objects) {
     for (const key2 in object4.properties) {
       if (Object.prototype.hasOwnProperty.call(properties, key2))
@@ -15818,11 +15818,11 @@ function foldObjects(members2) {
       assignProp(properties, key2, merged);
     }
     for (const key2 of object4.required ?? [])
-      required3.add(key2);
+      required4.add(key2);
   }
   const folded = { type: "object", properties };
-  if (required3.size)
-    folded.required = [...required3];
+  if (required4.size)
+    folded.required = [...required4];
   if (objects.every((object4) => object4.additionalProperties === false)) {
     folded.additionalProperties = false;
   } else {
@@ -19294,20 +19294,20 @@ function checkArrayGuards(arraySchema, guards) {
     if (guards.containsSchema) {
       const minContains = guards.minContains ?? 1;
       const ceiling = guards.maxContains !== void 0 ? guards.maxContains + 1 : Number.POSITIVE_INFINITY;
-      let matches2 = 0;
+      let matches3 = 0;
       for (const item of items) {
-        if (guards.containsSchema.safeParse(item).success && ++matches2 >= ceiling)
+        if (guards.containsSchema.safeParse(item).success && ++matches3 >= ceiling)
           break;
       }
-      if (matches2 < minContains) {
+      if (matches3 < minContains) {
         payload.issues.push({
           code: "custom",
-          message: `Array must contain at least ${minContains} matching ${plural(minContains)}; found ${matches2}`,
+          message: `Array must contain at least ${minContains} matching ${plural(minContains)}; found ${matches3}`,
           input: items,
           continue: true
         });
       }
-      if (guards.maxContains !== void 0 && matches2 > guards.maxContains) {
+      if (guards.maxContains !== void 0 && matches3 > guards.maxContains) {
         payload.issues.push({
           code: "custom",
           message: `Array must contain at most ${guards.maxContains} matching ${plural(guards.maxContains)}`,
@@ -22969,10 +22969,10 @@ var require_util = __commonJS({
     var codegen_1 = require_codegen();
     var code_1 = require_code();
     function toHash(arr) {
-      const hash3 = {};
+      const hash4 = {};
       for (const item of arr)
-        hash3[item] = true;
-      return hash3;
+        hash4[item] = true;
+      return hash4;
     }
     exports2.toHash = toHash;
     function alwaysValidSchema(it, schema) {
@@ -23210,21 +23210,21 @@ var require_errors = __commonJS({
     function extendErrors({ gen, keyword, schemaValue, data, errsCount, it }) {
       if (errsCount === void 0)
         throw new Error("ajv implementation error");
-      const err2 = gen.name("err");
+      const err3 = gen.name("err");
       gen.forRange("i", errsCount, names_1.default.errors, (i2) => {
-        gen.const(err2, (0, codegen_1._)`${names_1.default.vErrors}[${i2}]`);
-        gen.if((0, codegen_1._)`${err2}.instancePath === undefined`, () => gen.assign((0, codegen_1._)`${err2}.instancePath`, (0, codegen_1.strConcat)(names_1.default.instancePath, it.errorPath)));
-        gen.assign((0, codegen_1._)`${err2}.schemaPath`, (0, codegen_1.str)`${it.errSchemaPath}/${keyword}`);
+        gen.const(err3, (0, codegen_1._)`${names_1.default.vErrors}[${i2}]`);
+        gen.if((0, codegen_1._)`${err3}.instancePath === undefined`, () => gen.assign((0, codegen_1._)`${err3}.instancePath`, (0, codegen_1.strConcat)(names_1.default.instancePath, it.errorPath)));
+        gen.assign((0, codegen_1._)`${err3}.schemaPath`, (0, codegen_1.str)`${it.errSchemaPath}/${keyword}`);
         if (it.opts.verbose) {
-          gen.assign((0, codegen_1._)`${err2}.schema`, schemaValue);
-          gen.assign((0, codegen_1._)`${err2}.data`, data);
+          gen.assign((0, codegen_1._)`${err3}.schema`, schemaValue);
+          gen.assign((0, codegen_1._)`${err3}.data`, data);
         }
       });
     }
     exports2.extendErrors = extendErrors;
     function addError(gen, errObj) {
-      const err2 = gen.const("err", errObj);
-      gen.if((0, codegen_1._)`${names_1.default.vErrors} === null`, () => gen.assign(names_1.default.vErrors, (0, codegen_1._)`[${err2}]`), (0, codegen_1._)`${names_1.default.vErrors}.push(${err2})`);
+      const err3 = gen.const("err", errObj);
+      gen.if((0, codegen_1._)`${names_1.default.vErrors} === null`, () => gen.assign(names_1.default.vErrors, (0, codegen_1._)`[${err3}]`), (0, codegen_1._)`${names_1.default.vErrors}.push(${err3})`);
       gen.code((0, codegen_1._)`${names_1.default.errors}++`);
     }
     function returnErrors(it, errs) {
@@ -23632,12 +23632,12 @@ var require_code2 = __commonJS({
       });
     }
     exports2.checkReportMissingProp = checkReportMissingProp;
-    function checkMissingProp({ gen, data, it: { opts } }, properties, missing) {
-      return (0, codegen_1.or)(...properties.map((prop2) => (0, codegen_1.and)(noPropertyInData(gen, data, prop2, opts.ownProperties), (0, codegen_1._)`${missing} = ${prop2}`)));
+    function checkMissingProp({ gen, data, it: { opts } }, properties, missing2) {
+      return (0, codegen_1.or)(...properties.map((prop2) => (0, codegen_1.and)(noPropertyInData(gen, data, prop2, opts.ownProperties), (0, codegen_1._)`${missing2} = ${prop2}`)));
     }
     exports2.checkMissingProp = checkMissingProp;
-    function reportMissingProp(cxt, missing) {
-      cxt.setParams({ missingProperty: missing }, true);
+    function reportMissingProp(cxt, missing2) {
+      cxt.setParams({ missingProperty: missing2 }, true);
       cxt.error();
     }
     exports2.reportMissingProp = reportMissingProp;
@@ -24702,11 +24702,11 @@ var require_validate = __commonJS({
         jsonPointer = $data;
         data = names_1.default.rootData;
       } else {
-        const matches2 = RELATIVE_JSON_POINTER2.exec($data);
-        if (!matches2)
+        const matches3 = RELATIVE_JSON_POINTER2.exec($data);
+        if (!matches3)
           throw new Error(`Invalid JSON-pointer: ${$data}`);
-        const up = +matches2[1];
-        jsonPointer = matches2[2];
+        const up = +matches3[1];
+        jsonPointer = matches3[2];
         if (jsonPointer === "#") {
           if (up >= dataLevel)
             throw new Error(errorMsg("property/index", up));
@@ -25248,8 +25248,8 @@ var require_utils = __commonJS({
     var HOST_DELIMS = { "@": "%40", "/": "%2F", "?": "%3F", "#": "%23", ":": "%3A" };
     var HOST_DELIM_RE = /[@/?#:]/g;
     var HOST_DELIM_NO_COLON_RE = /[@/?#]/g;
-    function reescapeHostDelimiters(host, isIP) {
-      const re = isIP ? HOST_DELIM_NO_COLON_RE : HOST_DELIM_RE;
+    function reescapeHostDelimiters(host, isIP2) {
+      const re = isIP2 ? HOST_DELIM_NO_COLON_RE : HOST_DELIM_RE;
       re.lastIndex = 0;
       return host.replace(re, (ch) => HOST_DELIMS[ch]);
     }
@@ -25593,11 +25593,11 @@ var require_schemes = __commonJS({
         urnComponent.error = "URN can not be parsed";
         return urnComponent;
       }
-      const matches2 = urnComponent.path.match(URN_REG);
-      if (matches2 && matches2[0] === urnComponent.path) {
+      const matches3 = urnComponent.path.match(URN_REG);
+      if (matches3 && matches3[0] === urnComponent.path) {
         const scheme = options.scheme || urnComponent.scheme || "urn";
-        urnComponent.nid = matches2[1].toLowerCase();
-        urnComponent.nss = matches2[2];
+        urnComponent.nid = matches3[1].toLowerCase();
+        urnComponent.nss = matches3[2];
         const urnScheme = `${scheme}:${options.nid || urnComponent.nid}`;
         const schemeHandler = getSchemeHandler(urnScheme);
         urnComponent.path = void 0;
@@ -25911,8 +25911,8 @@ var require_fast_uri = __commonJS({
     var URI_PARSE = /^(?:([^#/:?]+):)?(?:\/\/((?:([^#/?@]*)@)?(\[[^#/?\]]+\]|[^#/:?]*)(?::(\d*))?))?([^#?]*)(?:\?([^#]*))?(?:#((?:.|[\n\r])*))?/u;
     var AUTHORITY_PREFIX = /^(?:[^#/:?]+:)?\/\/([^/?#]*)/;
     var AUTHORITY_INTRODUCER_REGION = /^(?:[^#/:?]+:)?([/\\\t\n\r]*)/;
-    function getParseError(parsed, matches2) {
-      if (matches2[2] !== void 0 && parsed.path && parsed.path[0] !== "/") {
+    function getParseError(parsed, matches3) {
+      if (matches3[2] !== void 0 && parsed.path && parsed.path[0] !== "/") {
         return 'URI path must start with "/" when authority is present.';
       }
       if (typeof parsed.port === "number" && (parsed.port < 0 || parsed.port > 65535)) {
@@ -25934,12 +25934,12 @@ var require_fast_uri = __commonJS({
     function isIPLiteral(host) {
       return host[0] === "[" && host[host.length - 1] === "]";
     }
-    function hasMalformedComponentPercentEncoding(matches2) {
-      const host = matches2[4];
-      return hasMalformedPercentEncoding(matches2[3]) || host !== void 0 && !isIPLiteral(host) && hasMalformedPercentEncoding(host) || hasMalformedPercentEncoding(matches2[6]) || hasMalformedPercentEncoding(matches2[7]) || hasMalformedPercentEncoding(matches2[8]);
+    function hasMalformedComponentPercentEncoding(matches3) {
+      const host = matches3[4];
+      return hasMalformedPercentEncoding(matches3[3]) || host !== void 0 && !isIPLiteral(host) && hasMalformedPercentEncoding(host) || hasMalformedPercentEncoding(matches3[6]) || hasMalformedPercentEncoding(matches3[7]) || hasMalformedPercentEncoding(matches3[8]);
     }
-    function canonicalizeHost(parsed, options, schemeHandler, isIP) {
-      if (!options.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport) && parsed.host && !isIPLiteral(parsed.host) && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP === false && nonSimpleDomain(parsed.host)) {
+    function canonicalizeHost(parsed, options, schemeHandler, isIP2) {
+      if (!options.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport) && parsed.host && !isIPLiteral(parsed.host) && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP2 === false && nonSimpleDomain(parsed.host)) {
         try {
           parsed.host = new URL("http://" + parsed.host).hostname;
         } catch (e) {
@@ -25966,7 +25966,7 @@ var require_fast_uri = __commonJS({
       let malformedHost = false;
       let malformedIPLiteral = false;
       let malformedScheme = false;
-      let isIP = false;
+      let isIP2 = false;
       if (options.reference === "suffix") {
         if (options.scheme) {
           uri2 = options.scheme + ":" + uri2;
@@ -25993,15 +25993,15 @@ var require_fast_uri = __commonJS({
           }
         }
       }
-      const matches2 = uri2.match(URI_PARSE);
-      if (matches2) {
-        parsed.scheme = matches2[1];
-        parsed.userinfo = matches2[3];
-        parsed.host = matches2[4];
-        parsed.port = parseInt(matches2[5], 10);
-        parsed.path = matches2[6] || "";
-        parsed.query = matches2[7];
-        parsed.fragment = matches2[8];
+      const matches3 = uri2.match(URI_PARSE);
+      if (matches3) {
+        parsed.scheme = matches3[1];
+        parsed.userinfo = matches3[3];
+        parsed.host = matches3[4];
+        parsed.port = parseInt(matches3[5], 10);
+        parsed.path = matches3[6] || "";
+        parsed.query = matches3[7];
+        parsed.fragment = matches3[8];
         if (parsed.scheme !== void 0) {
           const decodedScheme = unescape(parsed.scheme);
           if (VALID_SCHEME.test(decodedScheme)) {
@@ -26011,14 +26011,14 @@ var require_fast_uri = __commonJS({
             malformedScheme = true;
           }
         }
-        malformedPercentEncoding = hasMalformedComponentPercentEncoding(matches2);
+        malformedPercentEncoding = hasMalformedComponentPercentEncoding(matches3);
         if (malformedPercentEncoding) {
           parsed.error = parsed.error || "URI contains malformed percent-encoding.";
         }
         if (isNaN(parsed.port)) {
-          parsed.port = matches2[5];
+          parsed.port = matches3[5];
         }
-        const parseError = getParseError(parsed, matches2);
+        const parseError = getParseError(parsed, matches3);
         if (parseError !== void 0) {
           parsed.error = parsed.error || parseError;
           malformedAuthorityOrPort = true;
@@ -26029,15 +26029,15 @@ var require_fast_uri = __commonJS({
             const bracketedIPLiteral = isIPLiteral(parsed.host);
             const hasIPLiteralBracket = parsed.host.indexOf("[") !== -1 || parsed.host.indexOf("]") !== -1;
             const ipv6result = normalizeIPv6(parsed.host);
-            isIP = ipv6result.isIPV6 || ipv6result.isIPVFuture === true;
+            isIP2 = ipv6result.isIPV6 || ipv6result.isIPVFuture === true;
             malformedIPLiteral = hasIPLiteralBracket && (!bracketedIPLiteral || ipv6result.error === true);
-            parsed.host = isIP ? ipv6result.host : ipv6result.host.toLowerCase();
+            parsed.host = isIP2 ? ipv6result.host : ipv6result.host.toLowerCase();
             if (malformedIPLiteral) {
               parsed.error = parsed.error || "URI host is malformed.";
               malformedAuthorityOrPort = true;
             }
           } else {
-            isIP = true;
+            isIP2 = true;
           }
         }
         if (parsed.scheme === void 0 && parsed.userinfo === void 0 && parsed.host === void 0 && parsed.port === void 0 && parsed.query === void 0 && !parsed.path) {
@@ -26054,14 +26054,14 @@ var require_fast_uri = __commonJS({
         }
         const schemeHandler = getSchemeHandler(options.scheme || parsed.scheme);
         if (!malformedIPLiteral) {
-          malformedHost = canonicalizeHost(parsed, options, schemeHandler, isIP);
+          malformedHost = canonicalizeHost(parsed, options, schemeHandler, isIP2);
         }
         if (uri2.indexOf("%") !== -1 && parsed.host !== void 0 && !malformedIPLiteral) {
-          let host = isIP ? parsed.host : normalizePercentEncoding(parsed.host, true);
-          if (!isIP) {
+          let host = isIP2 ? parsed.host : normalizePercentEncoding(parsed.host, true);
+          if (!isIP2) {
             host = normalizePercentEncoding(host.toLowerCase());
           }
-          parsed.host = reescapeHostDelimiters(host, isIP);
+          parsed.host = reescapeHostDelimiters(host, isIP2);
         }
         if (!schemeHandler || schemeHandler && !schemeHandler.skipNormalize) {
           if (parsed.path) {
@@ -26962,8 +26962,8 @@ var require_multipleOf = __commonJS({
         const { gen, data, schemaCode, it } = cxt;
         const prec = it.opts.multipleOfPrecision;
         const res = gen.let("res");
-        const invalid = prec ? (0, codegen_1._)`Math.abs(Math.round(${res}) - ${res}) > 1e-${prec}` : (0, codegen_1._)`${res} !== parseInt(${res})`;
-        cxt.fail$data((0, codegen_1._)`(${schemaCode} === 0 || (${res} = ${data}/${schemaCode}, ${invalid}))`);
+        const invalid2 = prec ? (0, codegen_1._)`Math.abs(Math.round(${res}) - ${res}) > 1e-${prec}` : (0, codegen_1._)`${res} !== parseInt(${res})`;
+        cxt.fail$data((0, codegen_1._)`(${schemaCode} === 0 || (${res} = ${data}/${schemaCode}, ${invalid2}))`);
       }
     };
     exports2.default = def;
@@ -27143,14 +27143,14 @@ var require_required = __commonJS({
           }
         }
         function exitOnErrorMode() {
-          const missing = gen.let("missing");
+          const missing2 = gen.let("missing");
           if (useLoop || $data) {
             const valid = gen.let("valid", true);
-            cxt.block$data(valid, () => loopUntilMissing(missing, valid));
+            cxt.block$data(valid, () => loopUntilMissing(missing2, valid));
             cxt.ok(valid);
           } else {
-            gen.if((0, code_1.checkMissingProp)(cxt, schema, missing));
-            (0, code_1.reportMissingProp)(cxt, missing);
+            gen.if((0, code_1.checkMissingProp)(cxt, schema, missing2));
+            (0, code_1.reportMissingProp)(cxt, missing2);
             gen.else();
           }
         }
@@ -27160,10 +27160,10 @@ var require_required = __commonJS({
             gen.if((0, code_1.noPropertyInData)(gen, data, prop2, opts.ownProperties), () => cxt.error());
           });
         }
-        function loopUntilMissing(missing, valid) {
-          cxt.setParams({ missingProperty: missing });
-          gen.forOf(missing, schemaCode, () => {
-            gen.assign(valid, (0, code_1.propertyInData)(gen, data, missing, opts.ownProperties));
+        function loopUntilMissing(missing2, valid) {
+          cxt.setParams({ missingProperty: missing2 });
+          gen.forOf(missing2, schemaCode, () => {
+            gen.assign(valid, (0, code_1.propertyInData)(gen, data, missing2, opts.ownProperties));
             gen.if((0, codegen_1.not)(valid), () => {
               cxt.error();
               gen.break();
@@ -27701,7 +27701,7 @@ var require_dependencies = __commonJS({
       const { gen, data, it } = cxt;
       if (Object.keys(propertyDeps).length === 0)
         return;
-      const missing = gen.let("missing");
+      const missing2 = gen.let("missing");
       for (const prop2 in propertyDeps) {
         const deps = propertyDeps[prop2];
         if (deps.length === 0)
@@ -27719,8 +27719,8 @@ var require_dependencies = __commonJS({
             }
           });
         } else {
-          gen.if((0, codegen_1._)`${hasProperty} && (${(0, code_1.checkMissingProp)(cxt, deps, missing)})`);
-          (0, code_1.reportMissingProp)(cxt, missing);
+          gen.if((0, codegen_1._)`${hasProperty} && (${(0, code_1.checkMissingProp)(cxt, deps, missing2)})`);
+          (0, code_1.reportMissingProp)(cxt, missing2);
           gen.else();
         }
       }
@@ -28536,8 +28536,8 @@ var require_discriminator = __commonJS({
           if (!tagRequired)
             throw new Error(`discriminator: "${tagName19}" must be required`);
           return oneOfMapping;
-          function hasRequired({ required: required3 }) {
-            return Array.isArray(required3) && required3.includes(tagName19);
+          function hasRequired({ required: required4 }) {
+            return Array.isArray(required4) && required4.includes(tagName19);
           }
           function addMappings(sch, i2) {
             if (sch.const) {
@@ -28868,12 +28868,12 @@ var require_formats = __commonJS({
     var DATE2 = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
     var DAYS2 = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     function date10(str) {
-      const matches2 = DATE2.exec(str);
-      if (!matches2)
+      const matches3 = DATE2.exec(str);
+      if (!matches3)
         return false;
-      const year = +matches2[1];
-      const month = +matches2[2];
-      const day = +matches2[3];
+      const year = +matches3[1];
+      const month = +matches3[2];
+      const day = +matches3[3];
       return month >= 1 && month <= 12 && day >= 1 && day <= (month === 2 && isLeapYear2(year) ? 29 : DAYS2[month]);
     }
     function compareDate(d1, d2) {
@@ -28888,16 +28888,16 @@ var require_formats = __commonJS({
     var TIME2 = /^(\d\d):(\d\d):(\d\d(?:\.\d+)?)(z|([+-])(\d\d)(?::?(\d\d))?)?$/i;
     function getTime(strictTimeZone) {
       return function time6(str) {
-        const matches2 = TIME2.exec(str);
-        if (!matches2)
+        const matches3 = TIME2.exec(str);
+        if (!matches3)
           return false;
-        const hr = +matches2[1];
-        const min = +matches2[2];
-        const sec = +matches2[3];
-        const tz = matches2[4];
-        const tzSign = matches2[5] === "-" ? -1 : 1;
-        const tzH = +(matches2[6] || 0);
-        const tzM = +(matches2[7] || 0);
+        const hr = +matches3[1];
+        const min = +matches3[2];
+        const sec = +matches3[3];
+        const tz = matches3[4];
+        const tzSign = matches3[5] === "-" ? -1 : 1;
+        const tzH = +(matches3[6] || 0);
+        const tzM = +(matches3[7] || 0);
         if (tzH > 23 || tzM > 59 || strictTimeZone && !tz)
           return false;
         if (hr <= 23 && min <= 59 && sec < 60)
@@ -29094,12 +29094,12 @@ var require_dist = __commonJS({
         throw new Error(`Unknown format "${name}"`);
       return f2;
     };
-    function addFormats(ajv, list, fs2, exportName) {
+    function addFormats(ajv, list, fs3, exportName) {
       var _a8;
       var _b2;
       (_a8 = (_b2 = ajv.opts.code).formats) !== null && _a8 !== void 0 ? _a8 : _b2.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f2 of list)
-        ajv.addFormat(f2, fs2[f2]);
+        ajv.addFormat(f2, fs3[f2]);
     }
     module.exports = exports2 = formatsPlugin;
     Object.defineProperty(exports2, "__esModule", { value: true });
@@ -29213,7 +29213,7 @@ var require_content_type = __commonJS({
 
 // src/server/index.ts
 import { homedir } from "node:os";
-import { join as join2, resolve as resolve2 } from "node:path";
+import { join as join3, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
@@ -30881,7 +30881,7 @@ var nameChar = nameStartChar + "\\-.\\d\\u00B7\\u0300-\\u036F\\u203F-\\u2040";
 var nameRegexp = "[" + nameStartChar + "][" + nameChar + "]*";
 var regexName = new RegExp("^" + nameRegexp + "$");
 function getAllMatches(string7, regex2) {
-  const matches2 = [];
+  const matches3 = [];
   let match = regex2.exec(string7);
   while (match) {
     const allmatches = [];
@@ -30890,10 +30890,10 @@ function getAllMatches(string7, regex2) {
     for (let index = 0; index < len; index++) {
       allmatches.push(match[index]);
     }
-    matches2.push(allmatches);
+    matches3.push(allmatches);
     match = regex2.exec(string7);
   }
-  return matches2;
+  return matches3;
 }
 var isName = function(string7) {
   const match = regexName.exec(string7);
@@ -31186,24 +31186,24 @@ function scanAttributeTokens(attrStr) {
   return tokens;
 }
 function validateAttributeString(attrStr, options) {
-  const matches2 = scanAttributeTokens(attrStr);
+  const matches3 = scanAttributeTokens(attrStr);
   const attrNames = {};
-  for (let i2 = 0; i2 < matches2.length; i2++) {
-    if (matches2[i2][1].length === 0) {
-      return getErrorObject("InvalidAttr", "Attribute '" + matches2[i2][2] + "' has no space in starting.", getPositionFromMatch(matches2[i2]));
-    } else if (matches2[i2][3] !== void 0 && matches2[i2][4] === void 0) {
-      return getErrorObject("InvalidAttr", "Attribute '" + matches2[i2][2] + "' is without value.", getPositionFromMatch(matches2[i2]));
-    } else if (matches2[i2][3] === void 0 && !options.allowBooleanAttributes) {
-      return getErrorObject("InvalidAttr", "boolean attribute '" + matches2[i2][2] + "' is not allowed.", getPositionFromMatch(matches2[i2]));
+  for (let i2 = 0; i2 < matches3.length; i2++) {
+    if (matches3[i2][1].length === 0) {
+      return getErrorObject("InvalidAttr", "Attribute '" + matches3[i2][2] + "' has no space in starting.", getPositionFromMatch(matches3[i2]));
+    } else if (matches3[i2][3] !== void 0 && matches3[i2][4] === void 0) {
+      return getErrorObject("InvalidAttr", "Attribute '" + matches3[i2][2] + "' is without value.", getPositionFromMatch(matches3[i2]));
+    } else if (matches3[i2][3] === void 0 && !options.allowBooleanAttributes) {
+      return getErrorObject("InvalidAttr", "boolean attribute '" + matches3[i2][2] + "' is not allowed.", getPositionFromMatch(matches3[i2]));
     }
-    const attrName = matches2[i2][2];
+    const attrName = matches3[i2][2];
     if (!validateAttrName(attrName)) {
-      return getErrorObject("InvalidAttr", "Attribute '" + attrName + "' is an invalid name.", getPositionFromMatch(matches2[i2]));
+      return getErrorObject("InvalidAttr", "Attribute '" + attrName + "' is an invalid name.", getPositionFromMatch(matches3[i2]));
     }
     if (!Object.prototype.hasOwnProperty.call(attrNames, attrName)) {
       attrNames[attrName] = 1;
     } else {
-      return getErrorObject("InvalidAttr", "Attribute '" + attrName + "' is repeated.", getPositionFromMatch(matches2[i2]));
+      return getErrorObject("InvalidAttr", "Attribute '" + attrName + "' is repeated.", getPositionFromMatch(matches3[i2]));
     }
   }
   return true;
@@ -34342,15 +34342,15 @@ var attrsRegx = new RegExp(`([^\\s=]+)\\s*(=\\s*(['"])([\\s\\S]*?)\\3)?`, "gm");
 function buildAttributesMap(attrStr, jPath, tagName19, force = false) {
   const options = this.options;
   if (force === true || options.ignoreAttributes !== true && typeof attrStr === "string") {
-    const matches2 = getAllMatches(attrStr, attrsRegx);
-    const len = matches2.length;
+    const matches3 = getAllMatches(attrStr, attrsRegx);
+    const len = matches3.length;
     const attrs = {};
     const processedVals = new Array(len);
     let hasRawAttrs = false;
     const rawAttrsForMatcher = {};
     for (let i2 = 0; i2 < len; i2++) {
-      const attrName = this.resolveNameSpace(matches2[i2][1]);
-      const oldVal = matches2[i2][4];
+      const attrName = this.resolveNameSpace(matches3[i2][1]);
+      const oldVal = matches3[i2][4];
       if (attrName.length && oldVal !== void 0) {
         let val = oldVal;
         if (options.trimValues) val = val.trim();
@@ -34366,7 +34366,7 @@ function buildAttributesMap(attrStr, jPath, tagName19, force = false) {
     const jPathStr = options.jPath ? jPath.toString() : this.readonlyMatcher;
     let hasAttrs = false;
     for (let i2 = 0; i2 < len; i2++) {
-      const attrName = this.resolveNameSpace(matches2[i2][1]);
+      const attrName = this.resolveNameSpace(matches3[i2][1]);
       if (this.ignoreAttributesFn(attrName, jPathStr)) continue;
       let aName = options.attributeNamePrefix + attrName;
       if (attrName.length) {
@@ -34374,7 +34374,7 @@ function buildAttributesMap(attrStr, jPath, tagName19, force = false) {
           aName = options.transformAttributeName(aName);
         }
         aName = sanitizeName(aName, options);
-        if (matches2[i2][4] !== void 0) {
+        if (matches3[i2][4] !== void 0) {
           const oldVal = processedVals[i2];
           const newVal = options.attributeValueProcessor(attrName, oldVal, jPathStr);
           if (newVal === null || newVal === void 0) {
@@ -41261,13 +41261,13 @@ function nthCheck(formula) {
 }
 
 // node_modules/css-select/dist/helpers/cache.js
-function cacheParentResults(next, { adapter: adapter2, cacheResults }, matches2) {
+function cacheParentResults(next, { adapter: adapter2, cacheResults }, matches3) {
   if (cacheResults === false || typeof WeakMap === "undefined") {
-    return (element) => next(element) && matches2(element);
+    return (element) => next(element) && matches3(element);
   }
   const resultCache = /* @__PURE__ */ new WeakMap();
   function addResultToCache(element) {
-    const result = matches2(element);
+    const result = matches3(element);
     resultCache.set(element, result);
     return result;
   }
@@ -41900,7 +41900,7 @@ function _compileUnsafe(selector, options, context) {
   return compileToken(typeof selector === "string" ? parse3(selector) : selector, convertOptionFormats(options), context);
 }
 function getSelectorFunction(searchFunction) {
-  return function select(query2, elements, options) {
+  return function select2(query2, elements, options) {
     const convertedOptions = convertOptionFormats(options);
     if (typeof query2 !== "function") {
       query2 = _compileUnsafe(query2, convertedOptions, elements);
@@ -41975,15 +41975,15 @@ var removeSubsets3 = (nodes) => {
   return nodes;
 };
 var findAll4 = (test, nodes) => {
-  const matches2 = [];
+  const matches3 = [];
   for (const node2 of nodes) {
     if (isTag5(node2)) {
       if (test(node2))
-        matches2.push(node2);
-      matches2.push(...findAll4(test, getChildren3(node2)));
+        matches3.push(node2);
+      matches3.push(...findAll4(test, getChildren3(node2)));
     }
   }
-  return matches2;
+  return matches3;
 };
 var findOne4 = (test, nodes) => {
   for (let node2 of nodes)
@@ -42181,21 +42181,21 @@ var ParentNode = class extends Node2 {
     return elements;
   }
   querySelector(selectors) {
-    const matches2 = prepareMatch(this, selectors);
+    const matches3 = prepareMatch(this, selectors);
     let { [NEXT]: next, [END]: end } = this;
     while (next !== end) {
-      if (next.nodeType === ELEMENT_NODE && matches2(next))
+      if (next.nodeType === ELEMENT_NODE && matches3(next))
         return next;
       next = next.nodeType === ELEMENT_NODE && next.localName === "template" ? next[END] : next[NEXT];
     }
     return null;
   }
   querySelectorAll(selectors) {
-    const matches2 = prepareMatch(this, selectors);
+    const matches3 = prepareMatch(this, selectors);
     const elements = new NodeList();
     let { [NEXT]: next, [END]: end } = this;
     while (next !== end) {
-      if (next.nodeType === ELEMENT_NODE && matches2(next))
+      if (next.nodeType === ELEMENT_NODE && matches3(next))
         elements.push(next);
       next = next.nodeType === ELEMENT_NODE && next.localName === "template" ? next[END] : next[NEXT];
     }
@@ -42887,9 +42887,9 @@ var Element2 = class extends ParentNode {
     return this.toString();
   }
   set outerHTML(html) {
-    const template = this.ownerDocument.createElement("");
-    template.innerHTML = html;
-    this.replaceWith(...template.childNodes);
+    const template2 = this.ownerDocument.createElement("");
+    template2.innerHTML = html;
+    this.replaceWith(...template2.childNodes);
   }
   // </contentRelated>
   // <attributes>
@@ -43021,8 +43021,8 @@ var Element2 = class extends ParentNode {
   }
   closest(selectors) {
     let parentElement2 = this;
-    const matches2 = prepareMatch(parentElement2, selectors);
-    while (parentElement2 && !matches2(parentElement2))
+    const matches3 = prepareMatch(parentElement2, selectors);
+    while (parentElement2 && !matches3(parentElement2))
       parentElement2 = parentElement2.parentElement;
     return parentElement2;
   }
@@ -46280,9 +46280,9 @@ function importEpub(filename, bytes) {
   safeArchivePath(opfPath);
   const opf = parseXml2(get(opfPath), "EPUB package").package;
   if (!opf?.manifest || !opf?.spine) throw new Error("EPUB package has no manifest or reading order.");
-  const metadata = opf.metadata ?? {};
-  const title = clean(stringValue(asArray(metadata.title)[0])) || filenameTitle(filename);
-  const author = asArray(metadata.creator).map(stringValue).map(clean).filter(Boolean).join(", ");
+  const metadata2 = opf.metadata ?? {};
+  const title = clean(stringValue(asArray(metadata2.title)[0])) || filenameTitle(filename);
+  const author = asArray(metadata2.creator).map(stringValue).map(clean).filter(Boolean).join(", ");
   const items = asArray(opf.manifest.item);
   const manifest = /* @__PURE__ */ new Map();
   for (const item of items) {
@@ -46425,6 +46425,7 @@ var ReaderStore = class {
   }
   /** Per-book, cross-process locks prevent two plugin clients losing each other's updates. */
   async locked(key2, work) {
+    if (!/^[a-z0-9-]+$/.test(key2)) throw new Error("Invalid lock key.");
     await this.ready;
     const lockPath = join(this.locksDir, key2);
     const ownerPath = join(lockPath, "owner.json");
@@ -46458,8 +46459,8 @@ var ReaderStore = class {
           }
         } catch (readError) {
           if (isMissing(readError)) {
-            const stat2 = await fs.stat(lockPath).catch(() => void 0);
-            if (stat2 && Date.now() - stat2.mtimeMs > 3e4) {
+            const stat3 = await fs.stat(lockPath).catch(() => void 0);
+            if (stat3 && Date.now() - stat3.mtimeMs > 3e4) {
               await fs.rm(lockPath, { recursive: true, force: true });
               continue;
             }
@@ -46563,7 +46564,7 @@ var ReaderStore = class {
       }
       const document2 = importDocument(filename, bytes, encoding);
       const summary = { id: id2, title: document2.title, author: document2.author, format: document2.format, addedAt: (/* @__PURE__ */ new Date()).toISOString(), progress: 0, locator: { chapter: 0, paragraph: 0 }, chapterCount: document2.chapters.length, wordCount: countWords(document2.chapters.flatMap((chapter) => chapter.paragraphs)) };
-      const record3 = { version: 1, originalFilename: filename.split(/[\\/]/).pop() ?? filename, summary, document: document2, bookmarks: [] };
+      const record3 = { version: 1, originalFilename: filename.split(/[\\/]/).pop() ?? filename, summary: summarySchema.parse(summary), document: documentSchema.parse(document2), bookmarks: [] };
       const staging = join(this.booksDir, `.import-${id2}-${randomUUID()}`);
       await fs.mkdir(staging, { mode: 448 });
       try {
@@ -46638,16 +46639,1094 @@ var ReaderStore = class {
 };
 
 // src/server/service.ts
+import { randomUUID as randomUUID3 } from "node:crypto";
+
+// src/server/online/service.ts
+import * as fs2 from "node:fs/promises";
+import { join as join2 } from "node:path";
 import { randomUUID as randomUUID2 } from "node:crypto";
-var locator = external_exports.object({ chapter: external_exports.number().int().min(0), paragraph: external_exports.number().int().min(0) }).strict();
+
+// src/server/online/import.ts
+import { createHash as createHash3 } from "node:crypto";
+
+// src/shared/online.ts
+var stages = ["search", "detail", "toc", "content"];
+
+// src/server/online/rules.ts
+var RuleError = class extends Error {
+  constructor(status2, message) {
+    super(message);
+    this.status = status2;
+  }
+  status;
+};
+var deny = (message) => {
+  throw new RuleError("blocked", message);
+};
+var invalid = (message) => {
+  throw new RuleError("invalid", message);
+};
+var forbiddenKeys = /* @__PURE__ */ new Set(["__proto__", "prototype", "constructor"]);
+var RULE_LIMITS = Object.freeze({ bytes: 2 * 1024 * 1024, nodes: 2e4, depth: 128, attributes: 128, name: 128, attributeValue: 8192, results: 1e4, work: 2e6, text: 4 * 1024 * 1024 });
+var Budget = class {
+  work = 0;
+  text = 0;
+  spend(amount = 1) {
+    this.work += amount;
+    if (this.work > RULE_LIMITS.work) throw new Error("\u89C4\u5219\u540C\u6B65\u5DE5\u4F5C\u9884\u7B97\u8D85\u9650");
+  }
+  output(length) {
+    this.text += length;
+    if (this.text > RULE_LIMITS.text) throw new Error("\u89C4\u5219\u6587\u672C\u8F93\u51FA\u9884\u7B97\u8D85\u9650");
+  }
+};
+var budgets = /* @__PURE__ */ new WeakMap();
+var isDomNode = (value) => value instanceof Node3;
+function budgetFor(context) {
+  if (context && typeof context === "object" && budgets.has(context)) return budgets.get(context);
+  const owner = isDomNode(context) ? context.ownerDocument ?? context : context;
+  if (!owner || typeof owner !== "object") return new Budget();
+  let budget = budgets.get(owner);
+  if (!budget) {
+    budget = new Budget();
+    budgets.set(owner, budget);
+  }
+  return budget;
+}
+function cssStep(selector, index) {
+  const pieces = selector.trim().split(/(\s*>\s*|\s+)/);
+  const compounds = [], relations = [];
+  if (pieces.length > 39) return invalid("CSS \u9009\u62E9\u5668\u8D85\u8FC7 20 \u5C42");
+  for (let i2 = 0; i2 < pieces.length; i2++) {
+    if (i2 % 2) {
+      relations.push(pieces[i2].includes(">") ? ">" : " ");
+      continue;
+    }
+    let rest = pieces[i2];
+    const tag = rest.match(/^(\*|[A-Za-z][\w-]*)/);
+    if (tag) rest = rest.slice(tag[0].length);
+    const attributes = [];
+    while (rest) {
+      const simple = rest.match(/^([.#])([A-Za-z_][\w-]*)/);
+      const attribute2 = rest.match(/^\[([A-Za-z_][\w-]*)(?:=(["'])([A-Za-z0-9_/:.-]+)\2)?\]/);
+      if (simple) {
+        attributes.push({ name: simple[1] === "." ? "class" : "id", value: simple[2], word: simple[1] === "." });
+        rest = rest.slice(simple[0].length);
+      } else if (attribute2) {
+        attributes.push({ name: attribute2[1], value: attribute2[3] });
+        rest = rest.slice(attribute2[0].length);
+      } else return deny(`\u4E0D\u652F\u6301\u7684 CSS/\u7ECF\u5178\u9009\u62E9\u5668\uFF1A${selector.slice(0, 80)}`);
+    }
+    if (!tag && !attributes.length) return invalid("CSS \u9009\u62E9\u5668\u542B\u7A7A\u6B65\u9AA4");
+    compounds.push({ tag: tag?.[1].toLowerCase(), attributes });
+  }
+  return { selector, index, compounds, relations };
+}
+function compileRule(input2, list = false) {
+  if (!input2.trim() || input2.length > 2048) return invalid("\u89C4\u5219\u4E3A\u7A7A\u6216\u8D85\u8FC7 2048 \u5B57\u7B26");
+  let rule = input2.trim();
+  if (/@js:|<\/?js>|javascript:|\{\{|##|&&|\|\||@(?:get|put|json):/i.test(rule)) return deny("\u4E0D\u652F\u6301\u811A\u672C\u3001\u6A21\u677F\u8868\u8FBE\u5F0F\u3001\u66FF\u6362\u3001\u7EC4\u5408\u6216\u53D8\u91CF\u89C4\u5219");
+  if (rule.startsWith("$")) {
+    const path = [];
+    let rest = rule.slice(1);
+    while (rest) {
+      const match = rest.match(/^(?:\.([A-Za-z_][\w-]*)|\[(\d{1,5}|\*)\]|\[['"]([A-Za-z_][\w-]*)['"]\])/);
+      if (!match) return deny("\u4EC5\u652F\u6301 JSONPath \u5C5E\u6027\u3001\u975E\u8D1F\u6570\u7EC4\u7D22\u5F15\u548C [*]\uFF1B\u4E0D\u652F\u6301\u8868\u8FBE\u5F0F\u3001\u8FC7\u6EE4\u3001\u9012\u5F52\u6216\u5207\u7247");
+      const key2 = match[1] ?? match[3];
+      if (key2 && forbiddenKeys.has(key2)) return deny("\u7981\u6B62\u539F\u578B\u5C5E\u6027");
+      path.push(key2 ?? (match[2] === "*" ? "*" : Number(match[2])));
+      rest = rest.slice(match[0].length);
+      if (path.length > 20) return invalid("JSONPath \u5C42\u7EA7\u8D85\u8FC7 20");
+    }
+    return { kind: "json", path };
+  }
+  rule = rule.replace(/^@?css:/i, "");
+  const parts = rule.split("@");
+  let output2;
+  if (!list) {
+    output2 = parts.pop();
+    if (!output2 || !["text", "ownText", "href", "src", "content", "title", "value"].includes(output2)) return deny("\u6587\u672C\u89C4\u5219\u9700\u4EE5 @text/@ownText \u6216\u53D7\u652F\u6301\u5C5E\u6027\u7ED3\u5C3E\uFF1BHTML \u4E0D\u4F5C\u4E3A\u6B63\u6587\u6267\u884C");
+  }
+  if (parts.length > 20) return invalid("\u9009\u62E9\u5668\u94FE\u8D85\u8FC7 20 \u5C42");
+  const rootText = !list && parts.length === 1 && parts[0] === "";
+  if (!rootText && parts.some((part) => !part)) return invalid("\u9009\u62E9\u5668\u94FE\u542B\u7A7A\u6B65\u9AA4");
+  const steps = (rootText ? [] : parts).map((part) => {
+    const classic = part.match(/^(class|tag|id)\.([A-Za-z_][\w-]*)(?:\.(\d{1,5}))?$/);
+    if (classic) return cssStep(`${classic[1] === "class" ? "." : classic[1] === "id" ? "#" : ""}${classic[2]}`, classic[3] === void 0 ? void 0 : Number(classic[3]));
+    const atom = /^(?:[A-Za-z][\w-]*|\*)?(?:[.#][A-Za-z_][\w-]*|\[[A-Za-z_][\w-]*(?:=["'][A-Za-z0-9_/:.-]+["'])?\])*$/;
+    const compounds = part.trim().split(/\s*>\s*|\s+/);
+    if (compounds.length > 20 || compounds.some((c) => !c || !atom.test(c)) || /(?:^|@)(?:class|tag|id)\./.test(part)) return deny(`\u4E0D\u652F\u6301\u7684 CSS/\u7ECF\u5178\u9009\u62E9\u5668\uFF1A${part.slice(0, 80)}`);
+    return cssStep(part);
+  });
+  if (list && !steps.length) return invalid("\u5217\u8868\u9009\u62E9\u5668\u4E0D\u80FD\u4E3A\u7A7A");
+  return { kind: "css", steps, output: output2 };
+}
+function documentContext(body) {
+  if (Buffer.byteLength(body) > RULE_LIMITS.bytes) throw new Error("\u89C4\u5219\u8F93\u5165\u8D85\u8FC7 2 MiB");
+  const budget = new Budget();
+  if (/^\s*[\[{]/.test(body)) {
+    let depth2 = 0, tokens2 = 0, quoted = false, escaped = false;
+    for (const char of body) {
+      if (quoted) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') quoted = false;
+        continue;
+      }
+      if (char === '"') quoted = true;
+      else if (char === "{" || char === "[") {
+        if (++depth2 > RULE_LIMITS.depth || ++tokens2 > RULE_LIMITS.nodes) throw new Error("JSON \u7ED3\u6784\u9884\u7B97\u8D85\u9650");
+      } else if (char === "}" || char === "]") depth2--;
+      else if (char === "," || char === ":") {
+        if (++tokens2 > RULE_LIMITS.nodes) throw new Error("JSON \u7ED3\u6784\u9884\u7B97\u8D85\u9650");
+      }
+    }
+    let root2;
+    try {
+      root2 = JSON.parse(body);
+    } catch {
+      throw new Error("\u54CD\u5E94\u4E0D\u662F\u6709\u6548 JSON");
+    }
+    const stack = [root2];
+    while (stack.length) {
+      const value = stack.pop();
+      if (!value || typeof value !== "object") continue;
+      budgets.set(value, budget);
+      for (const key2 of Object.keys(value)) if (value[key2] && typeof value[key2] === "object") stack.push(value[key2]);
+    }
+    return root2;
+  }
+  let tokens = 0;
+  for (const char of body) if ((char === "<" || char === "&") && ++tokens > RULE_LIMITS.nodes * 2) throw new Error("HTML \u6807\u8BB0/\u5B9E\u4F53\u9884\u7B97\u8D85\u9650");
+  let depth = 0, nodes = 0, attributes = 0;
+  const node2 = () => {
+    if (++nodes > RULE_LIMITS.nodes) throw new Error("DOM \u8282\u70B9\u9884\u7B97\u8D85\u9650");
+  };
+  new Parser({
+    onopentagname(name) {
+      node2();
+      attributes = 0;
+      if (name.length > RULE_LIMITS.name) throw new Error("DOM \u540D\u79F0\u9884\u7B97\u8D85\u9650");
+      if (++depth > RULE_LIMITS.depth) throw new Error("DOM \u6DF1\u5EA6\u8D85\u8FC7 128 \u5C42");
+    },
+    onattribute(name, value) {
+      node2();
+      if (++attributes > RULE_LIMITS.attributes) throw new Error("\u5355\u4E2A\u5143\u7D20\u5C5E\u6027\u8D85\u8FC7 128 \u9879");
+      if (name.length > RULE_LIMITS.name || value.length > RULE_LIMITS.attributeValue) throw new Error("DOM \u5C5E\u6027\u957F\u5EA6\u9884\u7B97\u8D85\u9650");
+    },
+    onclosetag() {
+      depth--;
+    },
+    ontext: node2,
+    oncomment: node2,
+    onprocessinginstruction: node2
+  }, { lowerCaseAttributeNames: false, decodeEntities: true, xmlMode: false }).end(body);
+  const document2 = new DOMParser().parseFromString(body, "text/html");
+  budgets.set(document2, budget);
+  return document2;
+}
+var ignored = /* @__PURE__ */ new Set(["script", "style", "iframe", "object", "embed", "svg", "form", "noscript"]);
+var blocks = /* @__PURE__ */ new Set(["p", "div", "li", "h1", "h2", "h3", "section", "article"]);
+function* walk(root2, budget, skip = () => false) {
+  let node2 = root2.nodeType === 9 ? root2.documentElement ?? root2.firstChild : root2.firstChild, depth = 1;
+  while (node2) {
+    budget.spend();
+    if (depth > RULE_LIMITS.depth) throw new Error("DOM \u6DF1\u5EA6\u8D85\u8FC7 128 \u5C42");
+    let prune = skip(node2);
+    if (!prune) yield { node: node2, exit: false };
+    if (!prune && node2.firstChild) {
+      node2 = node2.firstChild;
+      depth++;
+      continue;
+    }
+    while (node2 && node2 !== root2) {
+      budget.spend();
+      if (!prune) yield { node: node2, exit: true };
+      if (node2.nextSibling) {
+        node2 = node2.nextSibling;
+        break;
+      }
+      node2 = node2.parentNode;
+      depth--;
+      prune = false;
+    }
+    if (node2 === root2) break;
+  }
+}
+function matchesCompound(node2, compound, budget) {
+  budget.spend();
+  if (node2.nodeType !== 1 || compound.tag && compound.tag !== "*" && node2.localName.toLowerCase() !== compound.tag) return false;
+  for (const attribute2 of compound.attributes) {
+    budget.spend(RULE_LIMITS.attributes);
+    const value = node2.getAttribute(attribute2.name);
+    if (value === null) return false;
+    if (attribute2.value !== void 0) {
+      budget.spend(value.length);
+      if (attribute2.word ? !new RegExp(`(?:^|\\s)${attribute2.value}(?:\\s|$)`).test(value) : value !== attribute2.value) return false;
+    }
+  }
+  return true;
+}
+function matches2(node2, step, budget) {
+  if (step.compounds.length === 1) return matchesCompound(node2, step.compounds[0], budget);
+  if (!matchesCompound(node2, step.compounds[step.compounds.length - 1], budget)) return false;
+  const ancestry = [];
+  for (let current2 = node2; current2?.nodeType === 1; current2 = current2.parentNode) {
+    budget.spend();
+    if (ancestry.length >= RULE_LIMITS.depth) throw new Error("DOM \u6DF1\u5EA6\u8D85\u8FC7 128 \u5C42");
+    ancestry.push(current2);
+  }
+  let previous = new Array(step.compounds.length).fill(false);
+  let current = new Array(step.compounds.length).fill(false);
+  const ancestor = new Array(step.compounds.length).fill(false);
+  for (let j2 = ancestry.length - 1; j2 >= 0; j2--) {
+    for (let i2 = 0; i2 < current.length; i2++) {
+      budget.spend();
+      current[i2] = (i2 === 0 || (step.relations[i2 - 1] === ">" ? previous[i2 - 1] : ancestor[i2 - 1])) && matchesCompound(ancestry[j2], step.compounds[i2], budget);
+    }
+    for (let i2 = 0; i2 < current.length; i2++) ancestor[i2] ||= current[i2];
+    [previous, current] = [current, previous];
+  }
+  return previous[previous.length - 1];
+}
+function plain(node2, budget, own2 = false) {
+  const chunks = [];
+  const append4 = (text) => {
+    budget.output(text.length);
+    chunks.push(text);
+  };
+  if (!node2?.nodeType) {
+    if (typeof node2 === "string" || typeof node2 === "number") append4(String(node2));
+  } else if (!ignored.has(node2.localName?.toLowerCase())) {
+    if (own2) {
+      for (let child = node2.firstChild; child; child = child.nextSibling) {
+        budget.spend();
+        if (child.nodeType === 3) append4(child.nodeValue ?? "");
+      }
+    } else {
+      for (const item of walk(node2, budget, (child) => ignored.has(child.localName?.toLowerCase()))) {
+        if (!item.exit && (item.node.nodeType === 3 || item.node.nodeType === 4)) append4(item.node.nodeValue ?? "");
+        else if (!item.exit && item.node.localName === "br" || item.exit && blocks.has(item.node.localName)) append4("\n");
+      }
+    }
+  }
+  return chunks.join("").replace(/\r/g, "").trim();
+}
+function select(rule, context, options = {}) {
+  const budget = budgetFor(context);
+  let nodes = [context];
+  if (rule.kind === "json") {
+    if (options.strictJson && isDomNode(context)) throw new Error("JSONPath \u5217\u8868\u89C4\u5219\u9700\u8981 JSON \u54CD\u5E94");
+    for (const key2 of rule.path) {
+      const next = [];
+      const add2 = (value) => {
+        budget.spend();
+        if (next.length >= RULE_LIMITS.results) throw new Error("\u89C4\u5219\u7ED3\u679C\u8D85\u8FC7 10000 \u9879");
+        next.push(value);
+      };
+      for (const node2 of nodes) {
+        budget.spend();
+        if (key2 === "*") {
+          if (Array.isArray(node2)) for (const value of node2) add2(value);
+          else if (options.strictJson) throw new Error("JSONPath \u5217\u8868\u901A\u914D\u7B26\u9700\u8981\u6570\u7EC4");
+        } else if (node2 !== null && typeof node2 === "object" && Object.hasOwn(node2, key2)) add2(node2[key2]);
+        else if (options.strictJson && !(typeof key2 === "number" && Array.isArray(node2))) throw new Error(`JSONPath \u5217\u8868\u8DEF\u5F84\u7F3A\u5C11\u5B57\u6BB5\u6216\u7D22\u5F15\uFF1A${key2}`);
+      }
+      nodes = next;
+    }
+    return nodes;
+  }
+  for (const step of rule.steps) {
+    const next = [], seen = /* @__PURE__ */ new Set(), visited = /* @__PURE__ */ new Set();
+    for (const root2 of nodes) {
+      if (!isDomNode(root2) || ![1, 9, 11].includes(root2.nodeType)) throw new Error("CSS \u89C4\u5219\u9700\u8981 HTML \u54CD\u5E94");
+      let index = 0;
+      for (const item of walk(root2, budget, (node2) => step.index === void 0 && visited.has(node2))) {
+        if (item.exit) continue;
+        const node2 = item.node;
+        if (visited.size >= RULE_LIMITS.nodes && !visited.has(node2)) throw new Error("DOM \u8282\u70B9\u9884\u7B97\u8D85\u9650");
+        visited.add(node2);
+        if (node2.nodeType !== 1 || !matches2(node2, step, budget)) continue;
+        if (step.index !== void 0 && index++ !== step.index) continue;
+        if (!seen.has(node2)) {
+          if (next.length >= RULE_LIMITS.results) throw new Error("\u89C4\u5219\u7ED3\u679C\u8D85\u8FC7 10000 \u9879");
+          seen.add(node2);
+          next.push(node2);
+        }
+        if (step.index !== void 0) break;
+      }
+    }
+    nodes = next;
+  }
+  return nodes;
+}
+function extract(rule, context) {
+  const budget = budgetFor(context), values = [];
+  for (const node2 of select(rule, context)) {
+    let text;
+    if (rule.kind === "json") {
+      text = typeof node2 === "string" || typeof node2 === "number" ? String(node2) : "";
+      budget.output(text.length);
+    } else if (rule.output === "text" || rule.output === "ownText") text = plain(node2, budget, rule.output === "ownText");
+    else {
+      budget.spend(RULE_LIMITS.attributes);
+      text = node2.getAttribute?.(rule.output) ?? "";
+      budget.output(text.length);
+    }
+    if (text.trim()) values.push(text.trim());
+  }
+  return values;
+}
+function template(input2, key2, page) {
+  if (/[{}]/.test(input2.replace(/\{\{(?:key|page)\}\}/g, ""))) throw new RuleError("blocked", "\u4EC5\u652F\u6301 {{key}} \u548C {{page}} \u6A21\u677F");
+  return input2.replace(/\{\{key\}\}/g, encodeURIComponent(key2)).replace(/\{\{page\}\}/g, String(page));
+}
+
+// src/server/online/http.ts
+import { lookup as dnsLookup } from "node:dns/promises";
+import { isIP } from "node:net";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+var HTTP_LIMITS = Object.freeze({ timeout: 1e4, bytes: 2 * 1024 * 1024, redirects: 3, addresses: 3, concurrent: 4, queue: 16 });
+var ConnectionFailure = class extends Error {
+};
+var retryableConnectionErrors = /* @__PURE__ */ new Set(["ECONNRESET", "ECONNREFUSED", "EHOSTUNREACH", "ENETUNREACH", "ETIMEDOUT", "EPIPE"]);
+function publicAddress(address) {
+  const family = isIP(address);
+  if (family === 4) {
+    const [a, b, c] = address.split(".").map(Number);
+    return !(a === 0 || a === 10 || a === 127 || a >= 224 || a === 169 && b === 254 || a === 172 && b >= 16 && b <= 31 || a === 192 && (b === 168 || b === 0 || b === 2 || b === 88 && c === 99) || a === 100 && b >= 64 && b <= 127 || a === 198 && (b === 18 || b === 19 || b === 51 && c === 100) || a === 203 && b === 0 && c === 113);
+  }
+  if (family !== 6 || address.includes("%")) return false;
+  const words = address.toLowerCase().split(":");
+  const first = parseInt(words[0] || "0", 16), second = parseInt(words[1] || "0", 16);
+  return first >= 8192 && first <= 16383 && first !== 8194 && !(first === 8193 && (second < 512 || second === 3512)) && !(first === 16383 && second < 4096);
+}
+function safeUrl(value, base) {
+  if (value.length > 4096 || /[\x00-\x20\\]/.test(value)) throw new Error("URL \u542B\u7A7A\u767D\u3001\u63A7\u5236\u5B57\u7B26\u6216\u8FC7\u957F");
+  let url3;
+  try {
+    url3 = new URL(value, base);
+  } catch {
+    throw new Error("URL \u65E0\u6548");
+  }
+  if (!["http:", "https:"].includes(url3.protocol) || url3.username || url3.password) throw new Error("\u4EC5\u5141\u8BB8\u65E0\u51ED\u636E\u7684 HTTP/HTTPS URL");
+  if (url3.port) throw new Error("\u4EC5\u5141\u8BB8 HTTP 80 / HTTPS 443 \u6807\u51C6\u7AEF\u53E3");
+  const host = url3.hostname.replace(/^\[|\]$/g, "");
+  if (!host || host.endsWith(".") || /(?:^|\.)(?:localhost|local|internal|home|lan|onion|invalid|test)$/.test(host) || !host.includes(".") && !isIP(host)) throw new Error("\u7981\u6B62\u672C\u5730\u6216\u4FDD\u7559\u4E3B\u673A\u540D");
+  if (isIP(host) && !publicAddress(host)) throw new Error("\u7981\u6B62\u56DE\u73AF\u3001\u79C1\u7F51\u3001\u5143\u6570\u636E\u6216\u5176\u4ED6\u975E\u516C\u7F51\u5730\u5740");
+  url3.hash = "";
+  return url3;
+}
+function sameOriginUrl(value, base, origin) {
+  const url3 = safeUrl(value, base);
+  if (url3.origin !== origin) throw new Error("\u94FE\u63A5\u8DE8\u57DF\uFF1B\u672C\u517C\u5BB9\u5B50\u96C6\u53EA\u5141\u8BB8\u4E66\u6E90\u58F0\u660E\u7684\u540C\u4E00 origin");
+  return url3.href;
+}
+var SafeHttpClient = class {
+  constructor(dependencies = {}) {
+    this.dependencies = dependencies;
+  }
+  dependencies;
+  active = 0;
+  waiters = [];
+  async get(value, signal, origin) {
+    const controller = new AbortController();
+    const stop = () => controller.abort(new Error("\u8BF7\u6C42\u5DF2\u53D6\u6D88"));
+    signal?.addEventListener("abort", stop, { once: true });
+    if (signal?.aborted) stop();
+    const timer = setTimeout(() => controller.abort(new Error("\u8054\u7F51\u8D85\u65F6\uFF0810 \u79D2\uFF09")), HTTP_LIMITS.timeout);
+    let release = false;
+    try {
+      await this.slot(controller.signal);
+      release = true;
+      let url3 = safeUrl(value);
+      const allowedOrigin = origin ?? url3.origin;
+      const visited = /* @__PURE__ */ new Set();
+      for (let redirects = 0; ; redirects++) {
+        controller.signal.throwIfAborted();
+        if (url3.origin !== allowedOrigin) throw new Error("\u7981\u6B62\u8DE8\u57DF\u91CD\u5B9A\u5411");
+        if (visited.has(url3.href)) throw new Error("\u68C0\u6D4B\u5230\u91CD\u5B9A\u5411\u5FAA\u73AF");
+        visited.add(url3.href);
+        const result = await this.once(url3, controller.signal);
+        if (result.location !== void 0) {
+          if (redirects >= HTTP_LIMITS.redirects) throw new Error("\u91CD\u5B9A\u5411\u6B21\u6570\u8D85\u8FC7 3");
+          url3 = safeUrl(result.location, url3.href);
+          continue;
+        }
+        const declared = result.type?.match(/charset\s*=\s*["']?([^\s;"']+)/i)?.[1];
+        const meta5 = result.bytes.subarray(0, 4096).toString("ascii").match(/<meta[^>]+charset\s*=\s*["']?([\w-]+)/i)?.[1];
+        const bytes = result.bytes;
+        const bom = bytes[0] === 255 && bytes[1] === 254 ? "utf-16le" : bytes[0] === 254 && bytes[1] === 255 ? "utf-16be" : void 0;
+        const encoding = normalizeEncoding(bom ?? declared ?? meta5 ?? "utf-8");
+        try {
+          return { url: url3.href, text: new TextDecoder(encoding, { fatal: true }).decode(bytes) };
+        } catch {
+          throw new Error(`\u54CD\u5E94\u65E0\u6CD5\u6309 ${encoding} \u89E3\u7801`);
+        }
+      }
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", stop);
+      if (release) {
+        this.active--;
+        this.waiters.shift()?.();
+      }
+    }
+  }
+  async slot(signal) {
+    signal.throwIfAborted();
+    if (this.active >= HTTP_LIMITS.concurrent) {
+      if (this.waiters.length >= HTTP_LIMITS.queue) throw new Error("\u8054\u7F51\u961F\u5217\u5DF2\u6EE1");
+      await new Promise((resolve3, reject) => {
+        const ready = () => {
+          signal.removeEventListener("abort", abort);
+          this.active++;
+          resolve3();
+        };
+        const abort = () => {
+          const index = this.waiters.indexOf(ready);
+          if (index >= 0) this.waiters.splice(index, 1);
+          reject(signal.reason);
+        };
+        this.waiters.push(ready);
+        signal.addEventListener("abort", abort, { once: true });
+      });
+    } else this.active++;
+  }
+  async once(url3, signal) {
+    const host = url3.hostname.replace(/^\[|\]$/g, "");
+    const resolved = isIP(host) ? [{ address: host, family: isIP(host) }] : await this.abortable((this.dependencies.resolve ?? ((name) => dnsLookup(name, { all: true, verbatim: true })))(host), signal);
+    signal.throwIfAborted();
+    if (!resolved.length || resolved.length > 32 || resolved.some((item) => !publicAddress(item.address))) throw new Error("DNS \u5305\u542B\u975E\u516C\u7F51\u5730\u5740\uFF0C\u5DF2\u963B\u6B62\u8FDE\u63A5");
+    const candidates = [...new Map(resolved.map((item) => [`${item.family}:${item.address}`, item])).values()].slice(0, HTTP_LIMITS.addresses);
+    let failure2 = new Error("\u8FDE\u63A5\u5931\u8D25\uFF1B\u8BF7\u68C0\u67E5\u4E66\u6E90\u5730\u5740\u6216\u7A0D\u540E\u91CD\u8BD5");
+    for (const pinned of candidates) {
+      signal.throwIfAborted();
+      try {
+        return await this.connect(url3, signal, pinned);
+      } catch (error112) {
+        if (!(error112 instanceof ConnectionFailure) || signal.aborted) throw error112;
+        failure2 = error112;
+      }
+    }
+    throw failure2;
+  }
+  connect(url3, signal, pinned) {
+    return new Promise((resolve3, reject) => {
+      const options = {
+        agent: false,
+        method: "GET",
+        signal,
+        maxHeaderSize: 16384,
+        headers: { Accept: "text/html,application/json,text/plain", "Accept-Encoding": "identity", "User-Agent": "Reader-Safe-Online/1" },
+        // Host/SNI/TLS retain the original hostname. Every connection uses only
+        // the validated address, so a second DNS answer cannot rebind it.
+        lookup: (_name, opts, callback) => opts?.all ? callback(null, [pinned]) : callback(null, pinned.address, pinned.family)
+      };
+      const transport = this.dependencies.transport ?? ((target, settings, callback) => (target.protocol === "https:" ? httpsRequest : httpRequest)(target, settings, callback));
+      const request = transport(url3, options, (response) => {
+        if ([301, 302, 303, 307, 308].includes(response.statusCode ?? 0)) {
+          const location2 = response.headers.location;
+          response.destroy();
+          if (!location2) reject(new Error("\u91CD\u5B9A\u5411\u7F3A\u5C11 Location"));
+          else resolve3({ location: location2 });
+          return;
+        }
+        if (response.statusCode !== 200) {
+          response.destroy();
+          reject(new Error(`HTTP ${response.statusCode ?? "\u672A\u77E5"}\uFF1B\u672A\u7ED5\u8FC7\u8BBF\u95EE\u9650\u5236`));
+          return;
+        }
+        if (response.headers["content-encoding"] && response.headers["content-encoding"] !== "identity") {
+          response.destroy();
+          reject(new Error("\u9996\u7248\u62D2\u7EDD\u538B\u7F29\u54CD\u5E94\uFF08\u9632\u6B62\u89E3\u538B\u70B8\u5F39\uFF09"));
+          return;
+        }
+        if (Number(response.headers["content-length"] ?? 0) > HTTP_LIMITS.bytes) {
+          response.destroy();
+          reject(new Error("\u54CD\u5E94\u8D85\u8FC7 2 MiB"));
+          return;
+        }
+        const type = response.headers["content-type"] ?? "";
+        if (type && !/^(text\/(html|plain)|application\/(json|xhtml\+xml))(?:;|$)/i.test(type)) {
+          response.destroy();
+          reject(new Error("\u4E0D\u652F\u6301\u7684\u54CD\u5E94\u7C7B\u578B"));
+          return;
+        }
+        let size = 0;
+        const chunks = [];
+        response.on("data", (chunk) => {
+          size += chunk.length;
+          if (size > HTTP_LIMITS.bytes) {
+            response.destroy(new Error("\u54CD\u5E94\u8D85\u8FC7 2 MiB"));
+          } else chunks.push(chunk);
+        });
+        response.on("error", reject);
+        response.on("aborted", () => reject(new Error("\u54CD\u5E94\u4F20\u8F93\u4E2D\u65AD")));
+        response.on("end", () => resolve3({ bytes: Buffer.concat(chunks), type }));
+      });
+      request.on("error", (error112) => reject(signal.aborted ? signal.reason : retryableConnectionErrors.has(error112.code ?? "") ? new ConnectionFailure("\u8FDE\u63A5\u5931\u8D25\uFF1B\u8BF7\u68C0\u67E5\u4E66\u6E90\u5730\u5740\u6216\u7A0D\u540E\u91CD\u8BD5") : new Error("\u8FDE\u63A5\u5931\u8D25\uFF1B\u8BF7\u68C0\u67E5\u4E66\u6E90\u5730\u5740\u6216\u7A0D\u540E\u91CD\u8BD5")));
+      request.end();
+    });
+  }
+  abortable(promise3, signal) {
+    return new Promise((resolve3, reject) => {
+      const abort = () => reject(signal.reason);
+      signal.addEventListener("abort", abort, { once: true });
+      promise3.then(resolve3, () => reject(new Error("DNS \u89E3\u6790\u5931\u8D25"))).finally(() => signal.removeEventListener("abort", abort));
+    });
+  }
+};
+
+// src/server/online/import.ts
+var hash2 = (text) => createHash3("sha256").update(text).digest("hex");
+var SOURCE_LIMITS = Object.freeze({ bytes: 512 * 1024, sources: 50, stored: 100, pages: 5, chapters: 5e3 });
+var stageKeys = { search: "ruleSearch", detail: "ruleBookInfo", toc: "ruleToc", content: "ruleContent" };
+var fields = {
+  search: ["bookList", "name", "author", "bookUrl"],
+  detail: ["name", "author", "intro", "tocUrl"],
+  toc: ["chapterList", "chapterName", "chapterUrl", "nextTocUrl"],
+  content: ["content", "nextContentUrl"]
+};
+var required2 = { search: ["bookList", "name", "bookUrl"], detail: [], toc: ["chapterList", "chapterName", "chapterUrl"], content: ["content"] };
+var metadata = /* @__PURE__ */ new Set(["bookSourceName", "bookSourceUrl", "bookSourceGroup", "bookSourceComment", "bookSourceType", "enabled", "enabledExplore", "customOrder", "lastUpdateTime", "weight", "respondTime", "searchUrl", ...Object.values(stageKeys)]);
+var passive = /* @__PURE__ */ new Set(["coverUrl", "lastChapter", "wordCount", "kind", "updateTime"]);
+var present = (value) => value !== void 0 && value !== null && value !== "" && value !== false;
+function status(issues) {
+  return issues.some((d2) => d2.status === "invalid") ? "invalid" : issues.some((d2) => d2.status === "blocked") ? "blocked" : issues.length ? "partial" : "supported";
+}
+function stable(value) {
+  if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.keys(value).sort().map((key2) => `${JSON.stringify(key2)}:${stable(value[key2])}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+function inspectSource(raw) {
+  const diagnostics = [];
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) raw = { invalid: raw };
+  const issue3 = (field, reason, state = "blocked") => diagnostics.push({ field, status: state, reason });
+  let url3 = "";
+  try {
+    if (typeof raw.bookSourceUrl !== "string") throw new Error("\u7F3A\u5C11\u5B57\u7B26\u4E32\u5730\u5740");
+    url3 = safeUrl(raw.bookSourceUrl).href;
+  } catch (error112) {
+    issue3("bookSourceUrl", error112.message, "invalid");
+  }
+  if (typeof raw.bookSourceName !== "string" || !raw.bookSourceName.trim() || raw.bookSourceName.length > 200) issue3("bookSourceName", "\u540D\u79F0\u5FC5\u586B\uFF0C\u6700\u591A 200 \u5B57\u7B26", "invalid");
+  if (raw.bookSourceType !== void 0 && raw.bookSourceType !== 0) issue3("bookSourceType", "\u4EC5\u652F\u6301\u6587\u5B57\u4E66\u7C4D\u7C7B\u578B 0");
+  for (const [key2, value] of Object.entries(raw)) if (!metadata.has(key2) && present(value)) issue3(key2, "\u672A\u77E5\u6216\u4E0D\u652F\u6301\u7684\u6E90\u7EA7\u5B57\u6BB5\uFF1B\u4E0D\u6267\u884C\u811A\u672C\u3001\u767B\u5F55\u3001\u8BF7\u6C42\u5934\u3001Cookie\u3001\u4F9D\u8D56\u3001\u63A2\u7D22\u6216\u8BA2\u9605");
+  const reports = {};
+  for (const stage of stages) {
+    const problems = [];
+    const add2 = (field, reason, state = "blocked") => problems.push({ field: `${stageKeys[stage]}.${field}`, status: state, reason });
+    const rules = raw[stageKeys[stage]] ?? {};
+    if (!rules || typeof rules !== "object" || Array.isArray(rules)) add2("", "\u9636\u6BB5\u89C4\u5219\u5FC5\u987B\u662F\u5BF9\u8C61", "invalid");
+    else {
+      for (const field of required2[stage]) if (!present(rules[field])) add2(field, "\u7F3A\u5C11\u5FC5\u9700\u89C4\u5219", "invalid");
+      for (const [field, value] of Object.entries(rules)) {
+        if (!present(value)) continue;
+        if (!fields[stage].includes(field)) {
+          add2(field, passive.has(field) ? "\u9996\u7248\u4E0D\u63D0\u53D6\u6B64\u5C55\u793A\u5B57\u6BB5\uFF1B\u5C01\u9762\u4F7F\u7528\u5360\u4F4D\u56FE" : "\u4E0D\u652F\u6301\u8BE5\u5B57\u6BB5\uFF0C\u4E0D\u80FD\u5FFD\u7565\u5B83\u6267\u884C\u6B64\u9636\u6BB5", passive.has(field) ? "partial" : "blocked");
+          continue;
+        }
+        if (typeof value !== "string") {
+          add2(field, "\u89C4\u5219\u5FC5\u987B\u4E3A\u5B57\u7B26\u4E32", "invalid");
+          continue;
+        }
+        try {
+          compileRule(value, field === "bookList" || field === "chapterList");
+        } catch (error112) {
+          add2(field, error112.message, error112 instanceof RuleError ? error112.status : "invalid");
+        }
+      }
+    }
+    if (stage === "search") {
+      try {
+        if (typeof raw.searchUrl !== "string" || !raw.searchUrl) throw new RuleError("invalid", "\u7F3A\u5C11\u641C\u7D22 URL");
+        if (/,\s*\{|@js:|<js>|\{\{[^}]*charset/i.test(raw.searchUrl)) throw new RuleError("blocked", "\u4E0D\u652F\u6301 URL \u8BF7\u6C42\u9009\u9879\u3001\u811A\u672C\u6216\u975E UTF-8 \u641C\u7D22\u53C2\u6570\u7F16\u7801\uFF1B\u4EC5 GET + UTF-8 {{key}}/{{page}}");
+        sameOriginUrl(template(raw.searchUrl, "\u6D4B\u8BD5", 1), url3, new URL(url3).origin);
+      } catch (error112) {
+        problems.push({ field: "searchUrl", status: error112 instanceof RuleError ? error112.status : "invalid", reason: error112.message });
+      }
+    }
+    reports[stage] = { syntax: status([...diagnostics, ...problems]), network: "untested", diagnostics: problems };
+  }
+  const all = stages.map((stage) => reports[stage].syntax);
+  const syntax = diagnostics.some((d2) => d2.status === "invalid") ? "invalid" : diagnostics.some((d2) => d2.status === "blocked") ? "blocked" : all.every((s) => s === "supported") ? "supported" : all.some((s) => s === "supported" || s === "partial") ? "partial" : all.includes("invalid") ? "invalid" : "blocked";
+  return { raw, report: { id: hash2(url3 || stable(raw)), revision: hash2(stable(raw)), name: typeof raw.bookSourceName === "string" ? raw.bookSourceName.slice(0, 200) : "\u65E0\u6548\u4E66\u6E90", url: url3, enabled: false, syntax, stages: reports, diagnostics } };
+}
+function importSources(json5) {
+  if (Buffer.byteLength(json5) > SOURCE_LIMITS.bytes) throw new Error("\u4E66\u6E90 JSON \u8D85\u8FC7 512 KiB");
+  let raw;
+  try {
+    raw = JSON.parse(json5.replace(/^\uFEFF/, ""));
+  } catch {
+    throw new Error("\u4E66\u6E90\u6587\u4EF6\u4E0D\u662F\u6709\u6548 JSON");
+  }
+  const list = Array.isArray(raw) ? raw : [raw];
+  if (!list.length || list.length > SOURCE_LIMITS.sources) throw new Error("\u6BCF\u6B21\u53EF\u5BFC\u5165 1\u201350 \u4E2A\u4E66\u6E90");
+  const walk2 = (value, depth) => {
+    if (depth > 20) throw new Error("\u4E66\u6E90 JSON \u5D4C\u5957\u8D85\u8FC7 20 \u5C42");
+    if (value && typeof value === "object") for (const [key2, item] of Object.entries(value)) {
+      if (["__proto__", "constructor", "prototype"].includes(key2)) throw new Error("\u4E66\u6E90\u542B\u7981\u6B62\u7684\u539F\u578B\u5C5E\u6027");
+      walk2(item, depth + 1);
+    }
+  };
+  walk2(raw, 0);
+  const sources = list.map(inspectSource);
+  if (new Set(sources.map((s) => s.report.id)).size !== sources.length) throw new Error("\u540C\u4E00\u6279\u6B21\u51FA\u73B0\u91CD\u590D\u4E66\u6E90\u5730\u5740\uFF1B\u8BF7\u4FDD\u7559\u4E00\u4E2A\u7248\u672C\u540E\u91CD\u8BD5");
+  return sources;
+}
+
+// src/server/online/service.ts
+var idSchema = external_exports.string().regex(/^[a-f0-9]{64}$/);
+var chapterSchema2 = external_exports.object({ id: idSchema, title: external_exports.string().max(500), url: external_exports.string().max(4096) });
+var locatorSchema2 = external_exports.object({ chapter: external_exports.number().int().nonnegative(), paragraph: external_exports.number().int().nonnegative(), chapterId: idSchema });
+var recordSchema = external_exports.object({ version: external_exports.literal(1), id: idSchema, sourceId: idSchema, revision: idSchema, url: external_exports.string(), tocUrl: external_exports.string(), title: external_exports.string(), author: external_exports.string(), chapters: external_exports.array(chapterSchema2).min(1).max(SOURCE_LIMITS.chapters), locator: locatorSchema2, bookmarks: external_exports.array(external_exports.object({ id: external_exports.string(), locator: locatorSchema2, label: external_exports.string(), createdAt: external_exports.string() })).max(1e3), addedAt: external_exports.string(), lastReadAt: external_exports.string().optional() });
+var missing = (error112) => error112?.code === "ENOENT";
+var err2 = (error112) => error112 instanceof Error ? error112.message : "\u8054\u7F51\u64CD\u4F5C\u5931\u8D25";
+var cleanTitle = (value) => value.replace(/\s+/g, " ").trim().slice(0, 500);
+function changedFields(before2, after2, path = "") {
+  if (JSON.stringify(before2) === JSON.stringify(after2)) return [];
+  if (before2 && after2 && typeof before2 === "object" && typeof after2 === "object" && !Array.isArray(before2) && !Array.isArray(after2)) {
+    return [.../* @__PURE__ */ new Set([...Object.keys(before2), ...Object.keys(after2)])].flatMap((key2) => changedFields(before2[key2], after2[key2], path ? `${path}.${key2}` : key2));
+  }
+  return [path];
+}
+var OnlineSourceService = class {
+  constructor(store, http = new SafeHttpClient()) {
+    this.store = store;
+    this.http = http;
+    this.directory = join2(store.dataDir, "online-v1");
+  }
+  store;
+  http;
+  directory;
+  previews = /* @__PURE__ */ new Map();
+  jobs = /* @__PURE__ */ new Map();
+  async ready() {
+    await fs2.mkdir(this.directory, { recursive: true, mode: 448 });
+  }
+  path(id2) {
+    idSchema.parse(id2);
+    return join2(this.directory, `${id2}.json`);
+  }
+  async sources() {
+    await this.ready();
+    try {
+      const stored = JSON.parse(await fs2.readFile(join2(this.directory, "sources.json"), "utf8"));
+      if (stored.version !== 1 || !Array.isArray(stored.sources) || stored.sources.length > SOURCE_LIMITS.stored) throw new Error("Invalid sources");
+      return stored.sources.map((source) => {
+        const inspected = inspectSource(source.raw);
+        if (inspected.report.revision !== source.report.revision) throw new Error("Invalid source revision");
+        inspected.generation = source.generation ?? source.report.revision;
+        inspected.report.enabled = source.report.enabled === true && ["supported", "partial"].includes(inspected.report.syntax);
+        for (const stage of ["search", "detail", "toc", "content"]) {
+          const old = source.report.stages[stage];
+          if (old && ["untested", "passed", "failed"].includes(old.network)) Object.assign(inspected.report.stages[stage], { network: old.network, lastError: old.lastError, checkedAt: old.checkedAt });
+        }
+        return inspected;
+      });
+    } catch (error112) {
+      if (missing(error112)) return [];
+      throw new Error("\u5728\u7EBF\u4E66\u6E90\u5B58\u50A8\u635F\u574F\uFF1B\u672C\u5730\u4E66\u7C4D\u4E0D\u53D7\u5F71\u54CD");
+    }
+  }
+  async writeSources(sources) {
+    await atomicWrite(join2(this.directory, "sources.json"), JSON.stringify({ version: 1, sources }));
+  }
+  async listSources() {
+    return (await this.sources()).map((s) => s.report);
+  }
+  async preview(json5) {
+    const sources = importSources(json5), existing = await this.sources();
+    for (const [key2, entry] of this.previews) if (entry.expires < Date.now()) this.previews.delete(key2);
+    if (this.previews.size >= 4) this.previews.delete(this.previews.keys().next().value);
+    const token = randomUUID2();
+    this.previews.set(token, { sources, previous: this.fingerprint(existing), expires: Date.now() + 10 * 6e4 });
+    return { token, sources: sources.map((s) => s.report), changes: sources.map((source) => {
+      const old = existing.find((s) => s.report.id === source.report.id);
+      return { id: source.report.id, kind: !old ? "new" : old.report.revision === source.report.revision ? "unchanged" : "replace", previousName: old?.report.name, fields: old ? changedFields(old.raw, source.raw) : Object.keys(source.raw) };
+    }) };
+  }
+  async previewUrl(url3, signal) {
+    const response = await this.http.get(url3, signal);
+    return this.preview(response.text);
+  }
+  fingerprint(sources) {
+    return hash2(JSON.stringify(sources.map((s) => [s.report.id, s.report.revision, s.report.enabled, s.generation])));
+  }
+  async commit(token) {
+    const entry = this.previews.get(token);
+    if (!entry || entry.expires < Date.now()) throw new Error("\u5BFC\u5165\u9884\u89C8\u5DF2\u8FC7\u671F\uFF0C\u8BF7\u91CD\u65B0\u9884\u89C8");
+    return this.store.locked("online-sources", async () => {
+      const existing = await this.sources();
+      if (this.fingerprint(existing) !== entry.previous) throw new Error("\u4E66\u6E90\u5DF2\u53D1\u751F\u53D8\u5316\uFF0C\u8BF7\u91CD\u65B0\u9884\u89C8\u5E76\u786E\u8BA4\u5DEE\u5F02");
+      for (const source of entry.sources) {
+        const index = existing.findIndex((s) => s.report.id === source.report.id);
+        if (index >= 0 && existing[index].report.revision === source.report.revision) continue;
+        source.generation = randomUUID2();
+        if (index >= 0) existing[index] = source;
+        else existing.push(source);
+      }
+      if (existing.length > SOURCE_LIMITS.stored) throw new Error("\u6700\u591A\u4FDD\u5B58 100 \u4E2A\u4E66\u6E90");
+      await this.writeSources(existing);
+      this.previews.delete(token);
+      return existing.map((s) => s.report);
+    });
+  }
+  async manage(id2, enabled) {
+    return this.store.locked("online-sources", async () => {
+      let sources = await this.sources();
+      const source = sources.find((s) => s.report.id === id2);
+      if (!source) throw new Error("\u4E66\u6E90\u4E0D\u5B58\u5728");
+      if (enabled && !["supported", "partial"].includes(source.report.syntax)) throw new Error("\u8BE5\u6E90\u8BED\u6CD5\u4E0D\u53EF\u7528\uFF0C\u65E0\u6CD5\u542F\u7528");
+      if (enabled === null) sources = sources.filter((s) => s !== source);
+      else {
+        source.report.enabled = enabled;
+        source.generation = randomUUID2();
+      }
+      await this.writeSources(sources);
+      return sources.map((s) => s.report);
+    });
+  }
+  async source(id2, revision, generation) {
+    const source = (await this.sources()).find((s) => s.report.id === id2);
+    if (!source?.report.enabled) throw new Error("\u4E66\u6E90\u672A\u542F\u7528\u6216\u5DF2\u79FB\u9664\uFF1B\u5DF2\u6709\u7F13\u5B58\u4ECD\u53EF\u9605\u8BFB");
+    if (revision && source.report.revision !== revision) throw new Error("\u4E66\u6E90\u7248\u672C\u5DF2\u6539\u53D8\uFF0C\u8BF7\u91CD\u65B0\u641C\u7D22\u6DFB\u52A0\uFF1B\u65E7\u7F13\u5B58\u548C\u8FDB\u5EA6\u4FDD\u7559");
+    if (generation && source.generation !== generation) throw new Error("\u4E66\u6E90\u542F\u505C\u72B6\u6001\u5DF2\u6539\u53D8\uFF0C\u5DF2\u4E22\u5F03\u8FC7\u671F\u54CD\u5E94");
+    return source;
+  }
+  async tracked(source, stage, signal, work) {
+    const report = source.report.stages[stage];
+    if (!["supported", "partial"].includes(report.syntax)) throw new Error(`${stageKeys[stage]}\uFF1A\u8BE5\u9636\u6BB5\u8BED\u6CD5 ${report.syntax}\uFF0C\u8BF7\u67E5\u770B\u5B57\u6BB5\u8BCA\u65AD`);
+    const update2 = async (error112) => this.store.locked("online-sources", async () => {
+      const sources = await this.sources(), current = sources.find((s) => s.report.id === source.report.id);
+      if (current?.report.revision === source.report.revision && current.generation === source.generation && current.report.enabled) {
+        Object.assign(current.report.stages[stage], { network: error112 ? "failed" : "passed", lastError: error112, checkedAt: (/* @__PURE__ */ new Date()).toISOString() });
+        await this.writeSources(sources);
+      } else if (!error112) throw new Error("\u4E66\u6E90\u72B6\u6001\u5DF2\u53D8\u5316\uFF0C\u5DF2\u4E22\u5F03\u8FC7\u671F\u54CD\u5E94");
+    });
+    try {
+      signal.throwIfAborted();
+      const result = await work();
+      signal.throwIfAborted();
+      await this.source(source.report.id, source.report.revision, source.generation);
+      await update2();
+      return result;
+    } catch (error112) {
+      if (!signal.aborted) await update2(err2(error112));
+      throw error112;
+    }
+  }
+  rule(source, stage, field) {
+    return source.raw[stageKeys[stage]]?.[field];
+  }
+  values(source, stage, field, context, required4 = false) {
+    try {
+      const text = this.rule(source, stage, field);
+      const values = text ? extract(compileRule(text), context) : [];
+      if ((required4 || text && !["nextTocUrl", "nextContentUrl"].includes(field)) && !values.length) throw new Error("\u6CA1\u6709\u5339\u914D\u5230\u975E\u7A7A\u7ED3\u679C");
+      return values;
+    } catch (error112) {
+      throw new Error(`${stageKeys[stage]}.${field}\uFF1A${err2(error112)}`);
+    }
+  }
+  rows(source, stage, field, context, allowEmpty = false) {
+    try {
+      const result = select(compileRule(this.rule(source, stage, field), true), context, { strictJson: true });
+      if (!allowEmpty && !result.length) throw new Error("\u6CA1\u6709\u5339\u914D\u5230\u5217\u8868");
+      return result;
+    } catch (error112) {
+      throw new Error(`${stageKeys[stage]}.${field}\uFF1A${err2(error112)}`);
+    }
+  }
+  url(source, value, base, field) {
+    try {
+      if (field === "ruleToc.chapterUrl" && new URL(value, base).hash) throw new Error("\u9996\u7248\u4E0D\u652F\u6301\u4EE5 URL \u7247\u6BB5\u533A\u5206\u7AE0\u8282\uFF0C\u672A\u5408\u5E76\u8FD9\u4E9B\u7AE0\u8282");
+      return sameOriginUrl(value, base, new URL(source.report.url).origin);
+    } catch (error112) {
+      throw new Error(`${field}\uFF1A${err2(error112)}`);
+    }
+  }
+  async search(sourceId, key2, page, signal) {
+    const source = await this.source(sourceId);
+    return this.tracked(source, "search", signal, async () => {
+      if (page > 1 && !source.raw.searchUrl.includes("{{page}}")) throw new Error("searchUrl\uFF1A\u8BE5\u6E90\u672A\u58F0\u660E {{page}}\uFF0C\u4E0D\u652F\u6301\u641C\u7D22\u7FFB\u9875");
+      const url3 = this.url(source, template(source.raw.searchUrl, key2, page), source.report.url, "searchUrl");
+      const response = await this.http.get(url3, signal, new URL(source.report.url).origin);
+      let context;
+      try {
+        context = documentContext(response.text);
+      } catch (error112) {
+        throw new Error(`ruleSearch.bookList\uFF1A\u54CD\u5E94\u89E3\u6790\u5931\u8D25\uFF1A${err2(error112)}`);
+      }
+      const results = /* @__PURE__ */ new Map();
+      for (const row of this.rows(source, "search", "bookList", context, true)) {
+        const url4 = this.url(source, this.values(source, "search", "bookUrl", row, true)[0], response.url, "ruleSearch.bookUrl");
+        results.set(url4, { sourceId, revision: source.report.revision, url: url4, title: cleanTitle(this.values(source, "search", "name", row, true)[0]), author: cleanTitle(this.values(source, "search", "author", row)[0] ?? "") });
+        if (results.size > 200) throw new Error("ruleSearch.bookList\uFF1A\u7ED3\u679C\u8D85\u8FC7 200 \u9879");
+      }
+      return [...results.values()];
+    });
+  }
+  async detail(result, signal) {
+    const source = await this.source(result.sourceId, result.revision);
+    return this.tracked(source, "detail", signal, async () => {
+      const url3 = this.url(source, result.url, source.report.url, "bookUrl");
+      const response = await this.http.get(url3, signal, new URL(source.report.url).origin), context = documentContext(response.text);
+      const toc = this.values(source, "detail", "tocUrl", context, !!this.rule(source, "detail", "tocUrl"))[0] ?? response.url;
+      return { ...result, url: response.url, title: cleanTitle(this.values(source, "detail", "name", context, !!this.rule(source, "detail", "name"))[0] ?? result.title), author: cleanTitle(this.values(source, "detail", "author", context)[0] ?? result.author), intro: this.values(source, "detail", "intro", context).join("\n").slice(0, 1e4), tocUrl: this.url(source, toc, response.url, "ruleBookInfo.tocUrl") };
+    });
+  }
+  async pages(source, stage, start, signal, visit2) {
+    let url3 = start;
+    const visited = /* @__PURE__ */ new Set();
+    for (let page = 1; page <= SOURCE_LIMITS.pages; page++) {
+      if (visited.has(url3)) throw new Error(`${stageKeys[stage]}\uFF1A\u68C0\u6D4B\u5230\u5206\u9875\u5FAA\u73AF`);
+      visited.add(url3);
+      const response = await this.http.get(url3, signal, new URL(source.report.url).origin), context = documentContext(response.text);
+      visit2(context, response.url);
+      const field = stage === "toc" ? "nextTocUrl" : "nextContentUrl";
+      const links = this.values(source, stage, field, context);
+      if (links.length > 1) throw new Error(`${stageKeys[stage]}.${field}\uFF1A\u4E0B\u4E00\u9875\u5FC5\u987B\u6700\u591A\u5339\u914D\u4E00\u4E2A\u94FE\u63A5`);
+      if (!links.length) return;
+      if (page === SOURCE_LIMITS.pages) throw new Error(`${stageKeys[stage]}.${field}\uFF1A\u5206\u9875\u8D85\u8FC7 5 \u9875\uFF0C\u672A\u4FDD\u5B58\u4E0D\u5B8C\u6574\u7ED3\u679C`);
+      url3 = this.url(source, links[0], response.url, `${stageKeys[stage]}.${field}`);
+    }
+  }
+  async toc(source, url3, signal) {
+    return this.tracked(source, "toc", signal, async () => {
+      const chapters = /* @__PURE__ */ new Map();
+      await this.pages(source, "toc", this.url(source, url3, source.report.url, "tocUrl"), signal, (context, base) => {
+        for (const row of this.rows(source, "toc", "chapterList", context)) {
+          const url4 = this.url(source, this.values(source, "toc", "chapterUrl", row, true)[0], base, "ruleToc.chapterUrl");
+          const id2 = hash2(url4);
+          chapters.set(id2, { id: id2, url: url4, title: cleanTitle(this.values(source, "toc", "chapterName", row, true)[0]) });
+          if (chapters.size > SOURCE_LIMITS.chapters) throw new Error("ruleToc.chapterList\uFF1A\u76EE\u5F55\u8D85\u8FC7 5000 \u7AE0");
+        }
+      });
+      return [...chapters.values()];
+    });
+  }
+  async has(id2) {
+    try {
+      await fs2.access(this.path(id2));
+      return true;
+    } catch (error112) {
+      if (missing(error112)) return false;
+      throw error112;
+    }
+  }
+  async read(id2) {
+    const book = recordSchema.parse(JSON.parse(await fs2.readFile(this.path(id2), "utf8")));
+    if (book.id !== id2) throw new Error("\u5728\u7EBF\u4E66\u7C4D ID \u4E0D\u4E00\u81F4");
+    return book;
+  }
+  async write(book) {
+    await this.ready();
+    await atomicWrite(this.path(book.id), JSON.stringify(recordSchema.parse(book)));
+  }
+  summary(book) {
+    return { id: book.id, title: book.title, author: book.author, format: "online", addedAt: book.addedAt, lastReadAt: book.lastReadAt, chapterCount: book.chapters.length, wordCount: 0, progress: book.chapters.length <= 1 ? 0 : book.locator.chapter / (book.chapters.length - 1), locator: book.locator };
+  }
+  async listBooks() {
+    await this.ready();
+    const books = [];
+    for (const name of await fs2.readdir(this.directory)) if (/^[a-f0-9]{64}\.json$/.test(name)) books.push(this.summary(await this.read(name.slice(0, -5))));
+    return books;
+  }
+  cachePath(book, chapterId) {
+    idSchema.parse(chapterId);
+    return join2(this.directory, "cache", book.id, book.revision, `${chapterId}.json`);
+  }
+  async cached(book, chapterId) {
+    try {
+      return external_exports.array(external_exports.string()).min(1).max(5e4).parse(JSON.parse(await fs2.readFile(this.cachePath(book, chapterId), "utf8")));
+    } catch (error112) {
+      if (missing(error112)) return void 0;
+      throw new Error("\u7AE0\u8282\u7F13\u5B58\u635F\u574F\uFF1B\u672A\u8986\u76D6\u539F\u7F13\u5B58");
+    }
+  }
+  async asDetail(book, chapterId = book.locator.chapterId) {
+    const paragraphs = await this.cached(book, chapterId);
+    return { summary: this.summary(book), bookmarks: book.bookmarks, document: { id: book.id, title: book.title, author: book.author, format: "online", warnings: ["Legado \u65E0\u811A\u672C\u517C\u5BB9\u5B50\u96C6\uFF1B\u6B63\u6587\u6309\u7AE0\u52A0\u8F7D\uFF0C\u5728\u7EBF\u8FDB\u5EA6\u6309\u76EE\u5F55\u7AE0\u8282\u4F30\u7B97\u3002\u641C\u7D22\u4EC5\u9650\u5F53\u524D\u7AE0\u8282\uFF0C\u4E0D\u5305\u542B\u5176\u4ED6\u5DF2\u7F13\u5B58\u7AE0\u8282\uFF0C\u4E0D\u81EA\u52A8\u4E0B\u8F7D\u5168\u4E66\u3002"], chapters: book.chapters.map((chapter) => ({ id: chapter.id, title: chapter.title, paragraphs: chapter.id === chapterId ? paragraphs ?? [] : [], loaded: chapter.id === chapterId && !!paragraphs })) } };
+  }
+  async add(detail2, signal) {
+    const source = await this.source(detail2.sourceId, detail2.revision);
+    const canonicalUrl = this.url(source, detail2.url, source.report.url, "bookUrl");
+    const id2 = hash2(`online:${detail2.sourceId}:${detail2.revision}:${canonicalUrl}`);
+    if (!["supported", "partial"].includes(source.report.stages.content.syntax)) throw new Error("ruleContent\uFF1A\u6B63\u6587\u8BED\u6CD5\u4E0D\u53EF\u7528\uFF0C\u8BF7\u67E5\u770B\u4E66\u6E90\u5B57\u6BB5\u8BCA\u65AD");
+    if (await this.has(id2)) return this.open(id2, signal);
+    const chapters = await this.toc(source, detail2.tocUrl, signal);
+    const book = { version: 1, id: id2, sourceId: detail2.sourceId, revision: detail2.revision, url: canonicalUrl, tocUrl: detail2.tocUrl, title: detail2.title, author: detail2.author, chapters, locator: { chapter: 0, paragraph: 0, chapterId: chapters[0].id }, bookmarks: [], addedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    await this.store.locked("online-sources", () => this.store.locked(`online-${id2}`, async () => {
+      signal.throwIfAborted();
+      await this.source(source.report.id, source.report.revision, source.generation);
+      if (!await this.has(id2)) await this.write(book);
+    }));
+    return this.open(id2, signal);
+  }
+  async open(id2, signal) {
+    const book = await this.read(id2);
+    await this.chapter(id2, book.locator.chapterId, signal);
+    return this.store.locked(`online-${id2}`, async () => {
+      const current = await this.read(id2);
+      current.lastReadAt = (/* @__PURE__ */ new Date()).toISOString();
+      await this.write(current);
+      return this.asDetail(current);
+    });
+  }
+  async chapter(id2, chapterId, signal) {
+    const book = await this.read(id2), chapter = book.chapters.find((c) => c.id === chapterId);
+    if (!chapter) throw new Error("\u7AE0\u8282\u5DF2\u4E0D\u5728\u76EE\u5F55\u4E2D\uFF0C\u8BF7\u5237\u65B0\u4E66\u7C4D");
+    if (await this.cached(book, chapterId)) return this.asDetail(book, chapterId);
+    const source = await this.source(book.sourceId, book.revision);
+    const paragraphs = await this.tracked(source, "content", signal, async () => {
+      const paragraphs2 = [];
+      let bytes = 0;
+      await this.pages(source, "content", chapter.url, signal, (context) => {
+        for (const value of this.values(source, "content", "content", context, true)) for (const part of value.split(/\n+/).map((p2) => p2.trim()).filter(Boolean)) {
+          bytes += Buffer.byteLength(part);
+          if (bytes > 4 * 1024 * 1024 || paragraphs2.length >= 5e4) throw new Error("ruleContent.content\uFF1A\u7AE0\u8282\u8D85\u8FC7 4 MiB / 50000 \u6BB5");
+          paragraphs2.push(part);
+        }
+        if (!paragraphs2.length) throw new Error("ruleContent.content\uFF1A\u6B63\u6587\u4E3A\u7A7A");
+      });
+      return paragraphs2;
+    });
+    await this.store.locked("online-sources", () => this.store.locked(`online-${id2}`, async () => {
+      signal.throwIfAborted();
+      await this.source(book.sourceId, book.revision, source.generation);
+      const current = await this.read(id2);
+      if (current.revision !== book.revision || !current.chapters.some((c) => c.id === chapterId)) throw new Error("\u76EE\u5F55\u6216\u4E66\u6E90\u5DF2\u53D8\u5316\uFF0C\u5DF2\u4E22\u5F03\u8FC7\u671F\u6B63\u6587");
+      const path = this.cachePath(book, chapterId), directory = join2(path, "..");
+      await fs2.mkdir(directory, { recursive: true, mode: 448 });
+      await atomicWrite(path, JSON.stringify(paragraphs));
+      const entries2 = await Promise.all((await fs2.readdir(directory)).filter((name) => /^[a-f0-9]{64}\.json$/.test(name)).map(async (name) => ({ name, stat: await fs2.stat(join2(directory, name)) })));
+      let size = entries2.reduce((n, e) => n + e.stat.size, 0);
+      for (const entry of entries2.sort((a, b) => a.stat.mtimeMs - b.stat.mtimeMs)) {
+        if (size <= 32 * 1024 * 1024) break;
+        if (entry.name === `${chapterId}.json` || entry.name === `${current.locator.chapterId}.json`) continue;
+        await fs2.unlink(join2(directory, entry.name));
+        size -= entry.stat.size;
+      }
+    }));
+    return this.asDetail(await this.read(id2), chapterId);
+  }
+  async refresh(id2, signal) {
+    const book = await this.read(id2), source = await this.source(book.sourceId, book.revision), chapters = await this.toc(source, book.tocUrl, signal);
+    return this.store.locked("online-sources", () => this.store.locked(`online-${id2}`, async () => {
+      signal.throwIfAborted();
+      await this.source(book.sourceId, book.revision, source.generation);
+      const current = await this.read(id2);
+      const align = (loc) => {
+        const chapter = chapters.findIndex((c) => c.id === loc.chapterId);
+        if (chapter < 0) throw new Error("\u65B0\u76EE\u5F55\u7F3A\u5C11\u8FDB\u5EA6\u6216\u4E66\u7B7E\u7AE0\u8282\uFF1B\u65E7\u76EE\u5F55\u5DF2\u4FDD\u7559");
+        return { ...loc, chapter };
+      };
+      current.locator = align(current.locator);
+      current.bookmarks = current.bookmarks.map((b) => ({ ...b, locator: align(b.locator) }));
+      current.chapters = chapters;
+      await this.write(current);
+      return this.asDetail(current);
+    }));
+  }
+  async checkedLocator(book, locator2) {
+    const checked = locatorSchema2.parse(locator2), index = book.chapters.findIndex((c) => c.id === checked.chapterId);
+    const paragraphs = await this.cached(book, checked.chapterId);
+    if (index < 0 || !paragraphs || checked.paragraph >= paragraphs.length) throw new Error("\u8FDB\u5EA6\u5FC5\u987B\u6307\u5411\u5DF2\u52A0\u8F7D\u7AE0\u8282\u7684\u6709\u6548\u6BB5\u843D");
+    return { ...checked, chapter: index };
+  }
+  async saveProgress(id2, locator2) {
+    return this.store.locked(`online-${id2}`, async () => {
+      const book = await this.read(id2);
+      book.locator = await this.checkedLocator(book, locator2);
+      book.lastReadAt = (/* @__PURE__ */ new Date()).toISOString();
+      await this.write(book);
+      return this.summary(book);
+    });
+  }
+  async addBookmark(id2, locator2, label) {
+    return this.store.locked(`online-${id2}`, async () => {
+      const book = await this.read(id2), checked = await this.checkedLocator(book, locator2);
+      if (book.bookmarks.length >= 1e3) throw new Error("\u4E66\u7B7E\u8D85\u8FC7 1000 \u6761");
+      if (!book.bookmarks.some((b) => b.locator.chapterId === checked.chapterId && b.locator.paragraph === checked.paragraph)) book.bookmarks.push({ id: randomUUID2(), locator: checked, label, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+      await this.write(book);
+      return book.bookmarks;
+    });
+  }
+  async removeBookmark(id2, bookmarkId) {
+    return this.store.locked(`online-${id2}`, async () => {
+      const book = await this.read(id2);
+      book.bookmarks = book.bookmarks.filter((b) => b.id !== bookmarkId);
+      await this.write(book);
+      return book.bookmarks;
+    });
+  }
+  /** Duplicate operations share work; cancelling one subscriber keeps others alive. */
+  run(requestId2, key2, work) {
+    if (this.jobs.has(requestId2)) throw new Error("\u8BF7\u6C42 ID \u5DF2\u5728\u4F7F\u7528");
+    if (this.jobs.size >= 20) throw new Error("\u5728\u7EBF\u8BF7\u6C42\u8FC7\u591A");
+    let job = [...this.jobs.values()].find((j2) => j2.key === key2);
+    if (!job) {
+      const controller = new AbortController(), users = /* @__PURE__ */ new Set();
+      const timer = setTimeout(() => controller.abort(new Error("\u5728\u7EBF\u64CD\u4F5C\u8D85\u8FC7 45 \u79D2")), 45e3);
+      const promise3 = Promise.resolve().then(() => {
+        controller.signal.throwIfAborted();
+        return work(controller.signal);
+      }).then((value) => {
+        controller.signal.throwIfAborted();
+        return value;
+      }).finally(() => {
+        clearTimeout(timer);
+        for (const user of users) this.jobs.delete(user);
+      });
+      job = { controller, promise: promise3, key: key2, users };
+    }
+    job.users.add(requestId2);
+    this.jobs.set(requestId2, job);
+    const selected = job;
+    return selected.promise.then((value) => {
+      if (!selected.users.has(requestId2)) throw new Error("\u8BF7\u6C42\u5DF2\u53D6\u6D88");
+      return value;
+    });
+  }
+  cancel(requestId2) {
+    const job = this.jobs.get(requestId2);
+    if (job) {
+      job.users.delete(requestId2);
+      this.jobs.delete(requestId2);
+      if (!job.users.size) job.controller.abort(new Error("\u8BF7\u6C42\u5DF2\u53D6\u6D88"));
+    }
+    return { cancelled: true };
+  }
+};
+
+// src/server/service.ts
+var locator = external_exports.object({ chapter: external_exports.number().int().min(0), paragraph: external_exports.number().int().min(0), chapterId: external_exports.string().regex(/^[a-f0-9]{64}$/).optional() }).strict();
 var id = external_exports.string().regex(/^[a-f0-9]{64}$/);
+var requestId = external_exports.string().uuid();
+var onlineResult = external_exports.object({ sourceId: id, revision: id, title: external_exports.string().max(500), author: external_exports.string().max(500), url: external_exports.string().max(4096) }).strict();
 var settingsSchema2 = external_exports.object({ theme: external_exports.enum(["system", "light", "sepia", "dark"]), fontSize: external_exports.number().min(14).max(36), lineHeight: external_exports.number().min(1.3).max(2.6), lineWidth: external_exports.number().min(420).max(960), fontFamily: external_exports.enum(["serif", "sans"]) }).strict();
 var MAX_FILE = 32 * 1024 * 1024;
 var MAX_CHUNK = 256 * 1024;
 var TTL = 15 * 60 * 1e3;
 var actionSchemas = {
   reader_list: external_exports.object({}).strict(),
-  reader_get: external_exports.object({ id }).strict(),
+  reader_get: external_exports.object({ id, requestId: requestId.optional() }).strict(),
+  reader_online_sources: external_exports.object({}).strict(),
+  reader_online_preview: external_exports.object({ json: external_exports.string().max(512 * 1024) }).strict(),
+  reader_online_preview_url: external_exports.object({ url: external_exports.string().max(4096), requestId }).strict(),
+  reader_online_commit: external_exports.object({ token: external_exports.string().uuid() }).strict(),
+  reader_online_enable: external_exports.object({ id, enabled: external_exports.boolean() }).strict(),
+  reader_online_remove: external_exports.object({ id }).strict(),
+  reader_online_search: external_exports.object({ sourceId: id, key: external_exports.string().trim().min(1).max(200), page: external_exports.number().int().min(1).max(5), requestId }).strict(),
+  reader_online_detail: external_exports.object({ result: onlineResult, requestId }).strict(),
+  reader_online_add: external_exports.object({ detail: onlineResult.extend({ intro: external_exports.string().max(1e4), tocUrl: external_exports.string().max(4096) }), requestId }).strict(),
+  reader_online_chapter: external_exports.object({ id, chapterId: id, requestId }).strict(),
+  reader_online_refresh: external_exports.object({ id, requestId }).strict(),
+  reader_online_cancel: external_exports.object({ requestId }).strict(),
   reader_import_begin: external_exports.object({ filename: external_exports.string().min(1).max(255), size: external_exports.number().int().min(1).max(MAX_FILE), encoding: external_exports.enum(["utf-8", "utf-16le", "utf-16be", "gb18030", "big5"]).optional() }).strict(),
   reader_import_chunk: external_exports.object({ uploadId: external_exports.string().uuid(), index: external_exports.number().int().min(0), data: external_exports.string().max(Math.ceil(MAX_CHUNK / 3) * 4).regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/) }).strict(),
   reader_import_finish: external_exports.object({ uploadId: external_exports.string().uuid() }).strict(),
@@ -46658,32 +47737,60 @@ var actionSchemas = {
   reader_bookmark_remove: external_exports.object({ id, bookmarkId: external_exports.string().max(100) }).strict()
 };
 var ReaderService = class {
-  constructor(store) {
+  constructor(store, online) {
     this.store = store;
+    this.online = online ?? new OnlineSourceService(store);
   }
   store;
   uploads = /* @__PURE__ */ new Map();
+  online;
   async call(name, input2) {
     for (const [key2, value] of this.uploads) if (value.expires < Date.now()) this.uploads.delete(key2);
-    if (!(name in actionSchemas)) throw new Error("\u672A\u77E5\u7684 Reader \u64CD\u4F5C");
+    if (!Object.hasOwn(actionSchemas, name)) throw new Error("\u672A\u77E5\u7684 Reader \u64CD\u4F5C");
     const args = actionSchemas[name].parse(input2);
     switch (name) {
-      case "reader_list":
-        return this.store.list();
+      case "reader_list": {
+        const library = await this.store.list();
+        return { ...library, books: [...library.books, ...await this.online.listBooks()] };
+      }
       case "reader_get":
-        return this.store.open(args.id);
+        return await this.online.has(args.id) ? this.online.run(args.requestId ?? randomUUID3(), `open:${args.id}`, (signal) => this.online.open(args.id, signal)) : this.store.open(args.id);
       case "reader_progress":
-        return this.store.saveProgress(args.id, args.locator);
+        return (await this.online.has(args.id) ? this.online : this.store).saveProgress(args.id, args.locator);
       case "reader_settings":
         return this.store.saveSettings(args.settings);
       case "reader_bookmark_add":
-        return this.store.addBookmark(args.id, args.locator, args.label);
+        return (await this.online.has(args.id) ? this.online : this.store).addBookmark(args.id, args.locator, args.label);
       case "reader_bookmark_remove":
-        return this.store.removeBookmark(args.id, args.bookmarkId);
+        return (await this.online.has(args.id) ? this.online : this.store).removeBookmark(args.id, args.bookmarkId);
+      case "reader_online_sources":
+        return this.online.listSources();
+      case "reader_online_preview":
+        return this.online.preview(args.json);
+      case "reader_online_preview_url":
+        return this.online.run(args.requestId, `preview:${args.url}`, (signal) => this.online.previewUrl(args.url, signal));
+      case "reader_online_commit":
+        return this.online.commit(args.token);
+      case "reader_online_enable":
+        return this.online.manage(args.id, args.enabled);
+      case "reader_online_remove":
+        return this.online.manage(args.id, null);
+      case "reader_online_search":
+        return this.online.run(args.requestId, `search:${args.sourceId}:${args.key}:${args.page}`, (signal) => this.online.search(args.sourceId, args.key, args.page, signal));
+      case "reader_online_detail":
+        return this.online.run(args.requestId, `detail:${JSON.stringify(args.result)}`, (signal) => this.online.detail(args.result, signal));
+      case "reader_online_add":
+        return this.online.run(args.requestId, `add:${JSON.stringify(args.detail)}`, (signal) => this.online.add(args.detail, signal));
+      case "reader_online_chapter":
+        return this.online.run(args.requestId, `chapter:${args.id}:${args.chapterId}`, (signal) => this.online.chapter(args.id, args.chapterId, signal));
+      case "reader_online_refresh":
+        return this.online.run(args.requestId, `refresh:${args.id}`, (signal) => this.online.refresh(args.id, signal));
+      case "reader_online_cancel":
+        return this.online.cancel(args.requestId);
       case "reader_import_begin": {
         if (this.uploads.size >= 2) throw new Error("\u540C\u65F6\u5BFC\u5165\u8FC7\u591A\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5");
         if (!/\.(txt|epub)$/i.test(args.filename)) throw new Error("\u76EE\u524D\u652F\u6301 TXT \u548C EPUB \u6587\u4EF6");
-        const uploadId = randomUUID2();
+        const uploadId = randomUUID3();
         this.uploads.set(uploadId, { ...args, chunks: [], received: 0, next: 0, expires: Date.now() + TTL });
         return { uploadId, chunkBytes: 192 * 1024 };
       }
@@ -46714,7 +47821,7 @@ var ReaderService = class {
 };
 
 // src/server/mcp.ts
-import { readFile as readFile2 } from "node:fs/promises";
+import { readFile as readFile3 } from "node:fs/promises";
 
 // node_modules/zod/v3/helpers/util.js
 var util;
@@ -47145,18 +48252,18 @@ var ParseStatus = class _ParseStatus {
     if (this.value !== "aborted")
       this.value = "aborted";
   }
-  static mergeArray(status, results) {
+  static mergeArray(status2, results) {
     const arrayValue = [];
     for (const s of results) {
       if (s.status === "aborted")
         return INVALID2;
       if (s.status === "dirty")
-        status.dirty();
+        status2.dirty();
       arrayValue.push(s.value);
     }
-    return { status: status.value, value: arrayValue };
+    return { status: status2.value, value: arrayValue };
   }
-  static async mergeObjectAsync(status, pairs) {
+  static async mergeObjectAsync(status2, pairs) {
     const syncPairs = [];
     for (const pair of pairs) {
       const key2 = await pair.key;
@@ -47166,9 +48273,9 @@ var ParseStatus = class _ParseStatus {
         value
       });
     }
-    return _ParseStatus.mergeObjectSync(status, syncPairs);
+    return _ParseStatus.mergeObjectSync(status2, syncPairs);
   }
-  static mergeObjectSync(status, pairs) {
+  static mergeObjectSync(status2, pairs) {
     const finalObject = {};
     for (const pair of pairs) {
       const { key: key2, value } = pair;
@@ -47177,14 +48284,14 @@ var ParseStatus = class _ParseStatus {
       if (value.status === "aborted")
         return INVALID2;
       if (key2.status === "dirty")
-        status.dirty();
+        status2.dirty();
       if (value.status === "dirty")
-        status.dirty();
+        status2.dirty();
       if (key2.value !== "__proto__" && (typeof value.value !== "undefined" || pair.alwaysSet)) {
         finalObject[key2.value] = value.value;
       }
     }
-    return { status: status.value, value: finalObject };
+    return { status: status2.value, value: finalObject };
   }
 };
 var INVALID2 = Object.freeze({
@@ -47349,8 +48456,8 @@ var ZodType2 = class {
         } : {
           issues: ctx.common.issues
         };
-      } catch (err2) {
-        if (err2?.message?.toLowerCase()?.includes("encountered")) {
+      } catch (err3) {
+        if (err3?.message?.toLowerCase()?.includes("encountered")) {
           this["~standard"].async = true;
         }
         ctx.common = {
@@ -47644,7 +48751,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
       });
       return INVALID2;
     }
-    const status = new ParseStatus();
+    const status2 = new ParseStatus();
     let ctx = void 0;
     for (const check3 of this._def.checks) {
       if (check3.kind === "min") {
@@ -47658,7 +48765,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             exact: false,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "max") {
         if (input2.data.length > check3.value) {
@@ -47671,7 +48778,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             exact: false,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "length") {
         const tooBig = input2.data.length > check3.value;
@@ -47697,7 +48804,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
               message: check3.message
             });
           }
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "email") {
         if (!emailRegex.test(input2.data)) {
@@ -47707,7 +48814,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "emoji") {
         if (!emojiRegex) {
@@ -47720,7 +48827,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "uuid") {
         if (!uuidRegex.test(input2.data)) {
@@ -47730,7 +48837,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "nanoid") {
         if (!nanoidRegex.test(input2.data)) {
@@ -47740,7 +48847,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "cuid") {
         if (!cuidRegex.test(input2.data)) {
@@ -47750,7 +48857,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "cuid2") {
         if (!cuid2Regex.test(input2.data)) {
@@ -47760,7 +48867,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "ulid") {
         if (!ulidRegex.test(input2.data)) {
@@ -47770,7 +48877,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "url") {
         try {
@@ -47782,7 +48889,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "regex") {
         check3.regex.lastIndex = 0;
@@ -47794,7 +48901,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "trim") {
         input2.data = input2.data.trim();
@@ -47806,7 +48913,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             validation: { includes: check3.value, position: check3.position },
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "toLowerCase") {
         input2.data = input2.data.toLowerCase();
@@ -47820,7 +48927,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             validation: { startsWith: check3.value },
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "endsWith") {
         if (!input2.data.endsWith(check3.value)) {
@@ -47830,7 +48937,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             validation: { endsWith: check3.value },
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "datetime") {
         const regex2 = datetimeRegex(check3);
@@ -47841,7 +48948,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             validation: "datetime",
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "date") {
         const regex2 = dateRegex;
@@ -47852,7 +48959,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             validation: "date",
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "time") {
         const regex2 = timeRegex(check3);
@@ -47863,7 +48970,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             validation: "time",
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "duration") {
         if (!durationRegex.test(input2.data)) {
@@ -47873,7 +48980,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "ip") {
         if (!isValidIP(input2.data, check3.version)) {
@@ -47883,7 +48990,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "jwt") {
         if (!isValidJWT2(input2.data, check3.alg)) {
@@ -47893,7 +49000,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "cidr") {
         if (!isValidCidr(input2.data, check3.version)) {
@@ -47903,7 +49010,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "base64") {
         if (!base64Regex.test(input2.data)) {
@@ -47913,7 +49020,7 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "base64url") {
         if (!base64urlRegex.test(input2.data)) {
@@ -47923,13 +49030,13 @@ var ZodString2 = class _ZodString3 extends ZodType2 {
             code: ZodIssueCode2.invalid_string,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else {
         util.assertNever(check3);
       }
     }
-    return { status: status.value, value: input2.data };
+    return { status: status2.value, value: input2.data };
   }
   _regex(regex2, validation, message) {
     return this.refinement((data) => regex2.test(data), {
@@ -48205,7 +49312,7 @@ var ZodNumber2 = class _ZodNumber extends ZodType2 {
       return INVALID2;
     }
     let ctx = void 0;
-    const status = new ParseStatus();
+    const status2 = new ParseStatus();
     for (const check3 of this._def.checks) {
       if (check3.kind === "int") {
         if (!util.isInteger(input2.data)) {
@@ -48216,7 +49323,7 @@ var ZodNumber2 = class _ZodNumber extends ZodType2 {
             received: "float",
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "min") {
         const tooSmall = check3.inclusive ? input2.data < check3.value : input2.data <= check3.value;
@@ -48230,7 +49337,7 @@ var ZodNumber2 = class _ZodNumber extends ZodType2 {
             exact: false,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "max") {
         const tooBig = check3.inclusive ? input2.data > check3.value : input2.data >= check3.value;
@@ -48244,7 +49351,7 @@ var ZodNumber2 = class _ZodNumber extends ZodType2 {
             exact: false,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "multipleOf") {
         if (floatSafeRemainder2(input2.data, check3.value) !== 0) {
@@ -48254,7 +49361,7 @@ var ZodNumber2 = class _ZodNumber extends ZodType2 {
             multipleOf: check3.value,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "finite") {
         if (!Number.isFinite(input2.data)) {
@@ -48263,13 +49370,13 @@ var ZodNumber2 = class _ZodNumber extends ZodType2 {
             code: ZodIssueCode2.not_finite,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else {
         util.assertNever(check3);
       }
     }
-    return { status: status.value, value: input2.data };
+    return { status: status2.value, value: input2.data };
   }
   gte(value, message) {
     return this.setLimit("min", value, true, errorUtil.toString(message));
@@ -48434,7 +49541,7 @@ var ZodBigInt2 = class _ZodBigInt extends ZodType2 {
       return this._getInvalidInput(input2);
     }
     let ctx = void 0;
-    const status = new ParseStatus();
+    const status2 = new ParseStatus();
     for (const check3 of this._def.checks) {
       if (check3.kind === "min") {
         const tooSmall = check3.inclusive ? input2.data < check3.value : input2.data <= check3.value;
@@ -48447,7 +49554,7 @@ var ZodBigInt2 = class _ZodBigInt extends ZodType2 {
             inclusive: check3.inclusive,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "max") {
         const tooBig = check3.inclusive ? input2.data > check3.value : input2.data >= check3.value;
@@ -48460,7 +49567,7 @@ var ZodBigInt2 = class _ZodBigInt extends ZodType2 {
             inclusive: check3.inclusive,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "multipleOf") {
         if (input2.data % check3.value !== BigInt(0)) {
@@ -48470,13 +49577,13 @@ var ZodBigInt2 = class _ZodBigInt extends ZodType2 {
             multipleOf: check3.value,
             message: check3.message
           });
-          status.dirty();
+          status2.dirty();
         }
       } else {
         util.assertNever(check3);
       }
     }
-    return { status: status.value, value: input2.data };
+    return { status: status2.value, value: input2.data };
   }
   _getInvalidInput(input2) {
     const ctx = this._getOrReturnCtx(input2);
@@ -48634,7 +49741,7 @@ var ZodDate2 = class _ZodDate extends ZodType2 {
       });
       return INVALID2;
     }
-    const status = new ParseStatus();
+    const status2 = new ParseStatus();
     let ctx = void 0;
     for (const check3 of this._def.checks) {
       if (check3.kind === "min") {
@@ -48648,7 +49755,7 @@ var ZodDate2 = class _ZodDate extends ZodType2 {
             minimum: check3.value,
             type: "date"
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (check3.kind === "max") {
         if (input2.data.getTime() > check3.value) {
@@ -48661,14 +49768,14 @@ var ZodDate2 = class _ZodDate extends ZodType2 {
             maximum: check3.value,
             type: "date"
           });
-          status.dirty();
+          status2.dirty();
         }
       } else {
         util.assertNever(check3);
       }
     }
     return {
-      status: status.value,
+      status: status2.value,
       value: new Date(input2.data.getTime())
     };
   }
@@ -48854,7 +49961,7 @@ ZodVoid2.create = (params) => {
 };
 var ZodArray2 = class _ZodArray extends ZodType2 {
   _parse(input2) {
-    const { ctx, status } = this._processInputParams(input2);
+    const { ctx, status: status2 } = this._processInputParams(input2);
     const def = this._def;
     if (ctx.parsedType !== ZodParsedType.array) {
       addIssueToContext(ctx, {
@@ -48877,7 +49984,7 @@ var ZodArray2 = class _ZodArray extends ZodType2 {
           exact: true,
           message: def.exactLength.message
         });
-        status.dirty();
+        status2.dirty();
       }
     }
     if (def.minLength !== null) {
@@ -48890,7 +49997,7 @@ var ZodArray2 = class _ZodArray extends ZodType2 {
           exact: false,
           message: def.minLength.message
         });
-        status.dirty();
+        status2.dirty();
       }
     }
     if (def.maxLength !== null) {
@@ -48903,20 +50010,20 @@ var ZodArray2 = class _ZodArray extends ZodType2 {
           exact: false,
           message: def.maxLength.message
         });
-        status.dirty();
+        status2.dirty();
       }
     }
     if (ctx.common.async) {
       return Promise.all([...ctx.data].map((item, i2) => {
         return def.type._parseAsync(new ParseInputLazyPath(ctx, item, ctx.path, i2));
       })).then((result2) => {
-        return ParseStatus.mergeArray(status, result2);
+        return ParseStatus.mergeArray(status2, result2);
       });
     }
     const result = [...ctx.data].map((item, i2) => {
       return def.type._parseSync(new ParseInputLazyPath(ctx, item, ctx.path, i2));
     });
-    return ParseStatus.mergeArray(status, result);
+    return ParseStatus.mergeArray(status2, result);
   }
   get element() {
     return this._def.type;
@@ -49005,7 +50112,7 @@ var ZodObject2 = class _ZodObject extends ZodType2 {
       });
       return INVALID2;
     }
-    const { status, ctx } = this._processInputParams(input2);
+    const { status: status2, ctx } = this._processInputParams(input2);
     const { shape, keys: shapeKeys } = this._getCached();
     const extraKeys = [];
     if (!(this._def.catchall instanceof ZodNever2 && this._def.unknownKeys === "strip")) {
@@ -49040,7 +50147,7 @@ var ZodObject2 = class _ZodObject extends ZodType2 {
             code: ZodIssueCode2.unrecognized_keys,
             keys: extraKeys
           });
-          status.dirty();
+          status2.dirty();
         }
       } else if (unknownKeys === "strip") {
       } else {
@@ -49074,10 +50181,10 @@ var ZodObject2 = class _ZodObject extends ZodType2 {
         }
         return syncPairs;
       }).then((syncPairs) => {
-        return ParseStatus.mergeObjectSync(status, syncPairs);
+        return ParseStatus.mergeObjectSync(status2, syncPairs);
       });
     } else {
-      return ParseStatus.mergeObjectSync(status, pairs);
+      return ParseStatus.mergeObjectSync(status2, pairs);
     }
   }
   get shape() {
@@ -49559,7 +50666,7 @@ function mergeValues2(a, b) {
 }
 var ZodIntersection2 = class extends ZodType2 {
   _parse(input2) {
-    const { status, ctx } = this._processInputParams(input2);
+    const { status: status2, ctx } = this._processInputParams(input2);
     const handleParsed = (parsedLeft, parsedRight) => {
       if (isAborted(parsedLeft) || isAborted(parsedRight)) {
         return INVALID2;
@@ -49572,9 +50679,9 @@ var ZodIntersection2 = class extends ZodType2 {
         return INVALID2;
       }
       if (isDirty(parsedLeft) || isDirty(parsedRight)) {
-        status.dirty();
+        status2.dirty();
       }
-      return { status: status.value, value: merged.data };
+      return { status: status2.value, value: merged.data };
     };
     if (ctx.common.async) {
       return Promise.all([
@@ -49612,7 +50719,7 @@ ZodIntersection2.create = (left, right, params) => {
 };
 var ZodTuple2 = class _ZodTuple extends ZodType2 {
   _parse(input2) {
-    const { status, ctx } = this._processInputParams(input2);
+    const { status: status2, ctx } = this._processInputParams(input2);
     if (ctx.parsedType !== ZodParsedType.array) {
       addIssueToContext(ctx, {
         code: ZodIssueCode2.invalid_type,
@@ -49640,7 +50747,7 @@ var ZodTuple2 = class _ZodTuple extends ZodType2 {
         exact: false,
         type: "array"
       });
-      status.dirty();
+      status2.dirty();
     }
     const items = [...ctx.data].map((item, itemIndex) => {
       const schema = this._def.items[itemIndex] || this._def.rest;
@@ -49650,10 +50757,10 @@ var ZodTuple2 = class _ZodTuple extends ZodType2 {
     }).filter((x2) => !!x2);
     if (ctx.common.async) {
       return Promise.all(items).then((results) => {
-        return ParseStatus.mergeArray(status, results);
+        return ParseStatus.mergeArray(status2, results);
       });
     } else {
-      return ParseStatus.mergeArray(status, items);
+      return ParseStatus.mergeArray(status2, items);
     }
   }
   get items() {
@@ -49685,7 +50792,7 @@ var ZodRecord2 = class _ZodRecord extends ZodType2 {
     return this._def.valueType;
   }
   _parse(input2) {
-    const { status, ctx } = this._processInputParams(input2);
+    const { status: status2, ctx } = this._processInputParams(input2);
     if (ctx.parsedType !== ZodParsedType.object) {
       addIssueToContext(ctx, {
         code: ZodIssueCode2.invalid_type,
@@ -49705,9 +50812,9 @@ var ZodRecord2 = class _ZodRecord extends ZodType2 {
       });
     }
     if (ctx.common.async) {
-      return ParseStatus.mergeObjectAsync(status, pairs);
+      return ParseStatus.mergeObjectAsync(status2, pairs);
     } else {
-      return ParseStatus.mergeObjectSync(status, pairs);
+      return ParseStatus.mergeObjectSync(status2, pairs);
     }
   }
   get element() {
@@ -49738,7 +50845,7 @@ var ZodMap2 = class extends ZodType2 {
     return this._def.valueType;
   }
   _parse(input2) {
-    const { status, ctx } = this._processInputParams(input2);
+    const { status: status2, ctx } = this._processInputParams(input2);
     if (ctx.parsedType !== ZodParsedType.map) {
       addIssueToContext(ctx, {
         code: ZodIssueCode2.invalid_type,
@@ -49765,11 +50872,11 @@ var ZodMap2 = class extends ZodType2 {
             return INVALID2;
           }
           if (key2.status === "dirty" || value.status === "dirty") {
-            status.dirty();
+            status2.dirty();
           }
           finalMap.set(key2.value, value.value);
         }
-        return { status: status.value, value: finalMap };
+        return { status: status2.value, value: finalMap };
       });
     } else {
       const finalMap = /* @__PURE__ */ new Map();
@@ -49780,11 +50887,11 @@ var ZodMap2 = class extends ZodType2 {
           return INVALID2;
         }
         if (key2.status === "dirty" || value.status === "dirty") {
-          status.dirty();
+          status2.dirty();
         }
         finalMap.set(key2.value, value.value);
       }
-      return { status: status.value, value: finalMap };
+      return { status: status2.value, value: finalMap };
     }
   }
 };
@@ -49798,7 +50905,7 @@ ZodMap2.create = (keyType, valueType, params) => {
 };
 var ZodSet2 = class _ZodSet extends ZodType2 {
   _parse(input2) {
-    const { status, ctx } = this._processInputParams(input2);
+    const { status: status2, ctx } = this._processInputParams(input2);
     if (ctx.parsedType !== ZodParsedType.set) {
       addIssueToContext(ctx, {
         code: ZodIssueCode2.invalid_type,
@@ -49818,7 +50925,7 @@ var ZodSet2 = class _ZodSet extends ZodType2 {
           exact: false,
           message: def.minSize.message
         });
-        status.dirty();
+        status2.dirty();
       }
     }
     if (def.maxSize !== null) {
@@ -49831,7 +50938,7 @@ var ZodSet2 = class _ZodSet extends ZodType2 {
           exact: false,
           message: def.maxSize.message
         });
-        status.dirty();
+        status2.dirty();
       }
     }
     const valueType = this._def.valueType;
@@ -49841,10 +50948,10 @@ var ZodSet2 = class _ZodSet extends ZodType2 {
         if (element.status === "aborted")
           return INVALID2;
         if (element.status === "dirty")
-          status.dirty();
+          status2.dirty();
         parsedSet.add(element.value);
       }
-      return { status: status.value, value: parsedSet };
+      return { status: status2.value, value: parsedSet };
     }
     const elements = [...ctx.data.values()].map((item, i2) => valueType._parse(new ParseInputLazyPath(ctx, item, ctx.path, i2)));
     if (ctx.common.async) {
@@ -50175,15 +51282,15 @@ var ZodEffects = class extends ZodType2 {
     return this._def.schema._def.typeName === ZodFirstPartyTypeKind2.ZodEffects ? this._def.schema.sourceType() : this._def.schema;
   }
   _parse(input2) {
-    const { status, ctx } = this._processInputParams(input2);
+    const { status: status2, ctx } = this._processInputParams(input2);
     const effect = this._def.effect || null;
     const checkCtx = {
       addIssue: (arg) => {
         addIssueToContext(ctx, arg);
         if (arg.fatal) {
-          status.abort();
+          status2.abort();
         } else {
-          status.dirty();
+          status2.dirty();
         }
       },
       get path() {
@@ -50195,7 +51302,7 @@ var ZodEffects = class extends ZodType2 {
       const processed = effect.transform(ctx.data, checkCtx);
       if (ctx.common.async) {
         return Promise.resolve(processed).then(async (processed2) => {
-          if (status.value === "aborted")
+          if (status2.value === "aborted")
             return INVALID2;
           const result = await this._def.schema._parseAsync({
             data: processed2,
@@ -50206,12 +51313,12 @@ var ZodEffects = class extends ZodType2 {
             return INVALID2;
           if (result.status === "dirty")
             return DIRTY(result.value);
-          if (status.value === "dirty")
+          if (status2.value === "dirty")
             return DIRTY(result.value);
           return result;
         });
       } else {
-        if (status.value === "aborted")
+        if (status2.value === "aborted")
           return INVALID2;
         const result = this._def.schema._parseSync({
           data: processed,
@@ -50222,7 +51329,7 @@ var ZodEffects = class extends ZodType2 {
           return INVALID2;
         if (result.status === "dirty")
           return DIRTY(result.value);
-        if (status.value === "dirty")
+        if (status2.value === "dirty")
           return DIRTY(result.value);
         return result;
       }
@@ -50247,17 +51354,17 @@ var ZodEffects = class extends ZodType2 {
         if (inner.status === "aborted")
           return INVALID2;
         if (inner.status === "dirty")
-          status.dirty();
+          status2.dirty();
         executeRefinement(inner.value);
-        return { status: status.value, value: inner.value };
+        return { status: status2.value, value: inner.value };
       } else {
         return this._def.schema._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx }).then((inner) => {
           if (inner.status === "aborted")
             return INVALID2;
           if (inner.status === "dirty")
-            status.dirty();
+            status2.dirty();
           return executeRefinement(inner.value).then(() => {
-            return { status: status.value, value: inner.value };
+            return { status: status2.value, value: inner.value };
           });
         });
       }
@@ -50275,13 +51382,13 @@ var ZodEffects = class extends ZodType2 {
         if (result instanceof Promise) {
           throw new Error(`Asynchronous transform encountered during synchronous parse operation. Use .parseAsync instead.`);
         }
-        return { status: status.value, value: result };
+        return { status: status2.value, value: result };
       } else {
         return this._def.schema._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx }).then((base) => {
           if (!isValid(base))
             return INVALID2;
           return Promise.resolve(effect.transform(base.value, checkCtx)).then((result) => ({
-            status: status.value,
+            status: status2.value,
             value: result
           }));
         });
@@ -50459,7 +51566,7 @@ var ZodBranded = class extends ZodType2 {
 };
 var ZodPipeline = class _ZodPipeline extends ZodType2 {
   _parse(input2) {
-    const { status, ctx } = this._processInputParams(input2);
+    const { status: status2, ctx } = this._processInputParams(input2);
     if (ctx.common.async) {
       const handleAsync = async () => {
         const inResult = await this._def.in._parseAsync({
@@ -50470,7 +51577,7 @@ var ZodPipeline = class _ZodPipeline extends ZodType2 {
         if (inResult.status === "aborted")
           return INVALID2;
         if (inResult.status === "dirty") {
-          status.dirty();
+          status2.dirty();
           return DIRTY(inResult.value);
         } else {
           return this._def.out._parseAsync({
@@ -50490,7 +51597,7 @@ var ZodPipeline = class _ZodPipeline extends ZodType2 {
       if (inResult.status === "aborted")
         return INVALID2;
       if (inResult.status === "dirty") {
-        status.dirty();
+        status2.dirty();
         return {
           status: "dirty",
           value: inResult.value
@@ -50850,8 +51957,8 @@ function getLiteralValue(schema) {
 }
 
 // node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js
-function isTerminal(status) {
-  return status === "completed" || status === "failed" || status === "cancelled";
+function isTerminal(status2) {
+  return status2 === "completed" || status2 === "failed" || status2 === "cancelled";
 }
 
 // node_modules/zod-to-json-schema/dist/esm/Options.js
@@ -51772,7 +52879,7 @@ function parseObjectDef(def, refs3) {
     type: "object",
     properties: {}
   };
-  const required3 = [];
+  const required4 = [];
   const shape = def.shape();
   for (const propName2 in shape) {
     let propDef = shape[propName2];
@@ -51799,11 +52906,11 @@ function parseObjectDef(def, refs3) {
     }
     result.properties[propName2] = parsedDef;
     if (!propOptional) {
-      required3.push(propName2);
+      required4.push(propName2);
     }
   }
-  if (required3.length) {
-    result.required = required3;
+  if (required4.length) {
+    result.required = required4;
   }
   const additionalProperties = decideAdditionalProperties(def, refs3);
   if (additionalProperties !== void 0) {
@@ -52226,10 +53333,10 @@ var Protocol = class {
             while (queuedMessage = await this._taskMessageQueue.dequeue(taskId, extra.sessionId)) {
               if (queuedMessage.type === "response" || queuedMessage.type === "error") {
                 const message = queuedMessage.message;
-                const requestId = message.id;
-                const resolver = this._requestResolvers.get(requestId);
+                const requestId2 = message.id;
+                const resolver = this._requestResolvers.get(requestId2);
                 if (resolver) {
-                  this._requestResolvers.delete(requestId);
+                  this._requestResolvers.delete(requestId2);
                   if (queuedMessage.type === "response") {
                     resolver(message);
                   } else {
@@ -52239,7 +53346,7 @@ var Protocol = class {
                   }
                 } else {
                   const messageType = queuedMessage.type === "response" ? "Response" : "Error";
-                  this._onerror(new Error(`${messageType} handler missing for request ${requestId}`));
+                  this._onerror(new Error(`${messageType} handler missing for request ${requestId2}`));
                 }
                 continue;
               }
@@ -53008,13 +54115,13 @@ var Protocol = class {
       const messages = await this._taskMessageQueue.dequeueAll(taskId, sessionId);
       for (const message of messages) {
         if (message.type === "request" && isJSONRPCRequest(message.message)) {
-          const requestId = message.message.id;
-          const resolver = this._requestResolvers.get(requestId);
+          const requestId2 = message.message.id;
+          const resolver = this._requestResolvers.get(requestId2);
           if (resolver) {
             resolver(new McpError(ErrorCode.InternalError, "Task cancelled or completed"));
-            this._requestResolvers.delete(requestId);
+            this._requestResolvers.delete(requestId2);
           } else {
-            this._onerror(new Error(`Resolver missing for request ${requestId} during task ${taskId} cleanup`));
+            this._onerror(new Error(`Resolver missing for request ${requestId2} during task ${taskId} cleanup`));
           }
         }
       }
@@ -53070,8 +54177,8 @@ var Protocol = class {
         }
         return task;
       },
-      storeTaskResult: async (taskId, status, result) => {
-        await taskStore.storeTaskResult(taskId, status, result, sessionId);
+      storeTaskResult: async (taskId, status2, result) => {
+        await taskStore.storeTaskResult(taskId, status2, result, sessionId);
         const task = await taskStore.getTask(taskId, sessionId);
         if (task) {
           const notification = TaskStatusNotificationSchema.parse({
@@ -53087,15 +54194,15 @@ var Protocol = class {
       getTaskResult: (taskId) => {
         return taskStore.getTaskResult(taskId, sessionId);
       },
-      updateTaskStatus: async (taskId, status, statusMessage) => {
+      updateTaskStatus: async (taskId, status2, statusMessage) => {
         const task = await taskStore.getTask(taskId, sessionId);
         if (!task) {
           throw new McpError(ErrorCode.InvalidParams, `Task "${taskId}" not found - it may have been cleaned up`);
         }
         if (isTerminal(task.status)) {
-          throw new McpError(ErrorCode.InvalidParams, `Cannot update task "${taskId}" from terminal status "${task.status}" to "${status}". Terminal states (completed, failed, cancelled) cannot transition to other states.`);
+          throw new McpError(ErrorCode.InvalidParams, `Cannot update task "${taskId}" from terminal status "${task.status}" to "${status2}". Terminal states (completed, failed, cancelled) cannot transition to other states.`);
         }
-        await taskStore.updateTaskStatus(taskId, status, statusMessage, sessionId);
+        await taskStore.updateTaskStatus(taskId, status2, statusMessage, sessionId);
         const updatedTask = await taskStore.getTask(taskId, sessionId);
         if (updatedTask) {
           const notification = TaskStatusNotificationSchema.parse({
@@ -54187,14 +55294,14 @@ var McpServer = class {
     return createCompletionResult(suggestions);
   }
   async handleResourceCompletion(request, ref) {
-    const template = Object.values(this._registeredResourceTemplates).find((t) => t.resourceTemplate.uriTemplate.toString() === ref.uri);
-    if (!template) {
+    const template2 = Object.values(this._registeredResourceTemplates).find((t) => t.resourceTemplate.uriTemplate.toString() === ref.uri);
+    if (!template2) {
       if (this._registeredResources[ref.uri]) {
         return EMPTY_COMPLETION_RESULT;
       }
       throw new McpError(ErrorCode.InvalidParams, `Resource template ${request.params.ref.uri} not found`);
     }
-    const completer = template.resourceTemplate.completeCallback(request.params.argument.name);
+    const completer = template2.resourceTemplate.completeCallback(request.params.argument.name);
     if (!completer) {
       return EMPTY_COMPLETION_RESULT;
     }
@@ -54220,14 +55327,14 @@ var McpServer = class {
         ...resource.metadata
       }));
       const templateResources = [];
-      for (const template of Object.values(this._registeredResourceTemplates)) {
-        if (!template.resourceTemplate.listCallback) {
+      for (const template2 of Object.values(this._registeredResourceTemplates)) {
+        if (!template2.resourceTemplate.listCallback) {
           continue;
         }
-        const result = await template.resourceTemplate.listCallback(extra);
+        const result = await template2.resourceTemplate.listCallback(extra);
         for (const resource of result.resources) {
           templateResources.push({
-            ...template.metadata,
+            ...template2.metadata,
             // the defined resource metadata should override the template metadata if present
             ...resource
           });
@@ -54236,10 +55343,10 @@ var McpServer = class {
       return { resources: [...resources, ...templateResources] };
     });
     this.server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
-      const resourceTemplates = Object.entries(this._registeredResourceTemplates).map(([name, template]) => ({
+      const resourceTemplates = Object.entries(this._registeredResourceTemplates).map(([name, template2]) => ({
         name,
-        uriTemplate: template.resourceTemplate.uriTemplate.toString(),
-        ...template.metadata
+        uriTemplate: template2.resourceTemplate.uriTemplate.toString(),
+        ...template2.metadata
       }));
       return { resourceTemplates };
     });
@@ -54252,10 +55359,10 @@ var McpServer = class {
         }
         return resource.readCallback(uri2, extra);
       }
-      for (const template of Object.values(this._registeredResourceTemplates)) {
-        const variables = template.resourceTemplate.uriTemplate.match(uri2.toString());
+      for (const template2 of Object.values(this._registeredResourceTemplates)) {
+        const variables = template2.resourceTemplate.uriTemplate.match(uri2.toString());
         if (variables) {
-          return template.readCallback(uri2, variables, extra);
+          return template2.readCallback(uri2, variables, extra);
         }
       }
       throw new McpError(ErrorCode.InvalidParams, `Resource ${uri2} not found`);
@@ -54310,16 +55417,16 @@ var McpServer = class {
     this._promptHandlersInitialized = true;
   }
   resource(name, uriOrTemplate, ...rest) {
-    let metadata;
+    let metadata2;
     if (typeof rest[0] === "object") {
-      metadata = rest.shift();
+      metadata2 = rest.shift();
     }
     const readCallback = rest[0];
     if (typeof uriOrTemplate === "string") {
       if (this._registeredResources[uriOrTemplate]) {
         throw new Error(`Resource ${uriOrTemplate} is already registered`);
       }
-      const registeredResource = this._createRegisteredResource(name, void 0, uriOrTemplate, metadata, readCallback);
+      const registeredResource = this._createRegisteredResource(name, void 0, uriOrTemplate, metadata2, readCallback);
       this.setResourceRequestHandlers();
       this.sendResourceListChanged();
       return registeredResource;
@@ -54327,7 +55434,7 @@ var McpServer = class {
       if (this._registeredResourceTemplates[name]) {
         throw new Error(`Resource template ${name} is already registered`);
       }
-      const registeredResourceTemplate = this._createRegisteredResourceTemplate(name, void 0, uriOrTemplate, metadata, readCallback);
+      const registeredResourceTemplate = this._createRegisteredResourceTemplate(name, void 0, uriOrTemplate, metadata2, readCallback);
       this.setResourceRequestHandlers();
       this.sendResourceListChanged();
       return registeredResourceTemplate;
@@ -54352,11 +55459,11 @@ var McpServer = class {
       return registeredResourceTemplate;
     }
   }
-  _createRegisteredResource(name, title, uri2, metadata, readCallback) {
+  _createRegisteredResource(name, title, uri2, metadata2, readCallback) {
     const registeredResource = {
       name,
       title,
-      metadata,
+      metadata: metadata2,
       readCallback,
       enabled: true,
       disable: () => registeredResource.update({ enabled: false }),
@@ -54384,11 +55491,11 @@ var McpServer = class {
     this._registeredResources[uri2] = registeredResource;
     return registeredResource;
   }
-  _createRegisteredResourceTemplate(name, title, template, metadata, readCallback) {
+  _createRegisteredResourceTemplate(name, title, template2, metadata2, readCallback) {
     const registeredResourceTemplate = {
-      resourceTemplate: template,
+      resourceTemplate: template2,
       title,
-      metadata,
+      metadata: metadata2,
       readCallback,
       enabled: true,
       disable: () => registeredResourceTemplate.update({ enabled: false }),
@@ -54414,8 +55521,8 @@ var McpServer = class {
       }
     };
     this._registeredResourceTemplates[name] = registeredResourceTemplate;
-    const variableNames = template.uriTemplate.variableNames;
-    const hasCompleter = Array.isArray(variableNames) && variableNames.some((v2) => !!template.completeCallback(v2));
+    const variableNames = template2.uriTemplate.variableNames;
+    const hasCompleter = Array.isArray(variableNames) && variableNames.some((v2) => !!template2.completeCallback(v2));
     if (hasCompleter) {
       this.setCompletionRequestHandler();
     }
@@ -54926,7 +56033,7 @@ __export(external_exports2, {
   gt: () => _gt2,
   gte: () => _gte2,
   guid: () => guid4,
-  hash: () => hash2,
+  hash: () => hash3,
   hex: () => hex4,
   hostname: () => hostname4,
   httpUrl: () => httpUrl2,
@@ -55451,7 +56558,7 @@ __export(util_exports2, {
   promiseAllObject: () => promiseAllObject2,
   propertyKeyTypes: () => propertyKeyTypes2,
   randomString: () => randomString2,
-  required: () => required2,
+  required: () => required3,
   safeExtend: () => safeExtend2,
   shallowClone: () => shallowClone2,
   slugify: () => slugify2,
@@ -55922,7 +57029,7 @@ function partial2(Class3, schema, mask) {
   });
   return clone2(schema, def);
 }
-function required2(Class3, schema, mask) {
+function required3(Class3, schema, mask) {
   const def = mergeDefs2(schema._zod.def, {
     get shape() {
       const oldShape = schema._zod.def.shape;
@@ -66123,12 +67230,12 @@ function describe3(description) {
   return ch;
 }
 // @__NO_SIDE_EFFECTS__
-function meta3(metadata) {
+function meta3(metadata2) {
   const ch = new $ZodCheck2({ check: "meta" });
   ch._zod.onattach = [
     (inst) => {
       const existing = globalRegistry2.get(inst) ?? {};
-      globalRegistry2.add(inst, { ...existing, ...metadata });
+      globalRegistry2.add(inst, { ...existing, ...metadata2 });
     }
   ];
   ch._zod.check = () => {
@@ -67287,7 +68394,7 @@ __export(schemas_exports4, {
   float64: () => float642,
   function: () => _function2,
   guid: () => guid4,
-  hash: () => hash2,
+  hash: () => hash3,
   hex: () => hex4,
   hostname: () => hostname4,
   httpUrl: () => httpUrl2,
@@ -67915,7 +69022,7 @@ function hostname4(_params) {
 function hex4(_params) {
   return _stringFormat2(ZodCustomStringFormat2, "hex", regexes_exports2.hex, _params);
 }
-function hash2(alg, params) {
+function hash3(alg, params) {
   const enc = params?.enc ?? "hex";
   const format2 = `${alg}_${enc}`;
   const regex2 = regexes_exports2[format2];
@@ -69103,8 +70210,8 @@ function convertBaseSchema2(schema, ctx) {
           break;
         }
         const objectSchema2 = z2.object(shape).passthrough();
-        const recordSchema = z2.looseRecord(keySchema, valueSchema);
-        zodSchema = z2.intersection(objectSchema2, recordSchema);
+        const recordSchema2 = z2.looseRecord(keySchema, valueSchema);
+        zodSchema = z2.intersection(objectSchema2, recordSchema2);
         break;
       }
       if (schema.patternProperties) {
@@ -69532,22 +70639,22 @@ function isLeapYear(year) {
   return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
 }
 function date9(str) {
-  const matches2 = str.match(DATE);
-  if (!matches2)
+  const matches3 = str.match(DATE);
+  if (!matches3)
     return false;
-  const year = +matches2[1];
-  const month = +matches2[2];
-  const day = +matches2[3];
+  const year = +matches3[1];
+  const month = +matches3[2];
+  const day = +matches3[3];
   return month >= 1 && month <= 12 && day >= 1 && day <= (month == 2 && isLeapYear(year) ? 29 : DAYS[month]);
 }
 function time5(full, str) {
-  const matches2 = str.match(TIME);
-  if (!matches2)
+  const matches3 = str.match(TIME);
+  if (!matches3)
     return false;
-  const hour = +matches2[1];
-  const minute = +matches2[2];
-  const second = +matches2[3];
-  const timeZone = !!matches2[5];
+  const hour = +matches3[1];
+  const minute = +matches3[2];
+  const second = +matches3[3];
+  const timeZone = !!matches3[5];
   return (hour <= 23 && minute <= 59 && second <= 59 || hour == 23 && minute == 59 && second == 60) && (!full || timeZone);
 }
 var DATE_TIME_SEPARATOR = /t|\s/i;
@@ -69820,7 +70927,7 @@ Known schemas:
   if ($oneOf !== void 0) {
     const keywordLocation = `${schemaLocation}/oneOf`;
     const errorsLength = errors.length;
-    const matches2 = $oneOf.filter((subSchema, i2) => {
+    const matches3 = $oneOf.filter((subSchema, i2) => {
       const subEvaluated = Object.create(evaluated);
       const result = validate3(instance, subSchema, draft, lookup, shortCircuit, $recursiveAnchor === true ? recursiveAnchor : null, instanceLocation, `${keywordLocation}/${i2}`, subEvaluated);
       errors.push(...result.errors);
@@ -69829,14 +70936,14 @@ Known schemas:
       }
       return result.valid;
     }).length;
-    if (matches2 === 1) {
+    if (matches3 === 1) {
       errors.length = errorsLength;
     } else {
       errors.splice(errorsLength, 0, {
         instanceLocation,
         keyword: "oneOf",
         keywordLocation,
-        error: `Instance does not match exactly one subschema (${matches2} matches).`
+        error: `Instance does not match exactly one subschema (${matches3} matches).`
       });
     }
   }
@@ -69919,8 +71026,8 @@ Known schemas:
       const keywordLocation = `${schemaLocation}/dependantRequired`;
       for (const key2 in $dependentRequired) {
         if (key2 in instance) {
-          const required3 = $dependentRequired[key2];
-          for (const dependantKey of required3) {
+          const required4 = $dependentRequired[key2];
+          for (const dependantKey of required4) {
             if (!(dependantKey in instance)) {
               errors.push({
                 instanceLocation,
@@ -70803,13 +71910,13 @@ var OpenAIFileEntrypointInputSchema = external_exports2.object({
 });
 
 // src/server/mcp.ts
-var UI_URI = "ui://reader/v0.1.4/bookshelf.html";
+var UI_URI = "ui://reader/v0.1.5/bookshelf.html";
 var names = { reader_list: "\u8BFB\u53D6\u4E66\u67B6", reader_get: "\u6253\u5F00\u4E66\u7C4D", reader_import_begin: "\u5F00\u59CB\u5BFC\u5165\u4E66\u7C4D", reader_import_chunk: "\u4F20\u8F93\u4E66\u7C4D\u5206\u5757", reader_import_finish: "\u5B8C\u6210\u4E66\u7C4D\u5BFC\u5165", reader_import_cancel: "\u53D6\u6D88\u4E66\u7C4D\u5BFC\u5165", reader_progress: "\u4FDD\u5B58\u9605\u8BFB\u8FDB\u5EA6", reader_settings: "\u4FDD\u5B58\u9605\u8BFB\u8BBE\u7F6E", reader_bookmark_add: "\u6DFB\u52A0\u4E66\u7B7E", reader_bookmark_remove: "\u79FB\u9664\u4E66\u7B7E" };
 function createMcpServer(service2, htmlPath) {
-  const server = new McpServer({ name: "reader-plugin", version: "0.1.4" });
+  const server = new McpServer({ name: "reader-plugin", version: "0.1.5" });
   new OpenAIExtensions(server);
   const meta5 = { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] }, prefersBorder: false }, "openai/ui": { preferredDisplayMode: "fullscreen", availableDisplayModes: ["inline", "fullscreen"] } };
-  N3(server, "Reader bookshelf", UI_URI, { _meta: meta5 }, async () => ({ contents: [{ uri: UI_URI, mimeType: p, text: await readFile2(htmlPath, "utf8"), _meta: meta5 }] }));
+  N3(server, "Reader", UI_URI, { _meta: meta5 }, async () => ({ contents: [{ uri: UI_URI, mimeType: p, text: await readFile3(htmlPath, "utf8"), _meta: meta5 }] }));
   K3(server, "reader_open", {
     title: "Reader",
     description: "Open the private Reader bookshelf. Book text is not sent to the model; import and reading happen in the app.",
@@ -70818,7 +71925,7 @@ function createMcpServer(service2, htmlPath) {
     _meta: { ui: { resourceUri: UI_URI }, "openai/ui": { entrypoints: [{ type: "global" }, { type: "thread" }] } }
   }, async () => ({ content: [{ type: "text", text: "Reader is ready. Use the app to import and read your books." }] }));
   K3(server, "reader_open_file", {
-    title: "\u5728 Reader \u4E2D\u9605\u8BFB",
+    title: "Reader",
     description: "Open a DRM-free TXT or EPUB file from a host-managed resource.",
     inputSchema: OpenAIFileEntrypointInputSchema,
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
@@ -70826,10 +71933,10 @@ function createMcpServer(service2, htmlPath) {
   }, async () => ({ content: [] }));
   for (const [name, schema] of Object.entries(actionSchemas)) {
     server.registerTool(name, {
-      title: names[name],
+      title: names[name] ?? name,
       description: "Private Reader UI operation. Not intended for model invocation.",
       inputSchema: schema,
-      annotations: { readOnlyHint: name === "reader_list", destructiveHint: name === "reader_bookmark_remove", openWorldHint: false },
+      annotations: { readOnlyHint: name === "reader_list" || name === "reader_online_sources", destructiveHint: name === "reader_bookmark_remove" || name === "reader_online_remove", openWorldHint: name.startsWith("reader_online_") || name === "reader_get" },
       _meta: { ui: { visibility: ["app"] } }
     }, async (args) => {
       try {
@@ -70844,7 +71951,7 @@ function createMcpServer(service2, htmlPath) {
 
 // src/server/http.ts
 import { createServer as createServer2 } from "node:http";
-import { readFile as readFile3 } from "node:fs/promises";
+import { readFile as readFile4 } from "node:fs/promises";
 
 // node_modules/@hono/node-server/dist/constants-BLSFu_RU.mjs
 var X_ALREADY_SENT = "x-hono-already-sent";
@@ -71525,8 +72632,8 @@ var Response$1 = class Response$12 {
     return this[cacheKey]?.[0] ?? this[getResponseCache]().status;
   }
   get ok() {
-    const status = this.status;
-    return status >= 200 && status < 300;
+    const status2 = this.status;
+    return status2 >= 200 && status2 < 300;
   }
 };
 [
@@ -71581,10 +72688,10 @@ var validRedirectStatuses = /* @__PURE__ */ new Set([
   308
 ]);
 Object.defineProperty(Response$1, "redirect", {
-  value: function redirect(url3, status = 302) {
-    if (!validRedirectStatuses.has(status)) throw new RangeError("Invalid status code");
+  value: function redirect(url3, status2 = 302) {
+    if (!validRedirectStatuses.has(status2)) throw new RangeError("Invalid status code");
     return new Response$1(null, {
-      status,
+      status: status2,
       headers: { location: parseRedirectUrl(url3) }
     });
   },
@@ -71721,53 +72828,53 @@ var isImmediateCacheableResponse = (res) => {
 var handleRequestError = () => new Response(null, { status: 400 });
 var handleFetchError = (e) => new Response(null, { status: e instanceof Error && (e.name === "TimeoutError" || e.constructor.name === "TimeoutError") ? 504 : 500 });
 var handleResponseError = (e, outgoing) => {
-  const err2 = e instanceof Error ? e : new Error("unknown error", { cause: e });
-  if (err2.code === "ERR_STREAM_PREMATURE_CLOSE") console.info("The user aborted a request.");
+  const err3 = e instanceof Error ? e : new Error("unknown error", { cause: e });
+  if (err3.code === "ERR_STREAM_PREMATURE_CLOSE") console.info("The user aborted a request.");
   else {
     console.error(e);
     if (!outgoing.headersSent) {
       if (outgoing instanceof ServerResponse) outgoing._contentLength = null;
       outgoing.writeHead(500, { "Content-Type": "text/plain" });
     }
-    outgoing.end(`Error: ${err2.message}`);
-    outgoing.destroy(err2);
+    outgoing.end(`Error: ${err3.message}`);
+    outgoing.destroy(err3);
   }
 };
 var flushHeaders = (outgoing) => {
   if ("flushHeaders" in outgoing && outgoing.writable) outgoing.flushHeaders();
 };
-var trySetContentLength = (outgoing, status, length) => {
+var trySetContentLength = (outgoing, status2, length) => {
   const http1 = outgoing;
-  if (http1._contentLength === null && http1._hasBody && http1.useChunkedEncodingByDefault && !http1._removedContLen && status >= 200 && status !== 204 && status !== 304 && !outgoing.hasHeader("content-length") && !outgoing.hasHeader("transfer-encoding") && !outgoing.hasHeader("trailer")) {
+  if (http1._contentLength === null && http1._hasBody && http1.useChunkedEncodingByDefault && !http1._removedContLen && status2 >= 200 && status2 !== 204 && status2 !== 304 && !outgoing.hasHeader("content-length") && !outgoing.hasHeader("transfer-encoding") && !outgoing.hasHeader("trailer")) {
     http1._contentLength = length;
     return true;
   }
   return false;
 };
-var writeDefaultHeaders = (outgoing, status, length) => {
-  if (trySetContentLength(outgoing, status, length)) outgoing.writeHead(status, { "Content-Type": defaultContentType });
-  else outgoing.writeHead(status, {
+var writeDefaultHeaders = (outgoing, status2, length) => {
+  if (trySetContentLength(outgoing, status2, length)) outgoing.writeHead(status2, { "Content-Type": defaultContentType });
+  else outgoing.writeHead(status2, {
     "Content-Type": defaultContentType,
     "Content-Length": length
   });
 };
 var responseViaCache = async (res, outgoing) => {
-  let [status, body, header] = res[cacheKey];
+  let [status2, body, header] = res[cacheKey];
   if (!header) {
     if (body === null) {
-      outgoing.writeHead(status);
+      outgoing.writeHead(status2);
       outgoing.end();
     } else if (typeof body === "string") {
-      writeDefaultHeaders(outgoing, status, Buffer.byteLength(body));
+      writeDefaultHeaders(outgoing, status2, Buffer.byteLength(body));
       outgoing.end(body);
     } else if (body instanceof Uint8Array) {
-      writeDefaultHeaders(outgoing, status, body.byteLength);
+      writeDefaultHeaders(outgoing, status2, body.byteLength);
       outgoing.end(body);
     } else if (body instanceof Blob) {
-      writeDefaultHeaders(outgoing, status, body.size);
+      writeDefaultHeaders(outgoing, status2, body.size);
       outgoing.end(new Uint8Array(await body.arrayBuffer()));
     } else {
-      outgoing.writeHead(status, { "Content-Type": defaultContentType });
+      outgoing.writeHead(status2, { "Content-Type": defaultContentType });
       flushHeaders(outgoing);
       await writeFromReadableStream(body, outgoing)?.catch((e) => handleResponseError(e, outgoing));
     }
@@ -71799,12 +72906,12 @@ var responseViaCache = async (res, outgoing) => {
     if (typeof body === "string") length = Buffer.byteLength(body);
     else if (body instanceof Uint8Array) length = body.byteLength;
     else if (body instanceof Blob) length = body.size;
-    if (length !== void 0 && (!plainHeaders || !canAutoLength || !trySetContentLength(outgoing, status, length))) {
+    if (length !== void 0 && (!plainHeaders || !canAutoLength || !trySetContentLength(outgoing, status2, length))) {
       if (plainHeaders) header = { ...header };
       header["Content-Length"] = length;
     }
   }
-  outgoing.writeHead(status, header);
+  outgoing.writeHead(status2, header);
   if (body == null) outgoing.end();
   else if (typeof body === "string" || body instanceof Uint8Array) outgoing.end(body);
   else if (body instanceof Blob) outgoing.end(new Uint8Array(await body.arrayBuffer()));
@@ -71818,8 +72925,8 @@ var isPromise = (res) => typeof res.then === "function";
 var responseViaResponseObject = async (res, outgoing, options = {}) => {
   if (isPromise(res)) if (options.errorHandler) try {
     res = await res;
-  } catch (err2) {
-    const errRes = await options.errorHandler(err2);
+  } catch (err3) {
+    const errRes = await options.errorHandler(err3);
     if (!errRes) return;
     res = errRes;
   }
@@ -72179,7 +73286,7 @@ var WebStandardStreamableHTTPServerTransport = class {
   /**
    * Helper to create a JSON error response
    */
-  createJsonErrorResponse(status, code, message, options) {
+  createJsonErrorResponse(status2, code, message, options) {
     const error112 = { code, message };
     if (options?.data !== void 0) {
       error112.data = options.data;
@@ -72189,7 +73296,7 @@ var WebStandardStreamableHTTPServerTransport = class {
       error: error112,
       id: null
     }), {
-      status,
+      status: status2,
       headers: {
         "Content-Type": "application/json",
         ...options?.headers
@@ -72752,8 +73859,8 @@ data:
    * Use this to implement polling behavior during long-running operations -
    * client will reconnect after the retry interval specified in the priming event.
    */
-  closeSSEStream(requestId) {
-    const streamId = this._requestToStreamMapping.get(requestId);
+  closeSSEStream(requestId2) {
+    const streamId = this._requestToStreamMapping.get(requestId2);
     if (!streamId)
       return;
     const stream = this._streamMapping.get(streamId);
@@ -72772,11 +73879,11 @@ data:
     }
   }
   async send(message, options) {
-    let requestId = options?.relatedRequestId;
+    let requestId2 = options?.relatedRequestId;
     if (isJSONRPCResultResponse(message) || isJSONRPCErrorResponse(message)) {
-      requestId = message.id;
+      requestId2 = message.id;
     }
-    if (requestId === void 0) {
+    if (requestId2 === void 0) {
       if (isJSONRPCResultResponse(message) || isJSONRPCErrorResponse(message)) {
         throw new Error("Cannot send a response on a standalone SSE stream unless resuming a previous client request");
       }
@@ -72793,9 +73900,9 @@ data:
       }
       return;
     }
-    const streamId = this._requestToStreamMapping.get(requestId);
+    const streamId = this._requestToStreamMapping.get(requestId2);
     if (!streamId) {
-      throw new Error(`No connection established for request ID: ${String(requestId)}`);
+      throw new Error(`No connection established for request ID: ${String(requestId2)}`);
     }
     let stream = this._streamMapping.get(streamId);
     if (!this._enableJsonResponse) {
@@ -72812,7 +73919,7 @@ data:
       }
     }
     if (isJSONRPCResultResponse(message) || isJSONRPCErrorResponse(message)) {
-      this._requestResponseMap.set(requestId, message);
+      this._requestResponseMap.set(requestId2, message);
       const relatedIds = Array.from(this._requestToStreamMapping.entries()).filter(([_2, sid]) => sid === streamId).map(([id2]) => id2);
       const allResponsesReady = relatedIds.every((id2) => this._requestResponseMap.has(id2));
       if (allResponsesReady) {
@@ -72836,7 +73943,7 @@ data:
             this._requestResponseMap.delete(id2);
             this._requestToStreamMapping.delete(id2);
           }
-          throw new Error(`No connection established for request ID: ${String(requestId)}`);
+          throw new Error(`No connection established for request ID: ${String(requestId2)}`);
         }
         if (this._enableJsonResponse && stream.resolveJson) {
           const headers = {
@@ -72954,8 +74061,8 @@ var StreamableHTTPServerTransport = class {
    * Use this to implement polling behavior during long-running operations -
    * client will reconnect after the retry interval specified in the priming event.
    */
-  closeSSEStream(requestId) {
-    this._webStandardTransport.closeSSEStream(requestId);
+  closeSSEStream(requestId2) {
+    this._webStandardTransport.closeSSEStream(requestId2);
   }
   /**
    * Close the standalone GET SSE stream, triggering client reconnection.
@@ -73002,11 +74109,11 @@ function createReaderHttpServer(service2, htmlPath) {
       if (request.method === "GET" && pathname === "/") {
         response.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self'; frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
         response.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
-        response.end(await readFile3(htmlPath));
+        response.end(await readFile4(htmlPath));
         return;
       }
       if (request.method === "GET" && pathname === "/health") {
-        json4(response, 200, { status: "ok", mode: "loopback-preview", version: "0.1.4" });
+        json4(response, 200, { status: "ok", mode: "loopback-preview", version: "0.1.5" });
         return;
       }
       if (request.method === "POST" && (pathname === "/api/tool" || pathname === "/mcp")) {
@@ -73048,9 +74155,9 @@ function createReaderHttpServer(service2, htmlPath) {
 
 // src/server/index.ts
 var root = fileURLToPath(new URL("../../", import.meta.url));
-var dataDir = process.env.READER_DATA_DIR ?? (process.platform === "darwin" ? join2(homedir(), "Library", "Application Support", "Reader") : process.platform === "win32" ? join2(process.env.LOCALAPPDATA ?? homedir(), "Reader") : join2(process.env.XDG_DATA_HOME ?? join2(homedir(), ".local", "share"), "reader-plugin"));
+var dataDir = process.env.READER_DATA_DIR ?? (process.platform === "darwin" ? join3(homedir(), "Library", "Application Support", "Reader") : process.platform === "win32" ? join3(process.env.LOCALAPPDATA ?? homedir(), "Reader") : join3(process.env.XDG_DATA_HOME ?? join3(homedir(), ".local", "share"), "reader-plugin"));
 var service = new ReaderService(new ReaderStore(resolve2(dataDir)));
-var uiPath = join2(root, "dist", "ui", "index.html");
+var uiPath = join3(root, "dist", "ui", "index.html");
 if (process.argv.includes("--reflow-text")) {
   for (const book of (await service.store.list()).books) {
     if (book.format === "txt") console.log(JSON.stringify(await service.store.reflowText(book.id)));

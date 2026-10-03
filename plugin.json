@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "reader-win32-arm64",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Local TXT and DRM-free EPUB reader; bundled runtime for Windows · ARM64.",
   "author": {
     "name": "Quiyyy"
@@ -10,9 +10,9 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "Reader · Windows · ARM64",
-        "shortDescription": "本地阅读，无需安装 Node 或 npm。",
-        "longDescription": "Choose only the package matching this device. Book storage is separate from the plugin cache. System trust prompts may apply.",
+        "displayName": "Reader",
+        "shortDescription": "Windows · ARM64。本地阅读，无需 Node 或 npm。",
+        "longDescription": "Bundled runtime for Windows · ARM64. Choose only the package matching this device. Book storage is separate from the plugin cache. System trust prompts may apply.",
         "developerName": "Quiyyy",
         "category": "Productivity",
         "capabilities": [
