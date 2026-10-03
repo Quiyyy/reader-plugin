@@ -10,8 +10,18 @@ export class ScriptSession {
   private timer?: NodeJS.Timeout;
   private reject?: (error: Error) => void;
   private calls = 0;
+  private callLimit: number = SCRIPT_LIMITS.calls;
   private started = Date.now();
   private budget = SCRIPT_LIMITS.cpuMs * 10;
+  async beginPage() { this.calls = 0; this.callLimit = 15000; await this.recycle(); }
+  private async recycle() {
+    const worker = this.worker;
+    if (worker) {
+      this.worker = undefined;
+      worker.removeAllListeners();
+      try { await worker.terminate(); } finally { workers--; }
+    }
+  }
   constructor(private readonly signal: AbortSignal, private readonly ajax: (input: string) => Promise<string>) {
     signal.addEventListener('abort', this.abort, { once: true });
   }
@@ -25,8 +35,14 @@ export class ScriptSession {
   async run(code: string, result: unknown, context: unknown, globals: ScriptGlobals): Promise<any> {
     this.signal.throwIfAborted();
     if (this.dead) throw this.dead;
-    if (++this.calls > SCRIPT_LIMITS.calls || Date.now() - this.started > SCRIPT_LIMITS.sessionMs || this.budget <= 0) throw new Error('脚本操作总预算超限');
+    if (++this.calls > this.callLimit || Date.now() - this.started > SCRIPT_LIMITS.sessionMs || this.budget <= 0) throw new Error('脚本操作总预算超限');
     validateScript(code);
+    // QuickJS contexts are disposable, but the bounded WASM heap may fragment
+    // after many contexts. Rotate the worker; retain only validated variables,
+    // and never reset cumulative CPU, time, call or network budgets here.
+    if (this.calls % 128 === 0) await this.recycle();
+    this.signal.throwIfAborted();
+    if (this.dead) throw this.dead;
     if (!this.worker) {
       if (workers >= 4) throw new Error('隔离脚本并发已满（最多 4）');
       workers++;

@@ -2,7 +2,7 @@
 
 一个安静、私人的小说阅读插件。React + TypeScript 阅读界面，真实 MCP Apps 协议与 OpenAI MCP Extensions 接入，书籍和进度由 Reader 服务持久保存。
 
-**Reader 0.1.8：书架回收站、键盘操作与书源清单导入。** 书籍可移入回收站、撤销和恢复，原文、在线缓存、进度和书签保留；方向键只在 Reader 获得焦点时操作，快捷键可录制、校验、清除和重置。清单文件由用户选择并确认导入，新增或更新书源默认停用，格式兼容不代表在线可读。详见 [0.1.8 说明](docs/RELEASE_0.1.8.md)。
+**Reader 0.1.9：精简设置与书源界面，修复常见 EPUB 声明及公开网页误判。** 保留 0.1.8 的回收站、焦点内键盘操作和清单导入；接受不含内部子集的惰性 EPUB DOCTYPE，准确区分普通页面中的 Cloudflare 检测脚本与真实挑战。详见 [0.1.9 说明](docs/RELEASE_0.1.9.md)。
 
 正式平台目录由 main CI 完成六平台原生及远程安装验证后推进；以目录的版本、来源提交和摘要为准。Windows/Linux 平台包自带官方 Node，用户无需 Node/npm 或手动 setup，见 [marketplace 指南](docs/MARKETPLACE.md)。本版保留有界规则、隔离 QuickJS 和 SafeHTTP 网络边界；第三方网站兼容范围见 [兼容性说明](docs/ISOLATED_COMPATIBILITY.md)。
 
@@ -62,7 +62,7 @@ READER_DATA_DIR="$HOME/.reader-test" PORT=4173 npm run preview
 npm start
 ```
 
-它在 stdin/stdout 上运行 MCP，诊断只写 stderr。**不要直接把标准输出当日志。** 本地宿主负责启动它并读取 ui://reader/v0.1.8/bookshelf.html。UI HTML 内联全部脚本和样式，不依赖 CDN；iframe 通过 App.callServerTool 与宿主通信，不假设能 fetch localhost，也不依赖 localStorage/IndexedDB 的持久性。发行平台包使用根目录 portable `plugin.json`/`mcp.json`；这里的兼容 wrapper 仅用于开发。
+它在 stdin/stdout 上运行 MCP，诊断只写 stderr。**不要直接把标准输出当日志。** 本地宿主负责启动它并读取 ui://reader/v0.1.9/bookshelf.html。UI HTML 内联全部脚本和样式，不依赖 CDN；iframe 通过 App.callServerTool 与宿主通信，不假设能 fetch localhost，也不依赖 localStorage/IndexedDB 的持久性。发行平台包使用根目录 portable `plugin.json`/`mcp.json`；这里的兼容 wrapper 仅用于开发。
 
 不同客户端对本地插件和 ${PLUGIN_ROOT} 的支持需要实际检查。若不支持占位符，运行以下命令得到此机器上真实的绝对路径配置，再按该客户端的本地 MCP 配置流程接入：
 

@@ -448,3 +448,5 @@ kbd { font-family: var(--font-sans); font-size: 10px; min-width: 24px; height: 2
 .shelf-list .book-cover { min-height: 96px; }
 .catalog-receipt code { font-size: 10px; overflow-wrap: anywhere; }
 .catalog-receipt { font-size: 12px; }
+.pagination-notice { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pagination-notice > span { flex: 1 1 210px; }

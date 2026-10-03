@@ -2,6 +2,7 @@ import { App, applyDocumentTheme, applyHostStyleVariables } from '@modelcontextp
 import { OpenAIExtensions, OpenAIFileEntrypointInputSchema } from '@openai/mcp-extensions/app';
 import '@openai/mcp-extensions/app/styles.css';
 import type { BookDetail, ReaderApi } from '../shared/types';
+import { IncompleteLoadError } from '../shared/online';
 
 type Rpc = (name: string, args: Record<string, unknown>) => Promise<unknown>;
 const MAX_FILE = 32 * 1024 * 1024;
@@ -16,7 +17,7 @@ export function decodeBase64(value: string): Uint8Array {
   return Uint8Array.from(atob(value), char => char.charCodeAt(0));
 }
 function unwrap(result: any): unknown {
-  if (result.isError) throw new Error(result.content?.find((item: any) => item.type === 'text')?.text ?? 'Reader 操作失败');
+  if (result.isError) { const message = result.content?.find((item: any) => item.type === 'text')?.text ?? 'Reader 操作失败'; throw result._meta?.readerIncomplete ? new IncompleteLoadError(message, result._meta.readerIncomplete) : new Error(message); }
   if (!result._meta || !('reader' in result._meta)) throw new Error('Reader 服务返回了无效响应');
   return result._meta.reader;
 }
@@ -49,7 +50,7 @@ export function createReaderApi(): ReaderApi {
       const timeout = window.setTimeout(() => controller.abort(), name.startsWith('reader_online_') || name === 'reader_get' ? 60000 : PREVIEW_REQUEST_TIMEOUT_MS);
       try {
         const response = await fetch('/api/tool', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Reader-Client': 'preview' }, body: JSON.stringify({ name, arguments: args }), signal: controller.signal });
-        if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error ?? `Reader 服务未就绪 (${response.status})`); }
+        if (!response.ok) { const error = await response.json().catch(() => ({})); const message = error.error ?? `Reader 服务未就绪 (${response.status})`; throw error.incomplete ? new IncompleteLoadError(message, error.incomplete) : new Error(message); }
         return unwrap(await response.json());
       } catch (error) {
         if (controller.signal.aborted) throw new Error('Reader 服务响应超时，请重试');
@@ -57,7 +58,7 @@ export function createReaderApi(): ReaderApi {
       } finally { window.clearTimeout(timeout); }
     };
   } else {
-    const app = new App({ name: 'Reader', version: '0.1.8' });
+    const app = new App({ name: 'Reader', version: '0.1.9' });
     const extensions = new OpenAIExtensions(app);
     const applyContext = (context: ReturnType<App['getHostContext']>) => {
       if (context?.theme) { applyDocumentTheme(context.theme); document.documentElement.dataset.hostTheme = context.theme; }

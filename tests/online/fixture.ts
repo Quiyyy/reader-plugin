@@ -15,6 +15,15 @@ export async function fixtureServer(handler?: RequestListener) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     const url = new URL(req.url!, 'http://fixture.local'), path = url.pathname;
     if (declarativePages[path]) { res.end(declarativePages[path]); return; }
+    if (path === '/long-toc') {
+      const page = Number(url.searchParams.get('p') ?? 1);
+      res.end(`<div class="chapters"><a href="/chapter/long-${page}">原创分页第${page}章</a></div>${page < 15 ? `<a class="next" href="/long-toc?p=${page + 1}">Next</a>` : ''}`); return;
+    }
+    if (path === '/long-content-toc') { res.end('<div class="chapters"><a href="/chapter/one">第一章 河岸</a><a href="/long-content">原创长章</a></div>'); return; }
+    if (path === '/long-content') {
+      const page = Number(url.searchParams.get('p') ?? 1);
+      res.end(`<div id="content">原创长章第 ${page} 页。</div>${page < 17 ? `<a class="next" href="/long-content?p=${page + 1}">Next</a>` : ''}`); return;
+    }
     const example = path.split('/examples/online/')[1];
     if (example && /^(?:reader-demo(?:-array)?\.json|demo\/(?:search-[12]|book|toc-[12]|chapter-(?:1[ab]|2))\.html)$/.test(example)) {
       try { res.end(await readFile(resolve('examples/online', example))); }

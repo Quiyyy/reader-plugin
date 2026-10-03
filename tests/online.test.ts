@@ -282,7 +282,7 @@ describe('online source service and durable lazy reading', () => {
     await expect(online.chapter(book.summary.id, book.document.chapters[1].id, signal())).rejects.toThrow('HTTP 403');
     expect(await readFile(cacheFile, 'utf8')).toBe(cached);
     mode = 'cycle'; await expect(online.refresh(book.summary.id, signal())).rejects.toThrow('循环');
-    mode = 'limit'; await expect(online.refresh(book.summary.id, signal())).rejects.toThrow('超过 5');
+    mode = 'limit'; await expect(online.refresh(book.summary.id, signal())).rejects.toThrow('目录尚未完成');
     expect((await online.open(book.summary.id, signal())).document.chapters).toHaveLength(2);
   });
   it('invalidates a response after source disable/re-enable and isolates new source revision books', async () => {
@@ -301,7 +301,7 @@ describe('online source service and durable lazy reading', () => {
   it('never exposes fixture network exceptions via strict RPC schemas', async () => {
     const { service } = await setup();
     await expect(service.call('reader_online_preview_url', { url: 'http://127.0.0.1', requestId: randomUUID(), allowPrivate: true })).rejects.toThrow();
-    await expect(service.call('reader_online_search', { sourceId: 'a'.repeat(64), key: 'q', page: 6, requestId: randomUUID() })).rejects.toThrow();
+    await expect(service.call('reader_online_search', { sourceId: 'a'.repeat(64), key: 'q', page: 10001, requestId: randomUUID() })).rejects.toThrow();
     await expect(service.call('constructor', {})).rejects.toThrow('未知');
   });
   it('reports malicious document complexity as a failed stage and keeps the same service usable', async () => {

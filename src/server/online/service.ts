@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { BookDetail, BookSummary, Bookmark, Locator } from '../../shared/types.js';
-import type { OnlineDetail, OnlineResult, SourcePreview, SourceReport, Stage } from '../../shared/online.js';
+import { IncompleteLoadError, type OnlineDetail, type OnlineResult, type SourcePreview, type SourceReport, type Stage } from '../../shared/online.js';
 import { atomicWrite, ReaderStore } from '../store.js';
 import { hash, importSources, inspectSource, SOURCE_LIMITS, stageKeys, sourceOrigins, type Source } from './import.js';
 import { SafeHttpClient, allowedUrl } from './http.js';
@@ -14,6 +14,7 @@ import { ScriptSession, type ScriptGlobals } from './script.js';
 import { parseRate } from './rate.js';
 import { parseCatalogPackage, catalogReceiptSchema, type CatalogReceipt } from './catalog.js';
 import { SCRIPT_LIMITS } from './script-syntax.js';
+import { PaginationDraft, PaginationBoundaryError, PAGINATION_LIMITS, type PaginationCheckpoint, type RuleState } from './pagination.js';
 
 const idSchema = z.string().regex(/^[a-f0-9]{64}$/);
 const chapterSchema = z.object({ id: idSchema, title: z.string().max(500), url: z.string().max(4096) });
@@ -21,6 +22,13 @@ const locatorSchema = z.object({ chapter: z.number().int().nonnegative(), paragr
 const recordSchema = z.object({ version: z.literal(1), id: idSchema, sourceId: idSchema, revision: idSchema, url: z.string(), tocUrl: z.string(), title: z.string(), author: z.string(), chapters: z.array(chapterSchema).min(1).max(SOURCE_LIMITS.chapters), locator: locatorSchema, bookmarks: z.array(z.object({ id: z.string(), locator: locatorSchema, label: z.string(), createdAt: z.string() })).max(1000), addedAt: z.string(), lastReadAt: z.string().optional() });
 type RecordBook = z.infer<typeof recordSchema>;
 type Toc = RecordBook['chapters'];
+interface RuleControl {
+  signal: AbortSignal;
+  restore(state?: RuleState): void;
+  snapshot(): RuleState;
+  usage(): { requests: number; bytes: number };
+  resumeUsage(requests: number, bytes: number): void;
+}
 const missing = (error: unknown) => (error as NodeJS.ErrnoException)?.code === 'ENOENT';
 const err = (error: unknown) => error instanceof Error ? error.message : '联网操作失败';
 const cleanTitle = (value: string) => value.replace(/\s+/g, ' ').trim().slice(0, 500);
@@ -127,7 +135,7 @@ export class OnlineSourceService {
     if (generation && source.generation !== generation) throw new Error('书源启停状态已改变，已丢弃过期响应');
     return source;
   }
-  private async tracked<T>(source: Source, stage: Stage, signal: AbortSignal, work: (rules: RuleEvaluator, fetchPage: (input: string) => Promise<{ text: string; url: string }>) => Promise<T>, globals?: Partial<ScriptGlobals>): Promise<T> {
+  private async tracked<T>(source: Source, stage: Stage, signal: AbortSignal, work: (rules: RuleEvaluator, fetchPage: (input: string) => Promise<{ text: string; url: string }>, control: RuleControl) => Promise<T>, globals?: Partial<ScriptGlobals>): Promise<T> {
     const report = source.report.stages[stage];
     if (!['supported', 'partial'].includes(report.syntax)) throw new Error(`${stageKeys[stage]}：该阶段语法 ${report.syntax}，请查看字段诊断`);
     const update = async (error?: string) => this.store.locked('online-sources', async () => {
@@ -138,8 +146,10 @@ export class OnlineSourceService {
       } else if (!error) throw new Error('书源状态已变化，已丢弃过期响应');
     });
     return this.store.locked(`online-rule-${source.report.id}`, async () => {
-      const controller = new AbortController(), abort = () => controller.abort();
-      let requests = 0, bytes = 0;
+      const controller = new AbortController(), abort = () => controller.abort(signal.reason);
+      let requests = 0, bytes = 0, priorRequests = 0, priorBytes = 0;
+      const paginated = stage === 'toc' || stage === 'content';
+      const totalBytes = stage === 'toc' ? PAGINATION_LIMITS.tocBytes : PAGINATION_LIMITS.contentBytes;
       const origin = new URL(source.report.url).origin, origins = sourceOrigins(source.raw, source.report.url);
       const defaults = staticHeaders(source.raw.header), rate = parseRate(source.raw.concurrentRate);
       const statePath = join(this.directory, `variables-${source.report.id}-${source.report.revision}.json`);
@@ -152,7 +162,7 @@ export class OnlineSourceService {
         const request = searchRequest(input, rules.globals.key ?? '', rules.globals.page ?? 1);
         const url = allowedUrl(request.url, rules.globals.baseUrl, origins);
         const policy = { headers: { ...defaults, ...request.headers }, charset: request.charset, origins, rate, sourceKey: source.report.id,
-          beforeRequest: () => { if (++requests > SCRIPT_LIMITS.requests) throw new Error('单阶段请求超过 20 次（含脚本、重定向和连接重试）'); } };
+          beforeRequest: () => { if (++requests + priorRequests > PAGINATION_LIMITS.requests && paginated) throw new PaginationBoundaryError('分页累计请求超过 512 次，请检查书源规则'); if (requests > SCRIPT_LIMITS.requests) throw new Error('本批请求超过 20 次（含脚本、重定向和连接重试）'); } };
         const response = request.method === 'POST' ? await this.http.post(url, request.body!, controller.signal, origin, policy) : await this.http.get(url, controller.signal, origin, policy);
         if (typeof source.raw.loginUrl === 'string' && /^https?:|^\//.test(source.raw.loginUrl)) {
           try {
@@ -160,7 +170,7 @@ export class OnlineSourceService {
             if (login.pathname !== '/' && login.origin === received.origin && login.pathname === received.pathname) throw new Error('网站跳转至登录入口；需要授权登录，已停止');
           } catch (error) { if ((error as Error).message.includes('登录入口')) throw error; }
         }
-        bytes += Buffer.byteLength(response.text); if (bytes > SCRIPT_LIMITS.networkBytes) throw Error('单阶段响应合计超过 8 MiB');
+        bytes += Buffer.byteLength(response.text); if (paginated && bytes + priorBytes > totalBytes) throw new PaginationBoundaryError(`分页响应合计超过 ${totalBytes / 1024 / 1024} MiB`); if (bytes > SCRIPT_LIMITS.networkBytes) throw Error('本批响应合计超过 8 MiB');
         // These two documented JSD assets can be injected into ordinary public
         // pages. Ignore only their exact paths as blocking signals; no page
         // script is executed/fetched. All other challenge markers still stop.
@@ -169,20 +179,28 @@ export class OnlineSourceService {
         return response;
       };
       signal.addEventListener('abort', abort, { once: true }); if (signal.aborted) abort();
-      const timer = setTimeout(abort, SCRIPT_LIMITS.sessionMs);
+      const timer = setTimeout(() => controller.abort(new Error('规则阶段超时，请重试')), SCRIPT_LIMITS.sessionMs);
       const script = new ScriptSession(controller.signal, async input => (await fetchPage(input)).text);
       script.variables = Object.assign(Object.create(null), saved.source, globals?.book?.bookUrl ? saved[`book:${globals.book.bookUrl}`] : {}, saved[scope]);
       const rules = new RuleEvaluator(script, { baseUrl: source.report.url, book: { origin, ...globals?.book }, source: { bookSourceUrl: source.report.url }, ...globals });
       // Internal snapshots, keyed by source revision and URL, cannot be supplied
       // via UI results. Search fields can pass java.put data to that book only.
-      rules.saveScope = (scope: string) => { saved[scope] = { ...script.variables }; };
+      const changedScopes: RuleState['scopes'] = Object.create(null);
+      rules.saveScope = (scope: string) => { saved[scope] = changedScopes[scope] = { ...script.variables }; };
+      const control: RuleControl = {
+        signal: controller.signal,
+        restore(state) { if (state) { script.variables = { ...state.variables }; Object.assign(saved, state.scopes); Object.assign(changedScopes, state.scopes); } },
+        snapshot() { const state = { variables: { ...script.variables }, scopes: { ...changedScopes } }; if (Buffer.byteLength(JSON.stringify(state)) > 1024 * 1024) throw Error('分页规则状态超过 1 MiB'); return state; },
+        usage: () => ({ requests: priorRequests + requests, bytes: priorBytes + bytes }),
+        resumeUsage(count, size) { priorRequests = count; priorBytes = size; },
+      };
       try {
-        signal.throwIfAborted(); const result = await work(rules, fetchPage); signal.throwIfAborted();
+        signal.throwIfAborted(); const result = await work(rules, fetchPage, control); controller.signal.throwIfAborted();
         await this.source(source.report.id, source.report.revision, source.generation);
         saved[scope] = { ...script.variables };
-        if (Object.keys(saved).length > 5000 || Buffer.byteLength(JSON.stringify(saved)) > 1024 * 1024) throw Error('书源持久变量超过 5000 作用域 / 1 MiB');
+        if (Object.keys(saved).length > SOURCE_LIMITS.chapters + 1 || Buffer.byteLength(JSON.stringify(saved)) > 1024 * 1024) throw Error('书源持久变量超过 20001 作用域 / 1 MiB');
         await atomicWrite(statePath, JSON.stringify(saved)); await update(); return result;
-      } catch (error) { if (!signal.aborted) await update(err(error)); throw error; }
+      } catch (error) { if (!signal.aborted && !(error instanceof IncompleteLoadError && error.incomplete.paused)) await update(err(error)); throw error; }
       finally { script.close(); controller.abort(); clearTimeout(timer); signal.removeEventListener('abort', abort); }
     });
   }
@@ -250,39 +268,81 @@ export class OnlineSourceService {
       return { ...result, url: response.url, title: cleanTitle((await this.values(rules, source, 'detail', 'name', context, !!this.rule(source, 'detail', 'name')))[0] ?? result.title), author: cleanTitle((await this.values(rules, source, 'detail', 'author', context))[0] ?? result.author), intro: (await this.values(rules, source, 'detail', 'intro', context)).join('\n').slice(0, 10000), tocUrl: this.url(source, toc, response.url, 'ruleBookInfo.tocUrl') };
     }, { book: { origin: new URL(source.report.url).origin, bookUrl: result.url, name: result.title, author: result.author } });
   }
-  private async pages(rules: RuleEvaluator, fetchPage: (input: string) => Promise<{ text: string; url: string }>, source: Source, stage: 'toc' | 'content', start: string, signal: AbortSignal, visit: (context: any, url: string) => Promise<void>) {
-    let url = start; const visited = new Set<string>();
-    for (let page = 1; page <= SOURCE_LIMITS.pages; page++) {
-      if (visited.has(url)) throw new Error(`${stageKeys[stage]}：检测到分页循环`);
-      visited.add(url);
-      rules.globals.page = page;
-      const response = await fetchPage(url), context = documentContext(response.text); rules.globals.baseUrl = response.url;
-      await visit(context, response.url);
-      const field = stage === 'toc' ? 'nextTocUrl' : 'nextContentUrl';
-      const links = await this.values(rules, source, stage, field, context);
-      if (links.length > 1) throw new Error(`${stageKeys[stage]}.${field}：下一页必须最多匹配一个链接`);
-      if (!links.length) return;
-      if (page === SOURCE_LIMITS.pages) throw new Error(`${stageKeys[stage]}.${field}：分页超过 5 页，未保存不完整结果`);
-      url = this.url(source, links[0]!, response.url, `${stageKeys[stage]}.${field}`);
+  private async pages<T>(rules: RuleEvaluator, fetchPage: (input: string) => Promise<{ text: string; url: string }>, control: RuleControl, source: Source, stage: 'toc' | 'content', start: string, identity: unknown, schema: z.ZodType<T[]>, visit: (context: any, url: string) => Promise<T[]>, merge: (previous: T[], page: T[]) => T[]): Promise<T[]> {
+    const draft = new PaginationDraft(this.directory, [source.report.id, source.report.revision, source.generation, stage, start, identity]);
+    let checkpoint = await draft.read();
+    const loaded = checkpoint ? schema.safeParse(checkpoint.payload) : undefined;
+    if (loaded && !loaded.success) { await draft.remove(); throw Error('分页续点损坏，已清除临时续点；原书籍不变，请重试'); }
+    let items: T[] = loaded?.success ? loaded.data : [];
+    checkpoint ??= { version: 1, updatedAt: Date.now(), pages: 0, next: start, visited: [], fingerprints: [], requests: 0, bytes: 0, payload: [] };
+    const state: PaginationCheckpoint = checkpoint;
+    control.restore(state.rules); control.resumeUsage(state.requests, state.bytes);
+    const began = Date.now(), visited = new Set(state.visited), fingerprints = new Set(state.fingerprints);
+    const label = stage === 'toc' ? '目录' : '章节';
+    const progress = () => ({ stage, pages: state.pages, items: items.length, resumable: true, paused: false });
+    const save = async () => { Object.assign(state, control.usage()); await this.store.locked('online-pagination-drafts', () => draft.save(state)); };
+    try {
+      for (let batch = 0; state.next; batch++) {
+        control.signal.throwIfAborted();
+        if (batch >= PAGINATION_LIMITS.batchPages || Date.now() - began >= PAGINATION_LIMITS.batchMs) {
+          throw new IncompleteLoadError(`${label}尚未完成，已加载 ${state.pages} 页、${items.length} ${stage === 'toc' ? '章' : '段'}。已保存续点，可继续加载；原书籍和阅读进度未改动。`, { ...progress(), paused: true });
+        }
+        if (state.requests >= PAGINATION_LIMITS.requests) throw new PaginationBoundaryError('分页累计请求已达 512 次，请检查书源规则');
+        if (state.pages >= PAGINATION_LIMITS.pages) throw new PaginationBoundaryError('分页超过 256 页总预算，请检查书源下一页规则');
+        const url = this.url(source, state.next, start, `${stageKeys[stage]}.nextUrl`);
+        if (visited.has(url)) throw new PaginationBoundaryError('检测到分页循环（重复链接）');
+        await rules.beginPage(); rules.globals.page = state.pages + 1;
+        const response = await fetchPage(url);
+        if (response.url !== url && visited.has(response.url)) throw new PaginationBoundaryError('检测到分页循环（重定向回已读取页面）');
+        const context = documentContext(response.text); rules.globals.baseUrl = response.url;
+        const values = await visit(context, response.url);
+        const fingerprint = hash(JSON.stringify(stage === 'toc' ? values.map(value => (value as Toc[number]).id) : values));
+        if (fingerprints.has(fingerprint)) throw new PaginationBoundaryError('检测到分页循环（不同链接返回重复内容）');
+        const field = stage === 'toc' ? 'nextTocUrl' : 'nextContentUrl';
+        const links = [...new Set((await this.values(rules, source, stage, field, context)).map(link => this.url(source, link, response.url, `${stageKeys[stage]}.${field}`)))];
+        if (links.length > 1) throw new PaginationBoundaryError(`${stageKeys[stage]}.${field}：匹配了多个不同下一页，请检查书源规则`);
+        const combined = merge(items, values);
+        if (stage === 'toc' && combined.length === items.length) throw new PaginationBoundaryError('目录下一页没有新增章节，请检查书源分页规则');
+        schema.parse(combined); control.signal.throwIfAborted();
+        const snapshot = control.snapshot();
+        visited.add(url); visited.add(response.url); fingerprints.add(fingerprint);
+        items = combined;
+        Object.assign(state, { pages: state.pages + 1, next: links[0] ?? '', payload: items, visited: [...visited], fingerprints: [...fingerprints], rules: snapshot });
+        await save();
+      }
+      return items;
+    } catch (error) {
+      // Only complete pages are checkpointed. A failed current page is retried,
+      // never presented as a complete directory or written into chapter cache.
+      if (error instanceof PaginationBoundaryError) { await draft.remove(); throw new IncompleteLoadError(`${label}尚未完成：${err(error)}。已停止并清除临时续点，未覆盖原书籍或缓存；请更新书源后重试。`, { ...progress(), resumable: false }); }
+      if (state.pages) await save();
+      if (error instanceof IncompleteLoadError) throw error;
+      throw new IncompleteLoadError(`${label}尚未完成${state.pages ? `（已保留 ${state.pages} 页续点）` : ''}：${err(error)}。原书籍、缓存和进度未改动；可重试继续，规则错误请更新书源。`, progress());
     }
   }
-  private async toc(source: Source, url: string, signal: AbortSignal, book: Record<string, unknown>): Promise<Toc> {
-    return this.tracked(source, 'toc', signal, async (rules, fetchPage) => {
-      const chapters = new Map<string, Toc[number]>();
-      await this.pages(rules, fetchPage, source, 'toc', this.url(source, url, source.report.url, 'tocUrl'), signal, async (context, base) => {
-        const rows = await this.rows(rules, source, 'toc', 'chapterList', context), bookVariables = { ...rules.script.variables };
+  private async toc(source: Source, url: string, signal: AbortSignal, book: Record<string, unknown>, identity: unknown): Promise<Toc> {
+    return this.tracked(source, 'toc', signal, async (rules, fetchPage, control) => {
+      return this.pages(rules, fetchPage, control, source, 'toc', this.url(source, url, source.report.url, 'tocUrl'), identity, z.array(chapterSchema).max(SOURCE_LIMITS.chapters), async (context, base) => {
+        const rows = await this.rows(rules, source, 'toc', 'chapterList', context), bookVariables = { ...rules.script.variables }, page: Toc = [];
         for (const row of rows) {
+          control.signal.throwIfAborted();
           rules.script.variables = { ...bookVariables };
           const url = this.url(source, (await this.values(rules, source, 'toc', 'chapterUrl', row, true))[0]!, base, 'ruleToc.chapterUrl');
-          const id = hash(url);
-          chapters.set(id, { id, url, title: cleanTitle((await this.values(rules, source, 'toc', 'chapterName', row, true))[0]!) });
+          page.push({ id: hash(url), url, title: cleanTitle((await this.values(rules, source, 'toc', 'chapterName', row, true))[0]!) });
           if (JSON.stringify(rules.script.variables) !== JSON.stringify(bookVariables)) rules.saveScope(`chapter:${url}`);
-          if (chapters.size > SOURCE_LIMITS.chapters) throw new Error('ruleToc.chapterList：目录超过 5000 章');
         }
         rules.script.variables = bookVariables;
+        return page;
+      }, (previous, page) => {
+        const chapters = new Map(previous.map(chapter => [chapter.id, chapter]));
+        for (const chapter of page) if (!chapters.has(chapter.id)) chapters.set(chapter.id, chapter);
+        if (chapters.size > SOURCE_LIMITS.chapters) throw new PaginationBoundaryError('目录超过 20000 章总预算');
+        return [...chapters.values()];
       });
-      return [...chapters.values()];
     }, { book });
+  }
+  private async clearPages(source: Source, stage: 'toc' | 'content', start: string, identity: unknown) {
+    await new PaginationDraft(this.directory, [source.report.id, source.report.revision, source.generation, stage, this.url(source, start, source.report.url, stage), identity]).remove();
   }
   async has(id: string) { try { await fs.access(this.path(id)); return true; } catch (error) { if (missing(error)) return false; throw error; } }
   private async read(id: string): Promise<RecordBook> { await this.store.assertActive(id); const book = recordSchema.parse(JSON.parse(await fs.readFile(this.path(id), 'utf8'))); if (book.id !== id) throw new Error('在线书籍 ID 不一致'); return book; }
@@ -310,9 +370,10 @@ export class OnlineSourceService {
     if (!['supported', 'partial'].includes(source.report.stages.content.syntax)) throw new Error('ruleContent：正文语法不可用，请查看书源字段诊断');
     if (await this.has(id)) return this.open(id, signal);
     await this.store.assertActive(id);
-    const chapters = await this.toc(source, detail.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: detail.url, name: detail.title, author: detail.author });
+    const chapters = await this.toc(source, detail.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: detail.url, name: detail.title, author: detail.author }, ['add', id, await this.store.lifecycle(id)]);
     const book: RecordBook = { version: 1, id, sourceId: detail.sourceId, revision: detail.revision, url: canonicalUrl, tocUrl: detail.tocUrl, title: detail.title, author: detail.author, chapters, locator: { chapter: 0, paragraph: 0, chapterId: chapters[0]!.id }, bookmarks: [], addedAt: new Date().toISOString() };
     await this.store.locked('online-sources', () => this.store.locked(`online-${id}`, async () => { signal.throwIfAborted(); await this.source(source.report.id, source.report.revision, source.generation); if (!await this.has(id)) await this.write(book); }));
+    await this.clearPages(source, 'toc', detail.tocUrl, ['add', id, await this.store.lifecycle(id)]);
     return this.open(id, signal);
   }
   async open(id: string, signal: AbortSignal): Promise<BookDetail> {
@@ -326,17 +387,17 @@ export class OnlineSourceService {
     if (!chapter) throw new Error('章节已不在目录中，请刷新书籍');
     if (await this.cached(book, chapterId)) return this.asDetail(book, chapterId);
     const source = await this.source(book.sourceId, book.revision);
-    const paragraphs = await this.tracked(source, 'content', signal, async (rules, fetchPage) => {
-      const paragraphs: string[] = []; let bytes = 0;
-      await this.pages(rules, fetchPage, source, 'content', chapter.url, signal, async context => {
-        for (const value of await this.values(rules, source, 'content', 'content', context, true)) for (const part of value.split(/\n+/).map(p => p.trim()).filter(Boolean)) {
-          bytes += Buffer.byteLength(part);
-          if (bytes > 4 * 1024 * 1024 || paragraphs.length >= 50000) throw new Error('ruleContent.content：章节超过 4 MiB / 50000 段');
-          paragraphs.push(part);
-        }
-        if (!paragraphs.length) throw new Error('ruleContent.content：正文为空');
+    const paragraphs = await this.tracked(source, 'content', signal, async (rules, fetchPage, control) => {
+      return this.pages(rules, fetchPage, control, source, 'content', chapter.url, [id, chapterId, lifecycle], z.array(z.string()).max(50000), async context => {
+        const page: string[] = [];
+        for (const value of await this.values(rules, source, 'content', 'content', context, true)) page.push(...value.split(/\n+/).map(p => p.trim()).filter(Boolean));
+        if (!page.length) throw Error('ruleContent.content：正文为空');
+        return page;
+      }, (previous, page) => {
+        const combined = [...previous, ...page];
+        if (combined.length > 50000 || combined.reduce((bytes, value) => bytes + Buffer.byteLength(value), 0) > 4 * 1024 * 1024) throw new PaginationBoundaryError('章节超过 4 MiB / 50000 段总预算');
+        return combined;
       });
-      return paragraphs;
     }, { book: { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author, durChapterTitle: chapter.title }, chapter: { title: chapter.title, url: chapter.url, index: book.chapters.indexOf(chapter) } });
     await this.store.locked('online-sources', () => this.store.locked(`online-${id}`, async () => {
       signal.throwIfAborted(); await this.source(book.sourceId, book.revision, source.generation);
@@ -354,18 +415,19 @@ export class OnlineSourceService {
         await fs.unlink(join(directory, entry.name)); size -= entry.stat.size;
       }
     }));
+    await this.clearPages(source, 'content', chapter.url, [id, chapterId, lifecycle]);
     return this.asDetail(await this.read(id), chapterId);
   }
   async refresh(id: string, signal: AbortSignal): Promise<BookDetail> {
     const lifecycle = await this.store.lifecycle(id);
-    const book = await this.read(id), source = await this.source(book.sourceId, book.revision), chapters = await this.toc(source, book.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author });
+    const book = await this.read(id), source = await this.source(book.sourceId, book.revision), chapters = await this.toc(source, book.tocUrl, signal, { origin: new URL(source.report.url).origin, bookUrl: book.url, name: book.title, author: book.author }, ['refresh', id, lifecycle]);
     return this.store.locked('online-sources', () => this.store.locked(`online-${id}`, async () => {
       signal.throwIfAborted(); await this.source(book.sourceId, book.revision, source.generation);
       const current = await this.read(id);
       if (await this.store.lifecycle(id) !== lifecycle) throw new Error('书籍已移入或恢复自回收站，过期目录已丢弃');
       const align = (loc: RecordBook['locator']) => { const chapter = chapters.findIndex(c => c.id === loc.chapterId); if (chapter < 0) throw new Error('新目录缺少进度或书签章节；旧目录已保留'); return { ...loc, chapter }; };
       current.locator = align(current.locator); current.bookmarks = current.bookmarks.map(b => ({ ...b, locator: align(b.locator) })); current.chapters = chapters;
-      await this.write(current); return this.asDetail(current);
+      await this.write(current); await this.clearPages(source, 'toc', book.tocUrl, ['refresh', id, lifecycle]); return this.asDetail(current);
     }));
   }
   private async checkedLocator(book: RecordBook, locator: Locator) {

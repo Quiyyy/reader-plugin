@@ -7,6 +7,7 @@ import { KeyboardEditor } from './KeyboardEditor';
 import { defaultKeyboard, editableTarget, eventShortcut, shortcutActions, type KeyboardSettings } from '../shared/keyboard';
 import type { TrashEntry } from '../shared/types';
 import { OnlinePanel } from './OnlinePanel';
+import { IncompleteLoadError, type IncompleteLoad } from '../shared/online';
 import './styles.css';
 
 type Panel = 'contents' | 'bookmarks' | 'appearance' | 'search' | null;
@@ -85,6 +86,8 @@ export function App({ api }: { api: ReaderApi }) {
   const [onlineOpen, setOnlineOpen] = useState(false);
   const [onlineBusy, setOnlineBusy] = useState(false);
   const [onlineError, setOnlineError] = useState('');
+  const [onlineIncomplete, setOnlineIncomplete] = useState<IncompleteLoad | null>(null);
+  const onlineRetryRef = useRef<(() => void) | null>(null);
   const onlineRequestRef = useRef<string | null>(null);
   const [libraryQuery, setLibraryQuery] = useState('');
   const [bookQuery, setBookQuery] = useState('');
@@ -294,12 +297,12 @@ export function App({ api }: { api: ReaderApi }) {
       if (!target) { setOnlineError('章节已不在目录中'); return; }
       if (!target.loaded) {
         const requestId = crypto.randomUUID(); onlineRequestRef.current = requestId;
-        setOnlineBusy(true); setOnlineError('');
+        setOnlineBusy(true); setOnlineError(''); setOnlineIncomplete(null);
         try {
           const loaded = await api.online.chapter(activeBook.document.id, target.id, requestId);
           if (!mountedRef.current || request !== openRequestRef.current) return;
           activeBook = loaded; bookRef.current = loaded; setBook(loaded);
-        } catch (reason) { if (mountedRef.current && request === openRequestRef.current) setOnlineError(messageOf(reason)); return; }
+        } catch (reason) { if (mountedRef.current && request === openRequestRef.current) { setOnlineError(messageOf(reason)); setOnlineIncomplete(reason instanceof IncompleteLoadError ? reason.incomplete : null); onlineRetryRef.current = () => { void navigate(requested); }; } return; }
         finally { if (mountedRef.current && request === openRequestRef.current) { setOnlineBusy(false); onlineRequestRef.current = null; } }
       }
     }
@@ -509,12 +512,12 @@ export function App({ api }: { api: ReaderApi }) {
     if (!active || !api.online) return;
     const request = ++openRequestRef.current, requestId = crypto.randomUUID();
     if (onlineRequestRef.current) void api.online.cancel(onlineRequestRef.current);
-    onlineRequestRef.current = requestId; setOnlineBusy(true); setOnlineError('');
+    onlineRequestRef.current = requestId; setOnlineBusy(true); setOnlineError(''); setOnlineIncomplete(null);
     await flushProgress();
     try {
       const refreshed = await api.online.refresh(active.document.id, requestId);
       if (mountedRef.current && request === openRequestRef.current) showBook(refreshed);
-    } catch (reason) { if (mountedRef.current && request === openRequestRef.current) setOnlineError(messageOf(reason)); }
+    } catch (reason) { if (mountedRef.current && request === openRequestRef.current) { setOnlineError(messageOf(reason)); setOnlineIncomplete(reason instanceof IncompleteLoadError ? reason.incomplete : null); onlineRetryRef.current = () => { void refreshOnline(); }; } }
     finally { if (mountedRef.current && request === openRequestRef.current) { setOnlineBusy(false); onlineRequestRef.current = null; } }
   };
 
@@ -580,7 +583,7 @@ export function App({ api }: { api: ReaderApi }) {
       {returning && <div className="returning-overlay" role="status"><LoaderCircle size={18} className="spin" /><span>正在保存并返回…</span></div>}
       <header className="reader-toolbar"><div className="reader-title-group"><IconButton label={onlineOpen ? "返回找书" : "返回书架"} disabled={returning} onClick={() => void returnToShelf()}><ArrowLeft size={19} /></IconButton><span className="toolbar-divider"/><div className="reading-title" title={book.document.title}>{book.document.title}</div></div><nav className="reader-actions" aria-label="阅读工具"><IconButton label="目录（T）" active={panel === 'contents'} onClick={() => togglePanel('contents')}><List size={19} /></IconButton><IconButton label={`${searchLabel}（F）`} active={panel === 'search'} onClick={() => togglePanel('search')}><Search size={18} /></IconButton><IconButton label={bookmarked ? '移除当前段落书签（B）' : '收藏当前段落（B）'} active={bookmarked} disabled={bookmarkBusy} onClick={() => void toggleBookmark()}>{bookmarkBusy ? <LoaderCircle size={18} className="spin" /> : bookmarked ? <BookmarkIcon size={18} fill="currentColor" /> : <BookmarkPlus size={19} />}</IconButton><IconButton label="我的书签" active={panel === 'bookmarks'} onClick={() => togglePanel('bookmarks')}><BookmarkIcon size={18} /></IconButton><IconButton label="阅读样式" active={panel === 'appearance'} onClick={() => togglePanel('appearance')}><Settings2 size={19} /></IconButton></nav></header>
       {(saveError || bookmarkError || settingsError || importError) && <div className="reading-errors">{importError && <ErrorNotice text={importError} onClose={() => setImportError('')} />}{saveError && <ErrorNotice text={saveError} onRetry={() => void flushProgress()} />}{bookmarkError && <ErrorNotice text={bookmarkError} onClose={() => setBookmarkError('')} />}{settingsError && <ErrorNotice text={settingsError} onRetry={flushSettings} />}</div>}
-      <div className="online-reading-status">{onlineBusy && <span role="status">正在读取章节… <button className="text-button" onClick={() => { openRequestRef.current++; if (onlineRequestRef.current) void api.online?.cancel(onlineRequestRef.current); setOnlineBusy(false); }}>取消联网</button></span>}{onlineError && <ErrorNotice text={onlineError} onClose={() => setOnlineError('')} />}</div><div className="reading-layout">
+      <div className="online-reading-status">{onlineBusy && <span role="status">正在读取章节… <button className="text-button" onClick={() => { openRequestRef.current++; if (onlineRequestRef.current) void api.online?.cancel(onlineRequestRef.current); setOnlineBusy(false); }}>取消联网</button></span>}{onlineError && <div className={onlineIncomplete?.paused ? "online-notice pagination-notice" : "error-notice"} role={onlineIncomplete?.paused ? "status" : "alert"}><span>{onlineError}</span><button className="text-button" disabled={onlineBusy} onClick={() => onlineRetryRef.current?.()}>{onlineIncomplete?.resumable ? onlineIncomplete.stage === "toc" ? "继续加载目录" : "继续加载章节" : "重试"}</button><IconButton label="关闭提示" onClick={() => setOnlineError('')}><X size={15} /></IconButton></div>}</div><div className="reading-layout">
         {panel && <><button type="button" className="panel-scrim" aria-label="关闭侧栏" onClick={() => setPanel(null)} /><aside className="reader-panel" ref={node => { if (!helpOpen) overlayRef.current = node; }} aria-label={panelTitle}><div className="panel-heading"><h2>{panelTitle}</h2><IconButton label={`关闭${panelTitle}`} onClick={() => setPanel(null)}><X size={18} /></IconButton></div>
           {panel === 'contents' && <><p className="panel-caption">{book.document.chapters.length} 个章节</p>{book.document.format === 'online' && <button type="button" className="text-button" disabled={onlineBusy} onClick={() => void refreshOnline()}>刷新在线目录</button>}<nav className="chapter-list" aria-label="章节目录">{book.document.chapters.map((chapter, index) => <button type="button" key={chapter.id || index} className={index === chapterIndex ? 'chapter-item selected' : 'chapter-item'} aria-current={index === chapterIndex ? 'location' : undefined} onClick={() => navigate({ chapter: index, paragraph: 0 })}><span className="chapter-number">{String(index + 1).padStart(2, '0')}</span><span>{chapter.title}</span>{index === chapterIndex && <span className="current-dot" />}</button>)}</nav></>}
           {panel === 'bookmarks' && <><button className="bookmark-current secondary-button" disabled={bookmarkBusy} onClick={() => void toggleBookmark()}>{bookmarkBusy ? <LoaderCircle size={16} className="spin" /> : <BookmarkIcon size={16} fill={bookmarked ? 'currentColor' : 'none'} />}{bookmarked ? '移除当前段落书签' : '收藏当前段落'}</button>{book.bookmarks.length ? <ul className="bookmark-list">{book.bookmarks.map(item => <li key={item.id}><button className="bookmark-jump" onClick={() => navigate(item.locator)}><span>{book.document.chapters[item.locator.chapter]?.title || '章节'}</span><p>{item.label}</p><small>第 {item.locator.paragraph + 1} 段</small></button><IconButton label={`移除书签：${item.label.slice(0, 20)}`} disabled={bookmarkBusy} onClick={() => void removeBookmark(item.id)}><Trash2 size={15} /></IconButton></li>)}</ul> : <EmptyHint title="留住值得再读的地方">阅读时按 B，或点上方按钮收藏当前段落。</EmptyHint>}</>}

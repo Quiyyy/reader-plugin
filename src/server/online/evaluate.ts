@@ -31,6 +31,9 @@ export class RuleEvaluator {
   saveScope: (scope: string) => void = () => {};
   private steps = 0;
   constructor(readonly script: ScriptSession, public globals: ScriptGlobals) {}
+  // Each bounded page owns its field work; a long directory must not exhaust
+  // a budget intended to stop one hostile document. CPU/session guards remain.
+  async beginPage() { this.steps = 0; await this.script.beginPage(); }
   private async interpolate(input: string, context: any, preserveKeyPage = false, regexLiteral = false): Promise<string> {
     let output = '', end = 0;
     for (const match of input.matchAll(/\{\{([\s\S]*?)\}\}/g)) {

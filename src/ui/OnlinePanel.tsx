@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, BookOpen, Check, FileUp, LoaderCircle, Search, Settings2, X } from 'lucide-react';
 import type { BookDetail } from '../shared/types';
-import { type OnlineApi, type OnlineDetail, type OnlineResult, type SourcePreview, type SourceReport } from '../shared/online';
+import { ONLINE_SEARCH_PAGE_LIMIT, IncompleteLoadError, type IncompleteLoad, type OnlineApi, type OnlineDetail, type OnlineResult, type SourcePreview, type SourceReport } from '../shared/online';
 
 import { canSearch, canReadRules, sourceDomain, SourceStatus } from './sourcePresentation';
 import { SourceManager } from './SourceManager';
@@ -18,6 +18,7 @@ export function OnlinePanel({ api, active, onOpen, onClose }: { api: OnlineApi; 
   const [results, setResults] = useState<OnlineResult[]>([]), [failures, setFailures] = useState<Failure[]>([]), [detail, setDetail] = useState<OnlineDetail | null>(null);
   const [searched, setSearched] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(''), [cancellable, setCancellable] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<string | null>(null);
+  const [incomplete, setIncomplete] = useState<IncompleteLoad | null>(null);
   const requests = useRef(new Set<string>()), generation = useRef(0), busyRef = useRef(false), mounted = useRef(true);
   const main = useRef<HTMLElement>(null), dialog = useRef<HTMLElement>(null), wizardTrigger = useRef<HTMLElement | null>(null), resultTrigger = useRef('');
   const retry = useRef<(() => void) | null>(null), scrollTop = useRef(0), sourceGeneration = useRef(0);
@@ -67,9 +68,9 @@ export function OnlinePanel({ api, active, onOpen, onClose }: { api: OnlineApi; 
     const version = ++generation.current;
     const current = () => mounted.current && version === generation.current;
     const request = () => { const id = crypto.randomUUID(); requests.current.add(id); return id; };
-    setBusy(label); setCancellable(network); setError(''); setNotice(''); retry.current = () => { void run(label, work, done, network); };
+    setBusy(label); setCancellable(network); setError(''); setNotice(''); setIncomplete(null); retry.current = () => { void run(label, work, done, network); };
     try { const value = await work(request, current); if (current()) done(value); }
-    catch (e) { if (current()) setError(messageOf(e)); }
+    catch (e) { if (current()) { setError(messageOf(e)); setIncomplete(e instanceof IncompleteLoadError ? e.incomplete : null); } }
     finally { if (current()) { requests.current.clear(); busyRef.current = false; setBusy(''); setCancellable(false); void refreshSources(); } }
   };
   const cancel = () => { abortRequests(); setError(''); setNotice('已取消，可以重新尝试。'); };
@@ -112,7 +113,7 @@ export function OnlinePanel({ api, active, onOpen, onClose }: { api: OnlineApi; 
     abortRequests(); setDetail(null); setError(''); setNotice('');
     requestAnimationFrame(() => { if (main.current) main.current.scrollTop = scrollTop.current; Array.from(main.current?.querySelectorAll<HTMLElement>('[data-result]') || []).find(el => el.dataset.result === resultTrigger.current)?.focus(); });
   };
-  const status = <>{busy && <div className="online-progress" role="status"><LoaderCircle size={16} className="spin" /><span>{busy}…</span>{cancellable && <button className="text-button" onClick={cancel}>取消</button>}</div>}{notice && <p className="online-notice" role="status">{notice}</p>}{error && <div className="error-notice" role="alert"><span>{error}</span><button className="text-button" disabled={!!busy} onClick={() => retry.current?.()}>重试</button></div>}</>;
+  const status = <>{busy && <div className="online-progress" role="status"><LoaderCircle size={16} className="spin" /><span>{busy}…</span>{cancellable && <button className="text-button" onClick={cancel}>取消</button>}</div>}{notice && <p className="online-notice" role="status">{notice}</p>}{error && <div className={incomplete?.paused ? "online-notice pagination-notice" : "error-notice"} role={incomplete?.paused ? "status" : "alert"}><span>{error}</span><button className="text-button" disabled={!!busy} onClick={() => retry.current?.()}>{incomplete?.resumable ? incomplete.stage === "toc" ? "继续加载目录" : "继续加载章节" : "重试"}</button></div>}</>;
   if (!active) return null;
   return <main className="discovery-shell" ref={main} aria-label="找书与书源" onKeyDown={event => {
     if (event.nativeEvent.isComposing || event.keyCode === 229) return;
@@ -135,7 +136,7 @@ export function OnlinePanel({ api, active, onOpen, onClose }: { api: OnlineApi; 
         {sourceError && <div className="error-notice" role="alert"><span>书源列表未能加载。</span><button className="text-button" onClick={() => void refreshSources()}>重新加载</button></div>}
         {sourcesLoading ? <p role="status">正在读取书源…</p> : !enabled.length && !sourceError ? <div className="discovery-empty"><BookOpen size={30} /><h2>{sources.length ? '还没有启用的书源' : '先添加一个找书的来源'}</h2><p>{sources.length ? '已保存不等于已启用。到书源管理中启用兼容的来源，就可以搜索。' : '导入你信任的书源文件或链接。也可以回到书架，直接阅读 TXT 或 EPUB。'}</p><button className="secondary-button" onClick={() => sources.length ? setView('sources') : openWizard()}>{sources.length ? '去启用书源' : '导入书源'}</button><button className="text-button" onClick={leave}>返回书架</button></div> : !searched && !busy && !results.length && !notice && <p className="search-hint">从书名开始，找到后点开即可阅读。</p>}
         {!step && status}
-        {(searched || results.length > 0) && <section aria-label="在线搜索结果" className="online-results"><div className="results-heading"><h2>搜索结果</h2><span>第 {page} 页 · {results.length} 本</span></div>{searched && !results.length && <div className="discovery-empty"><Search size={25} /><h3>{failures.length ? '本次未能找到书籍' : page === 1 ? '未找到匹配书籍' : '已到搜索末页'}</h3><p>{failures.length ? '部分来源未能响应。可以重试，或更换搜索范围。' : page === 1 ? '试试更短的书名，或更换搜索范围。' : '本页没有更多结果，可以返回上一页。'}</p></div>}{results.map(result => <button type="button" className="online-result" key={`${result.sourceId}:${result.url}`} data-result={`${result.sourceId}:${result.url}`} disabled={!!busy} onClick={() => { resultTrigger.current = `${result.sourceId}:${result.url}`; scrollTop.current = main.current?.scrollTop || 0; void run('正在读取详情', request => api.detail(result, request()), setDetail); }}><span className="result-book-icon" aria-hidden="true"><BookOpen size={22} strokeWidth={1.3} /></span><span className="result-info"><strong>{result.title}</strong><span>{result.author || '佚名'}</span><small>来自 {sources.find(s => s.id === result.sourceId)?.name || '已移除的书源'}</small></span><ArrowRight size={16} /></button>)}<div className="search-pagination">{page > 1 && <button className="text-button" disabled={!!busy} onClick={() => search(page - 1)}>上一页搜索</button>}{results.length > 0 && <button className="text-button" disabled={!!busy || page >= 5} onClick={() => search(page + 1)}>下一页搜索</button>}{page >= 5 && <span>已显示前 5 页，可缩小关键词范围。</span>}</div></section>}
+        {(searched || results.length > 0) && <section aria-label="在线搜索结果" className="online-results"><div className="results-heading"><h2>搜索结果</h2><span>第 {page} 页 · {results.length} 本</span></div>{searched && !results.length && <div className="discovery-empty"><Search size={25} /><h3>{failures.length ? '本次未能找到书籍' : page === 1 ? '未找到匹配书籍' : '已到搜索末页'}</h3><p>{failures.length ? '部分来源未能响应。可以重试，或更换搜索范围。' : page === 1 ? '试试更短的书名，或更换搜索范围。' : '本页没有更多结果，可以返回上一页。'}</p></div>}{results.map(result => <button type="button" className="online-result" key={`${result.sourceId}:${result.url}`} data-result={`${result.sourceId}:${result.url}`} disabled={!!busy} onClick={() => { resultTrigger.current = `${result.sourceId}:${result.url}`; scrollTop.current = main.current?.scrollTop || 0; void run('正在读取详情', request => api.detail(result, request()), setDetail); }}><span className="result-book-icon" aria-hidden="true"><BookOpen size={22} strokeWidth={1.3} /></span><span className="result-info"><strong>{result.title}</strong><span>{result.author || '佚名'}</span><small>来自 {sources.find(s => s.id === result.sourceId)?.name || '已移除的书源'}</small></span><ArrowRight size={16} /></button>)}<div className="search-pagination">{page > 1 && <button className="text-button" disabled={!!busy} onClick={() => search(page - 1)}>上一页搜索</button>}{results.length > 0 && <button className="text-button" disabled={!!busy || page >= ONLINE_SEARCH_PAGE_LIMIT} onClick={() => search(page + 1)}>下一页搜索</button>}{page >= ONLINE_SEARCH_PAGE_LIMIT && <span>已达到搜索页码上限，可缩小关键词范围。</span>}</div></section>}
         {failures.length > 0 && <details className="search-failures"><summary>{failures.length} 个来源暂未返回结果{results.length ? '，其他结果仍可阅读' : ''}</summary>{failures.map(f => <p key={f.source.id}><strong>{f.source.name}</strong>：{f.message}</p>)}<button className="text-button" disabled={!!busy} onClick={() => search(page, failures.map(f => f.source))}>重试这些来源</button></details>}
       </>}
     </div>

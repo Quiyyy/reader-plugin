@@ -2,6 +2,11 @@ import type { BookDetail } from './types.js';
 
 export type SyntaxStatus = 'supported' | 'partial' | 'blocked' | 'invalid';
 export type NetworkStatus = 'untested' | 'passed' | 'failed';
+export const ONLINE_SEARCH_PAGE_LIMIT = 10000;
+export interface IncompleteLoad { stage: 'toc' | 'content'; pages: number; items: number; resumable: boolean; paused: boolean; }
+export class IncompleteLoadError extends Error {
+  constructor(message: string, readonly incomplete: IncompleteLoad) { super(message); }
+}
 export type Stage = 'search' | 'detail' | 'toc' | 'content';
 export const stages: Stage[] = ['search', 'detail', 'toc', 'content'];
 export interface Diagnostic { field: string; status: SyntaxStatus; reason: string; }
