@@ -1,6 +1,6 @@
 {
   "name": "reader-plugin",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite build && tsx src/server/index.ts --http",
-    "build": "vite build && tsc -p tsconfig.server.json",
+    "build": "node scripts/build-reader.mjs",
     "start": "node dist/server/index.js",
     "preview": "node dist/server/index.js --http",
     "typecheck": "tsc --noEmit",
@@ -16,6 +16,7 @@
     "test:e2e": "node scripts/build-test-host.mjs && playwright test",
     "test:books": "node scripts/test-real-books.mjs",
     "inspect:reader": "node scripts/inspect-reader.mjs",
+    "upgrade:windows": "node scripts/windows-reader-upgrade.mjs",
     "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run validate:plugin && npm run test:platform",
     "validate:plugin": "node scripts/validate-plugin.mjs",
     "lint": "node scripts/check-scripts.mjs",

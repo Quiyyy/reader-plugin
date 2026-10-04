@@ -27,7 +27,7 @@ function newer(required: string, current: string) {
 /** Transport-independent adapter. A future public manifest transport must use
  * SafeHttpClient and feed the same bounded, pinned package into this function.
  * No credentials, automatic subscription or fetching of manifest paths. */
-export function parseCatalogPackage(text: string, readerVersion = '0.1.10'): { json: string; receipt: CatalogReceipt } {
+export function parseCatalogPackage(text: string, readerVersion = '0.1.11'): { json: string; receipt: CatalogReceipt } {
   if (Buffer.byteLength(text) > 1024 * 1024) throw new Error('清单包超过 1 MiB');
   const pkg = envelopeSchema.parse(parseJson(text));
   if (digest(pkg.manifest) !== pkg.manifestSha256) throw new Error('manifest SHA-256 不匹配');

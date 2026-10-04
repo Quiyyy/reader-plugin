@@ -10,20 +10,22 @@ import { chromium, expect } from '@playwright/test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { epubFixture } from './epub-fixture.mjs';
+import assert from 'node:assert/strict';
+import { buildInputs, serverFingerprint } from './build-fingerprint.mjs';
 
-const {values}=parseArgs({options:{surface:{type:'string',default:'bridge'},scenario:{type:'string',default:'epub'},book:{type:'string'},output:{type:'string'},serve:{type:'boolean'},headed:{type:'boolean'},'no-build':{type:'boolean'}}});
+const {values}=parseArgs({options:{surface:{type:'string',default:'bridge'},scenario:{type:'string',default:'epub'},book:{type:'string'},output:{type:'string'},serve:{type:'boolean'},headed:{type:'boolean'},package:{type:'string'},'build-only':{type:'boolean'},'no-build':{type:'boolean'}}});
 if(!['bridge','standalone'].includes(values.surface)||values.scenario!=='epub')throw Error('Use --surface bridge|standalone --scenario epub');
 if(values.serve&&values.surface!=='standalone')throw Error('--serve is available with --surface standalone');
+if(values.package&&(values.surface!=='bridge'||!values['no-build']))throw Error('--package requires --surface bridge --no-build; inspect the exact already-built package');
 const root=fileURLToPath(new URL('../',import.meta.url));process.chdir(root);
 const hash=value=>createHash('sha256').update(value).digest('hex');
-async function inputs(){const paths=['package.json','package-lock.json','vite.config.ts','scripts/inline-ui.mjs'];const walk=async dir=>{for(const entry of await readdir(dir,{withFileTypes:true})){const path=join(dir,entry.name);if(entry.isDirectory())await walk(path);else paths.push(path);}};await walk('src');await walk('tests/host');let text='';for(const path of paths.sort())text+=`${path}\0${hash(await readFile(path))}\n`;return hash(text);}
-async function serverHash(){const paths=[];const walk=async dir=>{for(const entry of await readdir(dir,{withFileTypes:true})){const path=join(dir,entry.name);if(entry.isDirectory())await walk(path);else paths.push(path);}};await walk('dist/server');await walk('dist/shared');let value='';for(const path of paths.sort())value+=path+hash(await readFile(path));return hash(value);}
+const inputs=()=>buildInputs(root),serverHash=()=>serverFingerprint(root);
 const fingerprint=await inputs(),stampPath=join(root,'dist','inspection-build.json');
 if(values['no-build']){const stamp=JSON.parse(await readFile(stampPath,'utf8'));if(stamp.inputs!==fingerprint||stamp.ui!==hash(await readFile('dist/ui/index.html'))||stamp.server!==await serverHash())throw Error('Build does not match current sources. Run without --no-build.');}
 else{
-  for(const args of [['node_modules/vite/bin/vite.js','build'],['node_modules/typescript/bin/tsc','-p','tsconfig.server.json'],['scripts/build-test-host.mjs']]){const run=spawnSync(process.execPath,args,{cwd:root,stdio:'inherit',windowsHide:true});if(run.status!==0)throw Error('Reader inspection build failed');}
-  await writeFile(stampPath,JSON.stringify({inputs:fingerprint,ui:hash(await readFile('dist/ui/index.html')),server:await serverHash()},null,2));
+  for(const args of [['scripts/build-reader.mjs'],['scripts/build-test-host.mjs']]){const run=spawnSync(process.execPath,args,{cwd:root,stdio:'inherit',windowsHide:true});if(run.status!==0)throw Error('Reader inspection build failed');}
 }
+if(values['build-only']){console.log(await readFile(stampPath,'utf8'));process.exit(0);}
 await mkdir('artifacts',{recursive:true});
 const output=values.output?resolve(values.output):await mkdtemp(join(root,'artifacts','inspection-'));
 await mkdir(output,{recursive:true});const dataDir=await mkdtemp(join(output,'data-'));
@@ -40,8 +42,20 @@ try{
     if(values.serve){await writeReport();console.log(JSON.stringify({url:origin,dataDir,output,isolated:true,realCodexHost:false}));await new Promise(resolveStop=>{process.once('SIGINT',resolveStop);process.once('SIGTERM',resolveStop);});}
   }else{
     client=new Client({name:'Reader development inspector',version:'1.0.0'});
-    await client.connect(new StdioClientTransport({command:process.execPath,args:[join(root,'dist/server/index.js')],env:{...process.env,READER_DATA_DIR:dataDir},stderr:'pipe'}));
+    let config={command:process.execPath,args:[join(root,'dist/server/index.js')],env:{...process.env,READER_DATA_DIR:dataDir},stderr:'pipe'};
+    if(values.package){
+      const packageRoot=resolve(values.package),manifest=JSON.parse(await readFile(join(packageRoot,'runtime-manifest.json'),'utf8'));
+      const inventory=JSON.parse(await readFile(join(packageRoot,'PACKAGE-SHA256.json'),'utf8'));
+      for(const [name,expected] of Object.entries(inventory)){assert.ok(!name.includes('\\')&&!name.split('/').includes('..')&&!name.startsWith('/'));assert.equal(hash(await readFile(join(packageRoot,name))),expected,name);}
+      assert.equal(manifest.source.commit,report.gitHead);assert.equal(manifest.source.dirty,false);assert.equal(report.gitStatus,'');assert.equal(manifest.testFixture,false);assert.equal(manifest.target,'win32-x64');
+      assert.equal(manifest.files['app/dist/ui/index.html'],report.uiSha256);
+      report.package={root:packageRoot,version:manifest.version,source:manifest.source,manifestSha256:hash(await readFile(join(packageRoot,'runtime-manifest.json'))),inventorySha256:hash(await readFile(join(packageRoot,'PACKAGE-SHA256.json')))};
+      config={command:join(packageRoot,'reader-launcher.exe'),args:[],cwd:packageRoot,env:{...process.env,READER_DATA_DIR:dataDir,PLUGIN_ROOT:packageRoot,PLUGIN_DATA:join(output,'runtime-cache'),NODE_OPTIONS:'',NODE_PATH:'',PATH:''},stderr:'pipe'};
+    }
+    await client.connect(new StdioClientTransport(config));
+    report.mcpVersion=client.getServerVersion();if(report.package)assert.equal(report.mcpVersion.version,report.package.version);
     const list=await client.listResources(),resource=await client.readResource({uri:list.resources[0].uri});
+    assert.equal(hash(resource.contents[0].text),report.uiSha256,'Native UI resource must match the verified build');
     report.resourceUri=list.resources[0].uri;report.resourceCsp=resource.contents[0]._meta.ui.csp;
     report.nativeHtml=resource.contents[0].text;
     // Playwright routes below implement only this controlled harness. No TCP control server exists.

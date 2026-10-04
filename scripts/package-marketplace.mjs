@@ -10,6 +10,7 @@ import { builtinModules } from 'node:module';
 import { build } from 'esbuild';
 import { unzipSync } from 'fflate';
 import { filesUnder } from '../distribution/installer.mjs';
+import { buildInputs } from './build-fingerprint.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const run = promisify(execFile), hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -26,17 +27,23 @@ const commit = (await run('git', ['rev-parse', 'HEAD'], { cwd: source })).stdout
 const dirtyFiles = (await run('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: source })).stdout.trim();
 const dirty = !!dirtyFiles;
 if (values.fixture && (pkg.version !== '0.1.3' || commit !== '81a87e9d7bb38db31cc1f755021af5b809e79169')) throw new Error('The fixture must use the exact final 0.1.3 source.');
-if (process.env.CI && dirty) throw new Error(`CI refuses a dirty package source:\n${dirtyFiles}`);
+if (dirty) throw new Error(`Package source must be committed and clean:\n${dirtyFiles}`);
 const artifacts = join(root, 'artifacts'); await fs.mkdir(artifacts, { recursive: true });
 const stage = await fs.mkdtemp(join(artifacts, 'marketplace-stage-'));
 const output = join(root, 'artifacts/marketplace', `${values.target}${values.fixture ? '-fixture' : ''}`);
+try { await fs.access(output); throw new Error(`Package already exists; reuse its verified bytes or choose a fresh checkout: ${output}`); }
+catch(error) { if(error.code!=='ENOENT')throw error; }
+if(!values.fixture){
+  const stamp=await readJson(join(source,'dist/inspection-build.json'));
+  if(stamp.commit!==commit||stamp.inputs!==await buildInputs(source)||stamp.ui!==hash(await fs.readFile(join(source,'dist/ui/index.html'))))throw new Error('Build stamp does not match this commit/UI. Run npm run build from the clean commit.');
+}
 const app = join(stage, 'app'); await fs.mkdir(join(app, 'dist/server'), { recursive: true });
 await fs.mkdir(join(app, 'dist/ui'), { recursive: true });
 const bundle = (entry, output, external = []) => build({ entryPoints: [join(source, entry)], bundle: true, platform: 'node', format: 'esm', target: 'node24',
   outfile: join(app, output), metafile: true, external,
   banner: { js: "import { createRequire as __readerCreateRequire } from 'node:module'; const require = __readerCreateRequire(import.meta.url);" },
   plugins: [{ name: 'upstream-text-only-canvas-fallback', setup(builder) {
-    // Reader is text-only and never depended on native canvas. Bundle linkedom's
+    // Server-side EPUB parsing does not use native canvas. Bundle linkedom's
     // existing fallback instead of resolving an optional module outside the plugin.
     builder.onResolve({ filter: /^canvas$/ }, () => ({ path: join(source, 'node_modules/linkedom/commonjs/canvas-shim.cjs') }));
   } }],
@@ -123,7 +130,7 @@ for (const [path, entry] of Object.entries(lock.packages)) {
     supplemental: extra.map(item => ({ path: `licenses/upstream/${item.file}`, source: item.source, sha256: item.sha256, note: item.note })) });
 }
 await fs.writeFile(join(stage, 'DEPENDENCIES.json'), json(dependencies));
-await fs.writeFile(join(stage, 'THIRD_PARTY_NOTICES.md'), '# Reader bundled runtime notices\n\nNode.js and the Go runtime retain their upstream licenses in licenses/. JavaScript dependency licenses and pinned supplemental notices are listed in DEPENDENCIES.json. Reader uses text-only EPUB rendering; native canvas is not included. The upstream Node executable is compressed without modification; startup verifies and restores its exact bytes. This package does not claim Apple notarization or Windows publisher signing.\n');
+await fs.writeFile(join(stage, 'THIRD_PARTY_NOTICES.md'), '# Reader bundled runtime notices\n\nNode.js and the Go runtime retain their upstream licenses in licenses/. JavaScript dependency licenses and pinned supplemental notices are listed in DEPENDENCIES.json. EPUB parsing uses the upstream canvas fallback; native canvas is not included. The upstream Node executable is compressed without modification; startup verifies and restores its exact bytes. This package does not claim Apple notarization or Windows publisher signing.\n');
 const id = `reader-${values.target}`;
 const executable = target.goos === 'windows' ? 'reader-launcher.exe' : 'reader-launcher';
 // Git-backed installs must preserve the exact checksummed bytes on Windows too.
@@ -148,6 +155,6 @@ const inventory = {};
 for (const name of await filesUnder(stage)) inventory[name] = hash(await fs.readFile(join(stage, name)));
 await fs.writeFile(join(stage, 'PACKAGE-SHA256.json'), json(inventory));
 await fs.mkdir(dirname(output), { recursive: true });
-await fs.rm(output, { recursive: true, force: true }); await fs.rename(stage, output);
+await fs.rename(stage, output);
 const packageBytes = (await Promise.all((await filesUnder(output)).map(async name => (await fs.stat(join(output, name))).size))).reduce((a,b)=>a+b,0);
 console.log(json({ output, plugin: id, version: pkg.version, target: values.target, packageBytes, nodeBytes: node.length, compressedNodeBytes: compressed.length, source: manifest.source, testFixture: values.fixture }));

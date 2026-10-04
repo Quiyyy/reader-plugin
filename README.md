@@ -1,6 +1,6 @@
 # Reader
 
-**本分支为结构化 EPUB 候选，尚未发布。** 已加入图片、字体、表格、多级目录、脚注和独立定位；真实 Codex 宿主验收仍待完成。功能范围、截图与升级步骤见 [EPUB 候选交接](docs/EPUB_CANDIDATE.md)。开发检查使用 `npm run inspect:reader -- --surface bridge --scenario epub`，临时书库与正式数据隔离。
+**Reader 0.1.11：结构化 EPUB 阅读。** 图片、字体、表格、多级目录、脚注、外观切换和独立定位已接入。保留 0.1.10 增量阅读修复。见 [版本说明](docs/RELEASE_0.1.11.md) 与 [Windows 单包交付流程](docs/WINDOWS_DELIVERY.md)。原生宿主 UI 未验证项会在交付收据中单独列明。
 
 一个安静、私人的小说阅读插件。React + TypeScript 阅读界面，真实 MCP Apps 协议与 OpenAI MCP Extensions 接入，书籍和进度由 Reader 服务持久保存。
 

@@ -1,6 +1,6 @@
 {
   "name": "reader-plugin",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "A private, local-first TXT and EPUB novel reader with an embedded bookshelf and durable reading progress.",
   "author": {
     "name": "Quiyyy"

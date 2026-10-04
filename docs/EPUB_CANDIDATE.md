@@ -1,6 +1,6 @@
 # Structured EPUB candidate
 
-Status (2026-10-04): production implementation complete for the scope below; **actual Codex host acceptance remains pending**. This is a local candidate, not a published release. Base `ed0e51d8eac29952a88ab7f69ebeec0235cddf5d` (0.1.10 incremental online opening), branch `feat/epub-structured-reader`. Do not replace this base with older main/dist. Formal Reader and source catalog installations remain unchanged.
+Status (2026-10-04): production implementation complete for the scope below; **actual Codex host acceptance remains pending**. The user authorized Windows 0.1.11 local delivery on the same day; missing native UI tooling is recorded separately and does not block that authorized upgrade. See WINDOWS_DELIVERY.md and the private delivery receipt. Public main/dist publication remains separately coordinated. Base `ed0e51d8eac29952a88ab7f69ebeec0235cddf5d` (0.1.10 incremental online opening), branch `feat/epub-structured-reader`. Do not replace this base with older main/dist. The source catalog stays at 0.4.1; exact formal Reader installation status is recorded in the delivery receipt.
 
 ## Implemented production behavior
 
@@ -19,7 +19,7 @@ Foliate commit `78914aef4466eb960965702401634c2cb348e9b1` is pinned with MIT not
 
 The implemented adapter rebuilds allowed DOM nodes and CSS declarations instead. It creates no nested document. Shadow DOM isolates book styles, **not privileges**: the closed element/attribute/CSS allowlists and SVG-as-image rebuild are the security boundary. No untrusted `innerHTML` is inserted in the app. Book scripts, event handlers, active forms/frames, arbitrary navigation, CSS network URLs and remote assets are removed. Book content receives no App/MCP object or message relay. Static SVG drops scripting, animation and foreignObject; embedded dependencies are limited to validated local raster images.
 
-`src/server/mcp.ts`, `src/server/http.ts` and `tests/host/host.ts` have no changes. CSP domain lists remain empty, and preview frames remain forbidden. There is **no proposed CSP diff or new permission**. Existing ZIP path/CRC/expansion bounds, XXE/internal-DTD/DRM checks and legal inert NCX DOCTYPE compatibility are reused. Parser/node/CSS/resource output budgets add limits to rich rendering.
+The CSP definitions in `src/server/mcp.ts`, `src/server/http.ts` and `tests/host/host.ts` are unchanged; 0.1.11 updates version metadata only. CSP domain lists remain empty, and preview frames remain forbidden. There is **no proposed CSP diff or new permission**. Existing ZIP path/CRC/expansion bounds, XXE/internal-DTD/DRM checks and legal inert NCX DOCTYPE compatibility are reused. Parser/node/CSS/resource output budgets add limits to rich rendering.
 
 Official local CLI registration of the separate `reader-epub-probe@reader-epub-lab` succeeded. Browser/Computer Use/Codex App Tools plugins are installed, but this delegated session has no callable `mcp__node_repl__js`, desktop, browser or Reader UI entrypoint; Codex App Tools is disabled in its manifest. The official Browser skill requires its node_repl bridge. Computer Use instructions also exclude automating Codex itself. We did not enable private pipes, attach a debugging port, automate permission prompts, or change host settings. Registration/native MCP/browser simulation cannot establish real native-host rendering.
 
@@ -59,8 +59,8 @@ Fixed layout is detected and shown as a structural reflow with a menu notice, no
 
 ## Parent delivery sequence
 
-1. Review local code and screenshots. Resolve actual Codex native-host acceptance using the supported UI route; keep formal 0.1.10 installed during review.
-2. Use this exact candidate lineage. Pick one new release version and UI cache URI consistently in package/lock/manifests/server/UI and docs; do not publish new bytes as 0.1.10. Keep the source catalog at 0.4.1.
+1. Review local code and screenshots. Keep actual Codex native-host acceptance explicitly unverified when its supported UI route is unavailable. The user has authorized the verified Windows 0.1.11 local upgrade.
+2. Use this exact lineage and the selected 0.1.11 version/cache URI. Keep the source catalog at 0.4.1.
 3. Build from the final clean commit with locked dependencies (`npm ci`, `npm run build`); reproduce the relevant inspection if the runtime or source changes. No full CI run has been used as a reading-acceptance substitute.
 4. Package Windows using the repository's existing `package:marketplace -- --target win32-x64` workflow and pinned official Node archive. Check the new CSSOM dependency is included (it was already a transitive runtime dependency). The Foliate probe is not a production dependency.
-5. Parent coordinates one release/installation update after acceptance, preserving data directory and a byte inventory/backup. No remote branch, marketplace release or formal installation was changed by this work. Rollback retains sidecar data for later recovery; old Reader ignores it.
+5. Perform one user-authorized local update with a coherent backup and byte inventory, using the exact inspected package. Coordinate public main/dist publication separately. Rollback retains sidecar data for later recovery; old Reader ignores it.
