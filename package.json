@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:e2e": "node scripts/build-test-host.mjs && playwright test",
     "test:books": "node scripts/test-real-books.mjs",
+    "inspect:reader": "node scripts/inspect-reader.mjs",
     "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run validate:plugin && npm run test:platform",
     "validate:plugin": "node scripts/validate-plugin.mjs",
     "lint": "node scripts/check-scripts.mjs",
@@ -41,7 +42,8 @@
     "re2js": "2.8.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "cssom": "0.5.0"
   },
   "overrides": {
     "@openai/apps-sdk-ui": {

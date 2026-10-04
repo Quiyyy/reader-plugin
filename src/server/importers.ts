@@ -105,7 +105,7 @@ function importTxt(filename: string, bytes: Uint8Array, override?: string): Omit
 }
 
 /** Discard inert document types before either parser sees them. Never load a DTD. */
-function withoutDocumentType(source: string, label: string): string {
+export function withoutDocumentType(source: string, label: string): string {
   const tokens = /<!--|<!\[CDATA\[|<!DOCTYPE|<!ENTITY/gi;
   const parts: string[] = [];
   let copied = 0, seen = false;
@@ -141,13 +141,13 @@ function withoutDocumentType(source: string, label: string): string {
   parts.push(source.slice(copied));
   return parts.join('');
 }
-function parseXml(bytes: Uint8Array, label: string): any {
+export function parseXml(bytes: Uint8Array, label: string): any {
   const text = withoutDocumentType(textDecoder('utf-8', bytes), label);
   const valid = XMLValidator.validate(text);
   if (valid !== true) throw new Error(`${label}: malformed XML.`);
   return new XMLParser({ ignoreAttributes: false, removeNSPrefix: true, parseTagValue: false, parseAttributeValue: false, processEntities: true }).parse(text);
 }
-function resolveReference(baseFile: string, reference: string): string {
+export function resolveReference(baseFile: string, reference: string): string {
   if (/^[a-z][a-z0-9+.-]*:|^\/\//i.test(reference)) throw new Error('Remote EPUB resources are unsupported.');
   let path: string;
   try { path = decodeURIComponent(reference.split('#')[0]!.split('?')[0]!); }
@@ -293,7 +293,7 @@ function importEpub(filename: string, bytes: Uint8Array): Omit<BookDocument, 'id
     // a repeated document <title>) must not hide an explicit opening chapter.
     const openingHeading = paragraphs.slice(0, 3).find(isChapterHeading);
     const chapterTitle = openingHeading || tocTitles.get(path) || clean(document.querySelector('h1,h2,h3')?.textContent ?? '') || clean(document.querySelector('title')?.textContent ?? '') || `Chapter ${chapters.length + 1}`;
-    chapters.push({ id: `chapter-${chapters.length}`, title: chapterTitle, paragraphs });
+    chapters.push({ id: `chapter-${chapters.length}`, title: chapterTitle, paragraphs, sourcePath: path });
   }
   if (!chapters.length) throw new Error('This EPUB contains no readable text. Image-only, encrypted or fixed-layout books are not supported.');
   return { title, author, format: 'epub', chapters, warnings: [...new Set(warnings)] };

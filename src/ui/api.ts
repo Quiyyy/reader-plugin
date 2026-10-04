@@ -24,7 +24,7 @@ function unwrap(result: any): unknown {
 export function createReaderApi(): ReaderApi {
   let call: Rpc;
   let hostClose: (() => Promise<void>) | undefined;
-  let beforeClose: (() => Promise<unknown>) | undefined;
+  const beforeClose = new Set<() => Promise<unknown>>();
   let onBook: ((book: BookDetail) => void) | undefined;
   let onError: ((message: string) => void) | undefined;
   let queuedBook: BookDetail | undefined;
@@ -67,7 +67,7 @@ export function createReaderApi(): ReaderApi {
     app.onhostcontextchanged = applyContext;
     // Install handlers before connect: the host can deliver initial file input immediately.
     app.ontoolresult = () => {};
-    app.onteardown = async () => { await beforeClose?.(); return {}; };
+    app.onteardown = async () => { await Promise.all([...beforeClose].map(listener => listener())); return {}; };
     let ready: Promise<void>;
     app.ontoolinput = ({ arguments: args }) => {
       const parsed = OpenAIFileEntrypointInputSchema.safeParse(args);
@@ -82,7 +82,10 @@ export function createReaderApi(): ReaderApi {
           const bytes = 'blob' in content ? decodeBase64(content.blob) : new TextEncoder().encode(content.text);
           if (version !== incomingVersion) return;
           const book = await importFile(new File([new Uint8Array(bytes)], parsed.data.file.name));
-          if (version === incomingVersion) opened(book);
+          if (version === incomingVersion) {
+            await Promise.all([...beforeClose].map(listener => listener()));
+            if (version === incomingVersion) opened(book);
+          }
         }).catch(failed);
       });
     };
@@ -91,6 +94,15 @@ export function createReaderApi(): ReaderApi {
     call = async (name, args) => { await ready; return unwrap(await app.callServerTool({ name, arguments: args })); };
   }
   return {
+    epub: {
+      open: id => call('reader_epub_open', { id }) as any,
+      chapter: (id, resource) => call('reader_epub_chapter', { id, resource }) as any,
+      resource: (id, resource, offset) => call('reader_epub_resource', { id, resource, offset }) as any,
+      save: (id, location, appearance) => call('reader_epub_progress', { id, location, appearance }) as any,
+      settings: (id, appearance) => call('reader_epub_settings', { id, appearance }) as any,
+      bookmark: (id, location, label) => call('reader_epub_bookmark', { id, location, label }) as any,
+      removeBookmark: (id, bookmarkId) => call('reader_epub_bookmark_remove', { id, bookmarkId }) as any,
+    },
     keyboard: () => call('reader_keyboard', {}) as ReturnType<ReaderApi['keyboard']>,
     saveKeyboard: settings => call('reader_keyboard_save', { settings }) as ReturnType<ReaderApi['saveKeyboard']>,
     resetKeyboard: () => call('reader_keyboard_reset', {}) as ReturnType<ReaderApi['resetKeyboard']>,
@@ -100,14 +112,14 @@ export function createReaderApi(): ReaderApi {
     async requestHostClose() {
       const openai = (window as Window & { openai?: { requestClose?: () => void | Promise<void> } }).openai;
       if (!openai?.requestClose && !hostClose) return { status: 'unsupported', message: '当前预览没有宿主关闭接口。请使用宿主面板的关闭按钮；Esc 只返回 Reader 或关闭弹层。' };
-      await beforeClose?.();
+      await Promise.all([...beforeClose].map(listener => listener()));
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         await Promise.race([Promise.resolve().then(() => openai?.requestClose ? openai.requestClose() : hostClose!()), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('宿主未在 5 秒内完成关闭请求；面板状态未知，请用宿主关闭按钮')), 5000); })]);
       } finally { if (timer) clearTimeout(timer); }
       return { status: 'requested', message: '已发送关闭请求，是否关闭由宿主决定。若面板仍显示，请使用宿主关闭按钮。' };
     },
-    onBeforeClose(listener) { beforeClose = listener; return () => { beforeClose = undefined; }; },
+    onBeforeClose(listener) { beforeClose.add(listener); return () => { beforeClose.delete(listener); }; },
     list: () => call('reader_list', {}) as ReturnType<ReaderApi['list']>,
     importBook: importFile,
     open: (id, requestId) => call('reader_get', { id, ...(requestId ? { requestId } : {}) }) as ReturnType<ReaderApi['open']>,

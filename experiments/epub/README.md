@@ -1,6 +1,6 @@
 # Reader EPUB host probe
 
-Development-only prerequisite for the structural EPUB upgrade. See [design, gate result and integration plan](../../docs/EPUB_CANDIDATE.md). **Not a production EPUB reader and not accepted in a real Codex host.**
+Development-only iframe investigation for the structural EPUB upgrade; production now uses a reconstructed DOM adapter under unchanged CSP. See [design, gate result and integration plan](../../docs/EPUB_CANDIDATE.md). **Not a production EPUB reader and not accepted in a real Codex host.**
 
 The checked-in assets are original: sample prose, a drawn PNG and a three-glyph diagnostic font. `generate-assets.py` regenerates the latter two using Pillow/fontTools, but normal builds use the committed bytes. MIT notices for the pinned upstream code are in `vendor/foliate/LICENSE`; the probe source/assets may be used under that same MIT license. Generated EPUB contains nested TOC entries into a single XHTML document, an inert NCX external DOCTYPE, a picture, a font, a table and a footnote.
 
@@ -19,13 +19,13 @@ Output:
 - `design.html`: ordinary-DOM visual mockup for design review only.
 - `server.mjs`: MCP stdio server, or `node artifacts/epub-probe/server.mjs --http` for local `/probe` and `/design` previews.
 - `original-river.epub`: the original rich-format fixture.
-- `marketplace`: unregistered, separate `reader-epub-probe@reader-epub-lab` development plugin. It preserves the existing `Reader` title. Its MCP server ID and marketplace name differ from the installed Reader.
+- `marketplace`: separate `reader-epub-probe@reader-epub-lab` development plugin. It preserves the existing `Reader` title. Its MCP server ID and marketplace name differ from the installed Reader.
 - `build-manifest.json`: source hashes, sandbox change, unchanged CSP and unperformed host status.
 - `design-*.png`: browser design previews; `probe-blocked-preview.png`: actual preview denial.
 
 Build copies the server but resolves its packages from this checkout's node_modules. This is a reproducible local development kit, not a portable packaged release. Keep the checkout and current Node executable at their recorded paths until the parent removes the probe. No registration or install occurs during build/check.
 
-The official Windows CLI syntax below matches the previously authorized local installation workflow. These commands have **not** been executed for the probe; the parent coordinates the separate host test:
+The official Windows CLI syntax below matches the previously authorized local installation workflow. These commands **were executed successfully** for this separate probe on 2026-10-04. It is installed as `0.1.10-epub-probe.1`; actual Codex opening/rendering remains unverified:
 
 ```powershell
 $cli = 'C:\Users\qyd\.codex\plugins\.plugin-appserver\codex.exe'

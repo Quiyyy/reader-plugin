@@ -13,7 +13,7 @@ const locatorSchema = z.object({ chapter: z.number().int().nonnegative(), paragr
 const settingsSchema = z.object({ theme: z.enum(['system', 'light', 'sepia', 'dark']), fontSize: z.number().min(14).max(36), lineHeight: z.number().min(1.3).max(2.6), lineWidth: z.number().min(420).max(960), fontFamily: z.enum(['serif', 'sans']) });
 const summarySchema = z.object({ id: z.string().regex(/^[a-f0-9]{64}$/), title: z.string(), author: z.string(), format: z.enum(['txt', 'epub']), addedAt: z.string(), lastReadAt: z.string().optional(), progress: z.number().min(0).max(1), locator: locatorSchema, chapterCount: z.number().int().positive(), wordCount: z.number().int().nonnegative() });
 const bookmarkSchema = z.object({ id: z.string(), locator: locatorSchema, label: z.string(), createdAt: z.string() });
-const chapterSchema = z.object({ id: z.string(), title: z.string(), paragraphs: z.array(z.string()).min(1), paragraphStarts: z.array(z.number().int().nonnegative()).min(1).optional() }).refine(chapter => !chapter.paragraphStarts || chapter.paragraphStarts.every((start, index, starts) => start < chapter.paragraphs.length && (index === 0 ? start === 0 : start > starts[index - 1]!)), 'Invalid reading paragraph boundaries');
+const chapterSchema = z.object({ sourcePath: z.string().optional(), id: z.string(), title: z.string(), paragraphs: z.array(z.string()).min(1), paragraphStarts: z.array(z.number().int().nonnegative()).min(1).optional() }).refine(chapter => !chapter.paragraphStarts || chapter.paragraphStarts.every((start, index, starts) => start < chapter.paragraphs.length && (index === 0 ? start === 0 : start > starts[index - 1]!)), 'Invalid reading paragraph boundaries');
 const documentSchema = z.object({ id: z.string(), title: z.string(), author: z.string(), format: z.enum(['txt', 'epub']), chapters: z.array(chapterSchema).min(1), encoding: z.string().optional(), warnings: z.array(z.string()), layoutVersion: z.number().int().positive().optional() });
 const stateSchema = z.object({ version: z.literal(1), originalFilename: z.string(), summary: summarySchema, bookmarks: z.array(bookmarkSchema) });
 type StoredBook = z.infer<typeof stateSchema> & { document: z.infer<typeof documentSchema> };
@@ -59,6 +59,32 @@ export class ReaderStore {
   private readonly booksDir: string;
   private readonly locksDir: string;
   private readonly ready: Promise<void>;
+
+  /** Rich EPUB state is a separate representation. These never rewrite legacy records. */
+  async epubSnapshot(id: string) {
+    return this.locked(id, async () => {
+      const record = await this.readBook(id);
+      if (record.document.format !== 'epub') throw new Error('This book is not an EPUB.');
+      const source = await fs.readFile(join(this.bookPath(id), 'source.epub'));
+      if (createHash('sha256').update(source).digest('hex') !== id) throw new Error('EPUB source hash mismatch.');
+      let rich: unknown;
+      try { rich = JSON.parse(await fs.readFile(join(this.bookPath(id), 'epub-v2.json'), 'utf8')); }
+      catch(error) { if (!isMissing(error)) throw new Error('Saved EPUB reading state is damaged; original data is retained.'); }
+      return { source, detail: detail(record), rich };
+    });
+  }
+  async updateEpub<T>(id: string, update: (value: unknown, book: BookDetail) => { state: unknown; result: T }): Promise<T> {
+    return this.locked(id, async () => {
+      const record = await this.readBook(id);
+      if(record.document.format !== 'epub') throw new Error('This book is not an EPUB.');
+      let rich: unknown;
+      const path=join(this.bookPath(id),'epub-v2.json');
+      try { rich=JSON.parse(await fs.readFile(path,'utf8')); } catch(error) { if(!isMissing(error)) throw error; }
+      const value=update(rich,detail(record));
+      await atomicWrite(path,JSON.stringify(value.state));await syncDirectory(this.bookPath(id));
+      return value.result;
+    });
+  }
 
   constructor(dataDir: string) {
     if (!dataDir || !isAbsolute(dataDir)) throw new Error('Reader storage requires an absolute app-data directory.');
@@ -236,7 +262,18 @@ export class ReaderStore {
     const directories = await fs.readdir(this.booksDir, { withFileTypes: true });
     const books: BookSummary[] = [];
     // Fail explicitly on corruption rather than making a stored book silently disappear.
-    for (const entry of directories) if (entry.isDirectory() && /^[a-f0-9]{64}$/.test(entry.name)) await this.locked(entry.name, async () => { if (!await this.isTrashed(entry.name)) books.push((await this.readState(entry.name)).summary); });
+    for (const entry of directories) if (entry.isDirectory() && /^[a-f0-9]{64}$/.test(entry.name)) await this.locked(entry.name, async () => {
+      if (await this.isTrashed(entry.name)) return;
+      const summary=(await this.readState(entry.name)).summary;
+      if(summary.format==='epub'){
+        try{
+          const rich=JSON.parse(await fs.readFile(join(this.bookPath(entry.name),'epub-v2.json'),'utf8'));
+          const revision=createHash('sha256').update(JSON.stringify(summary.locator)).digest('hex');
+          if(rich.version===2&&rich.sourceHash===summary.id&&rich.legacyRevision===revision&&typeof rich.progress==='number'&&rich.progress>=0&&rich.progress<=1){summary.progress=rich.progress;if(typeof rich.updatedAt==='string'&&rich.updatedAt>(summary.lastReadAt??''))summary.lastReadAt=rich.updatedAt;}
+        }catch(error){if(!isMissing(error))throw new Error('Saved EPUB reading state is damaged; original book data is retained.');}
+      }
+      books.push(summary);
+    });
     books.sort((a, b) => (b.lastReadAt ?? b.addedAt).localeCompare(a.lastReadAt ?? a.addedAt) || a.title.localeCompare(b.title));
     let settings = { ...defaultSettings };
     try { settings = settingsSchema.parse(JSON.parse(await fs.readFile(join(this.dataDir, 'settings.json'), 'utf8'))); }

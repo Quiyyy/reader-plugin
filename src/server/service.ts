@@ -4,6 +4,8 @@ import { keyboardSchema, defaultKeyboard } from '../shared/keyboard.js';
 import type { ReaderStore } from './store.js';
 import { OnlineSourceService } from './online/service.js';
 import { ONLINE_SEARCH_PAGE_LIMIT } from '../shared/online.js';
+import { EpubService } from './epub-service.js';
+import { epubAppearanceSchema, epubLocationSchema } from '../shared/epub.js';
 
 const locator = z.object({ chapter: z.number().int().min(0), paragraph: z.number().int().min(0), chapterId: z.string().regex(/^[a-f0-9]{64}$/).optional() }).strict();
 const id = z.string().regex(/^[a-f0-9]{64}$/);
@@ -14,6 +16,13 @@ const MAX_FILE = 32 * 1024 * 1024;
 const MAX_CHUNK = 256 * 1024;
 const TTL = 15 * 60 * 1000;
 export const actionSchemas = {
+  reader_epub_open: z.object({ id }).strict(),
+  reader_epub_chapter: z.object({ id, resource: z.string().min(1).max(1024) }).strict(),
+  reader_epub_resource: z.object({ id, resource: z.string().min(1).max(1024), offset: z.number().int().min(0).max(16*1024*1024) }).strict(),
+  reader_epub_progress: z.object({ id, location: epubLocationSchema, appearance: epubAppearanceSchema }).strict(),
+  reader_epub_settings: z.object({ id, appearance: epubAppearanceSchema }).strict(),
+  reader_epub_bookmark: z.object({ id, location: epubLocationSchema, label: z.string().max(240) }).strict(),
+  reader_epub_bookmark_remove: z.object({ id, bookmarkId: z.string().max(100) }).strict(),
   reader_keyboard: z.object({}).strict(),
   reader_keyboard_save: z.object({ settings: keyboardSchema }).strict(),
   reader_keyboard_reset: z.object({}).strict(),
@@ -49,12 +58,20 @@ type Upload = { filename: string; size: number; encoding?: string; chunks: Buffe
 export class ReaderService {
   private uploads = new Map<string, Upload>();
   readonly online: OnlineSourceService;
-  constructor(public readonly store: ReaderStore, online?: OnlineSourceService) { this.online = online ?? new OnlineSourceService(store); }
+  readonly epub: EpubService;
+  constructor(public readonly store: ReaderStore, online?: OnlineSourceService) { this.online = online ?? new OnlineSourceService(store); this.epub = new EpubService(store); }
   async call(name: string, input: unknown): Promise<unknown> {
     for (const [key, value] of this.uploads) if (value.expires < Date.now()) this.uploads.delete(key);
     if (!Object.hasOwn(actionSchemas, name)) throw new Error('未知的 Reader 操作');
     const args = actionSchemas[name as ActionName].parse(input) as any;
     switch (name as ActionName) {
+      case 'reader_epub_open': return this.epub.open(args.id);
+      case 'reader_epub_chapter': return this.epub.chapter(args.id, args.resource);
+      case 'reader_epub_resource': return this.epub.resource(args.id, args.resource, args.offset);
+      case 'reader_epub_progress': return this.epub.save(args.id, args.location, args.appearance);
+      case 'reader_epub_settings': return this.epub.settings(args.id, args.appearance);
+      case 'reader_epub_bookmark': return this.epub.bookmark(args.id, args.location, args.label);
+      case 'reader_epub_bookmark_remove': return this.epub.removeBookmark(args.id, args.bookmarkId);
       case 'reader_keyboard': return this.store.keyboard();
       case 'reader_keyboard_save': return this.store.saveKeyboard(args.settings);
       case 'reader_keyboard_reset': return this.store.saveKeyboard(defaultKeyboard);

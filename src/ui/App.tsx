@@ -9,6 +9,8 @@ import type { TrashEntry } from '../shared/types';
 import { OnlinePanel } from './OnlinePanel';
 import { IncompleteLoadError, type IncompleteLoad } from '../shared/online';
 import './styles.css';
+import { IconButton } from './IconButton';
+import { EpubReader } from './EpubReader';
 import { mergeOnlineChapters } from './online-cache';
 
 type Panel = 'contents' | 'bookmarks' | 'appearance' | 'search' | null;
@@ -32,9 +34,6 @@ const themes: { value: Theme; label: string; Icon: typeof Sun }[] = [
   { value: 'sepia', label: '纸色', Icon: BookOpen }, { value: 'dark', label: '深色', Icon: Moon },
 ];
 
-function IconButton({ label, active, children, className = '', ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; active?: boolean }) {
-  return <button type="button" className={`icon-button ${active ? 'is-active' : ''} ${className}`} title={label} aria-label={label} aria-pressed={active === undefined ? undefined : active} {...props}>{children}</button>;
-}
 function ErrorNotice({ text, onRetry, onClose }: { text: string; onRetry?: () => void; onClose?: () => void }) {
   return <div className="error-notice" role="alert"><CircleAlert size={17} aria-hidden="true" /><span>{text}</span>{onRetry && <button type="button" className="text-button" onClick={onRetry}>重试</button>}{onClose && <IconButton label="关闭提示" onClick={onClose}><X size={15} /></IconButton>}</div>;
 }
@@ -65,6 +64,7 @@ export function App({ api }: { api: ReaderApi }) {
   const [books, setBooks] = useState<BookSummary[]>([]);
   const [settings, setSettings] = useState<ReaderSettings>(defaultSettings);
   const [book, setBook] = useState<BookDetail | null>(null);
+  const [epubLegacy, setEpubLegacy] = useState(false);
   const [chapterIndex, setChapterIndex] = useState(0);
   const [locator, setLocator] = useState<Locator>({ chapter: 0, paragraph: 0 });
   const [navigation, setNavigation] = useState<{ locator: Locator; token: number } | null>(null);
@@ -240,7 +240,7 @@ export function App({ api }: { api: ReaderApi }) {
     bookRef.current = next;
     currentLocatorRef.current = nextLocator;
     lastSavedRef.current[next.document.id] = clampLocator(next, next.summary.locator);
-    setBook(next); setChapterIndex(nextLocator.chapter); setLocator(nextLocator);
+    setBook(next); setEpubLegacy(false); setChapterIndex(nextLocator.chapter); setLocator(nextLocator);
     setNavigation({ locator: nextLocator, token: ++navTokenRef.current });
     setPanel(null); setSaveState(failedProgressRef.current.has(next.document.id) ? 'error' : 'saved'); if (!failedProgressRef.current.size) setSaveError(''); setBookmarkError(''); setBookQuery('');
     updateSummary(next.summary);
@@ -608,7 +608,7 @@ export function App({ api }: { api: ReaderApi }) {
 
     <div className="sr-announcement" role="status" aria-live="polite">{notice}</div>
     {notice && <div className="toast" aria-hidden="true"><Check size={15} />{notice}</div>}
-    {!book ? <div hidden={onlineOpen} inert={onlineOpen || helpOpen || trashOpen} className={`shelf-shell ${dragging ? 'is-dragging' : ''}`}
+    {book?.document.format === 'epub' && api.epub && !epubLegacy ? <EpubReader key={book.summary.id} book={book} api={api} settings={settings} keyboard={keyboard} onBack={returnToShelf} onLegacy={() => { setEpubLegacy(true); setNavigation({ locator: book.summary.locator, token: ++navTokenRef.current }); }} onProgress={(progress, lastReadAt) => updateSummary({ ...book.summary, progress, lastReadAt })} /> : !book ? <div hidden={onlineOpen} inert={onlineOpen || helpOpen || trashOpen} className={`shelf-shell ${dragging ? 'is-dragging' : ''}`}
       onDragEnter={event => { event.preventDefault(); if (event.dataTransfer.types.includes('Files')) { dragDepthRef.current++; setDragging(true); } }}
       onDragOver={event => event.preventDefault()}
       onDragLeave={event => { event.preventDefault(); dragDepthRef.current = Math.max(0, dragDepthRef.current - 1); if (!dragDepthRef.current) setDragging(false); }}
