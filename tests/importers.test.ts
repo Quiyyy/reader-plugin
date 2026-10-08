@@ -93,13 +93,13 @@ describe('TXT importer', () => {
     const book = importDocument('book.txt', new Uint8Array([0xd6, 0xd0, 0xce, 0xc4]));
     expect(book.encoding).toBe('gb18030');
     expect(book.chapters[0]!.paragraphs).toEqual(['中文']);
-    expect(book.warnings.join(' ')).toContain('uncertain');
+    expect(book.warnings.join(' ')).toContain('若文字显示不正确');
     expect(importDocument('book.txt', new Uint8Array([0xa4, 0xa4, 0xa4, 0xe5]), 'Big5').chapters[0]!.paragraphs).toEqual(['中文']);
   });
   it('rejects wrong overrides, binary, empty and unsupported files', () => {
-    expect(() => importDocument('book.txt', new Uint8Array([0xff]), 'utf-8')).toThrow(/could not be decoded/);
-    expect(() => importDocument('book.txt', strToU8('data'), 'shift_jis')).toThrow(/Unsupported text encoding/);
-    expect(() => importDocument('book.txt', new Uint8Array([0, 1, 2]))).toThrow(/binary control/);
+    expect(() => importDocument('book.txt', new Uint8Array([0xff]), 'utf-8')).toThrow(/无法按 utf-8 解码/);
+    expect(() => importDocument('book.txt', strToU8('data'), 'shift_jis')).toThrow(/不支持此文本编码/);
+    expect(() => importDocument('book.txt', new Uint8Array([0, 1, 2]))).toThrow(/控制字符/);
     expect(() => importDocument('book.txt', strToU8(' \n '))).toThrow(/empty/);
     expect(() => importDocument('book.pdf', strToU8('data'))).toThrow(/Only/);
     expect(() => importDocument('book.txt', new Uint8Array(ZIP_LIMITS.compressedBytes + 1))).toThrow(/32 MiB/);

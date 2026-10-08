@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ReaderStore } from '../src/server/store.js';
@@ -11,6 +11,27 @@ const directories: string[] = [];
 afterEach(async () => { for (const dir of directories.splice(0)) await rm(dir, { recursive: true, force: true }); });
 async function setup() { const dir = await mkdtemp(join(tmpdir(), 'reader-service-')); directories.push(dir); return { dir, service: new ReaderService(new ReaderStore(dir)) }; }
 describe('upload service', () => {
+  it('preserves raw compatible uploads through cancel, retry, duplicate finish and restart', async () => {
+    const { service, dir } = await setup();
+    const bytes = Buffer.from('第一章 原创\n\n正文保持不变。\n\x03\x03\x03\n第二段正文。\x1a');
+    const begin = () => service.call('reader_import_begin', { filename: 'compatibility.txt', size: bytes.length }) as Promise<any>;
+    const cancelled = await begin();
+    await service.call('reader_import_chunk', { uploadId: cancelled.uploadId, index: 0, data: bytes.toString('base64') });
+    await service.call('reader_import_cancel', { uploadId: cancelled.uploadId });
+    await expect(service.call('reader_import_finish', { uploadId: cancelled.uploadId })).rejects.toThrow('过期');
+    const upload = async () => { const { uploadId } = await begin(); await service.call('reader_import_chunk', { uploadId, index: 0, data: bytes.toString('base64') }); return { uploadId, book: await service.call('reader_import_finish', { uploadId }) as any }; };
+    const { uploadId, book } = await upload();
+    expect(book.document.textCompatibility).toMatchObject({ paddingCharacters: 3, paddingLines: 1, terminalEof: 1 });
+    await service.store.saveProgress(book.summary.id, { chapter: 0, paragraph: 2 });
+    await service.store.addBookmark(book.summary.id, { chapter: 0, paragraph: 2 }, '保留');
+    await expect(service.call('reader_import_finish', { uploadId })).rejects.toThrow('过期');
+    const duplicate = (await upload()).book;
+    expect(duplicate.summary.locator).toEqual({ chapter: 0, paragraph: 2 });
+    expect(duplicate.bookmarks).toHaveLength(1);
+    expect((await service.call('reader_list', {}) as any).books).toHaveLength(1);
+    expect(await readFile(join(dir, 'books', book.summary.id, 'source.txt'))).toEqual(bytes);
+    expect((await new ReaderStore(dir).open(book.summary.id)).document).toEqual(book.document);
+  });
   it('chunks and finalizes without exposing filesystem paths', async () => {
     const { service } = await setup(); const data = Buffer.from('第一章 开始\n\n这是一段原创的测试文字。\n\n第二章 继续\n\n书页仍然安静。');
     const { uploadId } = await service.call('reader_import_begin', { filename: '测试.txt', size: data.length }) as any;

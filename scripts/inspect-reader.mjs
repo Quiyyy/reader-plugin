@@ -10,11 +10,13 @@ import { chromium, expect } from '@playwright/test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { epubFixture } from './epub-fixture.mjs';
+import { inspectTxt } from './inspect-txt.mjs';
 import assert from 'node:assert/strict';
 import { buildInputs, serverFingerprint } from './build-fingerprint.mjs';
 
-const {values}=parseArgs({options:{surface:{type:'string',default:'bridge'},scenario:{type:'string',default:'epub'},book:{type:'string'},output:{type:'string'},serve:{type:'boolean'},headed:{type:'boolean'},package:{type:'string'},'build-only':{type:'boolean'},'no-build':{type:'boolean'}}});
-if(!['bridge','standalone'].includes(values.surface)||values.scenario!=='epub')throw Error('Use --surface bridge|standalone --scenario epub');
+const {values}=parseArgs({options:{surface:{type:'string',default:'bridge'},scenario:{type:'string',default:'epub'},book:{type:'string'},output:{type:'string'},serve:{type:'boolean'},headed:{type:'boolean'},package:{type:'string'},'build-only':{type:'boolean'},'no-build':{type:'boolean'},'expected-chapters-sha256':{type:'string'}}});
+if(!['bridge','standalone'].includes(values.surface)||!['epub','txt'].includes(values.scenario))throw Error('Use --surface bridge|standalone --scenario epub|txt');
+if(values.scenario==='txt'&&values.surface!=='bridge')throw Error('TXT acceptance uses the existing native bridge');
 if(values.serve&&values.surface!=='standalone')throw Error('--serve is available with --surface standalone');
 if(values.package&&(values.surface!=='bridge'||!values['no-build']))throw Error('--package requires --surface bridge --no-build; inspect the exact already-built package');
 const root=fileURLToPath(new URL('../',import.meta.url));process.chdir(root);
@@ -29,8 +31,10 @@ if(values['build-only']){console.log(await readFile(stampPath,'utf8'));process.e
 await mkdir('artifacts',{recursive:true});
 const output=values.output?resolve(values.output):await mkdtemp(join(root,'artifacts','inspection-'));
 await mkdir(output,{recursive:true});const dataDir=await mkdtemp(join(output,'data-'));
-const bytes=values.book?await readFile(resolve(values.book)):await epubFixture(),id=hash(bytes);
-const report={surface:values.surface==='bridge'?'simulated-AppBridge-with-native-MCP':'standalone-production-preview',realCodexHost:false,inputs:fingerprint,uiSha256:hash(await readFile('dist/ui/index.html')),book:{id,bytes:bytes.length,authorizedFile:values.book??'original fixture'},output,dataDir,checks:[],screenshots:[],console:[],pageErrors:[],failedRequests:[],csp:[],calls:[],passed:false};
+const textBytes=values.scenario==='txt'?(values.book?await readFile(resolve(values.book)):Buffer.from('第一章 原创验收\n\n正常正文。\n\x03\x03\x03\n下一段。\x1a')):undefined;
+const sampleEpub=!values.book||values.scenario==='txt';
+const bytes=sampleEpub?await epubFixture():await readFile(resolve(values.book)),id=hash(bytes);
+const report={surface:values.surface==='bridge'?'simulated-AppBridge-with-native-MCP':'standalone-production-preview',realCodexHost:false,inputs:fingerprint,uiSha256:hash(await readFile('dist/ui/index.html')),book:{id,bytes:bytes.length,authorizedFile:sampleEpub?'original fixture':values.book},output,dataDir,checks:[],screenshots:[],console:[],pageErrors:[],failedRequests:[],csp:[],calls:[],passed:false};
 report.serverSha256=await serverHash();report.gitHead=spawnSync('git',['rev-parse','HEAD'],{encoding:'utf8',windowsHide:true}).stdout?.trim();report.gitStatus=spawnSync('git',['status','--short'],{encoding:'utf8',windowsHide:true}).stdout?.trim();
 let server,browser,client,context;
 const writeReport=()=>writeFile(join(output,'report.json'),JSON.stringify(report,null,2));
@@ -81,11 +85,12 @@ try{
     });
     const start=async()=>{await page.goto(origin+(values.surface==='bridge'?'/__test_host':'/'));const frame=values.surface==='bridge'?page.frameLocator('#reader'):page;await frame.getByRole('heading',{name:'书架',exact:true}).waitFor();return frame;};
     let app=await start();
+    if(textBytes)await inspectTxt({page,app,client,dataDir,output,report,bytes:textBytes,expectedChapters:values['expected-chapters-sha256']});
     await app.locator('input[type=file][accept*=".epub"]').setInputFiles({name:'inspection.epub',mimeType:'application/epub+zip',buffer:Buffer.from(bytes)});
     await app.locator('.epub-reader').waitFor();await app.locator('.epub-loading').waitFor({state:'hidden',timeout:30000});
     await expect(app.locator('.epub-document .reader-book-body')).toBeVisible();
     report.assets=await app.locator('.epub-document').evaluate(el=>({images:[...el.shadowRoot.querySelectorAll('img')].map(img=>({loaded:img.complete&&img.naturalWidth>0,alt:img.alt})),fonts:[...document.fonts].filter(font=>font.family.startsWith('Reader_')).map(font=>({family:font.family,status:font.status})),tables:el.shadowRoot.querySelectorAll('table').length}));
-    if(!values.book){
+    if(sampleEpub){
       if(!report.assets.images.every(img=>img.loaded)||!report.assets.fonts.some(font=>font.status==='loaded')||!report.assets.tables)throw Error('Original sample resources did not load');
       const body=app.locator('.epub-document');
       await body.locator('#illustration').click();await expect(app.getByRole('dialog',{name:'插图预览'})).toBeVisible();await app.getByRole('button',{name:'关闭插图',exact:true}).click();
@@ -102,9 +107,9 @@ try{
     const tocButtons=app.locator('.epub-toc button');const count=await tocButtons.count();if(count>1)await tocButtons.nth(1).click();else await tocButtons.first().click();
     await expect(app.locator('.epub-panel')).toHaveCount(0);
     await app.locator('.epub-loading').waitFor({state:'hidden'});
-    if(!values.book){await expect.poll(async()=>{report.tocAnchorTop=await app.locator('.epub-document').evaluate(el=>el.shadowRoot.querySelector('#bridge').getBoundingClientRect().top-el.getBoundingClientRect().top);return report.tocAnchorTop>=0&&report.tocAnchorTop<=60;}).toBe(true);}
+    if(sampleEpub){await expect.poll(async()=>{report.tocAnchorTop=await app.locator('.epub-document').evaluate(el=>el.shadowRoot.querySelector('#bridge').getBoundingClientRect().top-el.getBoundingClientRect().top);return report.tocAnchorTop>=0&&report.tocAnchorTop<=60;}).toBe(true);}
     report.checks.push('Table of contents navigation completed');
-    if(!values.book){await app.getByRole('button',{name:'目录（T）',exact:true}).click();await expect(app.locator('.epub-toc button.current')).toHaveCount(1);await capture('contents-current');await app.getByRole('button',{name:'关闭目录',exact:true}).click();}
+    if(sampleEpub){await app.getByRole('button',{name:'目录（T）',exact:true}).click();await expect(app.locator('.epub-toc button.current')).toHaveCount(1);await capture('contents-current');await app.getByRole('button',{name:'关闭目录',exact:true}).click();}
     await app.getByRole('button',{name:'阅读外观',exact:true}).click();await app.getByRole('button',{name:'放大字号',exact:true}).click();await app.getByRole('button',{name:'舒适',exact:true}).click();await capture('appearance-wide');
     await app.getByRole('button',{name:'关闭阅读外观',exact:true}).click();
     await app.locator('.epub-document').hover();await page.mouse.wheel(0,430);await page.waitForTimeout(600);

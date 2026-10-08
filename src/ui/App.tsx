@@ -275,14 +275,15 @@ export function App({ api }: { api: ReaderApi }) {
     if (invalid.length) { setImportError('请选择 .txt 或 .epub 文件'); return; }
     importLockRef.current = true; setImporting(true); setImportError(''); lastImportRef.current = files;
     let last: BookDetail | null = null;
-    let count = 0;
+    let count = 0, compatible = false;
     try {
       for (const file of files) {
         setImportLabel(files.length > 1 ? `正在导入 ${count + 1}/${files.length}：${file.name}` : `正在导入 ${file.name}`);
         last = await api.importBook(file, encoding === 'auto' ? undefined : encoding);
+        compatible ||= !!last.document.textCompatibility;
         count++; updateSummary(last.summary);
       }
-      setNotice(files.length > 1 ? `已导入 ${count} 本书` : '书籍已导入');
+      setNotice(`${files.length > 1 ? `已导入 ${count} 本书` : '书籍已导入'}${compatible ? '，已兼容处理文本格式' : ''}`);
       if (last && files.length === 1) { await flushProgress(); showBook(last); }
     } catch (reason) { setImportError(`${count ? `已导入 ${count} 本。` : ''}${messageOf(reason)}`); }
     finally { importLockRef.current = false; setImporting(false); setImportLabel(''); if (fileInputRef.current) fileInputRef.current.value = ''; }

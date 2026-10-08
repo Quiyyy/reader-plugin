@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto';
 import { posix } from 'node:path';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { DOMParser } from 'linkedom';
-import type { BookDocument, Chapter } from '../shared/types.js';
+import type { BookDocument, Chapter, TextCompatibility } from '../shared/types.js';
 import { readSafeZip, safeArchivePath, ZIP_LIMITS } from './formats/zip.js';
+import { compatibleTextControls } from './text-controls.js';
 
 export { ZIP_LIMITS };
 export const IMPORT_LIMITS = Object.freeze({ fileBytes: ZIP_LIMITS.compressedBytes, chapters: 10_000, paragraphs: 500_000 });
@@ -16,10 +17,10 @@ const stringValue = (value: unknown): string => typeof value === 'string' ? valu
 export function normalizeEncoding(encoding: string): string {
   const key = encoding.toLowerCase().replace(/[_\s-]/g, '');
   const supported: Record<string, string> = { utf8: 'utf-8', gb18030: 'gb18030', gbk: 'gb18030', big5: 'big5', utf16: 'utf-16le', utf16le: 'utf-16le', utf16be: 'utf-16be' };
-  if (!supported[key]) throw new Error('Unsupported text encoding. Choose UTF-8, GB18030, Big5, UTF-16LE or UTF-16BE.');
+  if (!supported[key]) throw new Error('不支持此文本编码，请选择 UTF-8、GB18030、Big5、UTF-16LE 或 UTF-16BE。');
   return supported[key]!;
 }
-function decodeText(bytes: Uint8Array, override?: string): { text: string; encoding: string; warnings: string[] } {
+function decodeText(bytes: Uint8Array, override?: string): { text: string; encoding: string; warnings: string[]; compatibility?: TextCompatibility } {
   const warnings: string[] = [];
   let encoding = override ? normalizeEncoding(override) : 'utf-8';
   if (!override) {
@@ -29,14 +30,15 @@ function decodeText(bytes: Uint8Array, override?: string): { text: string; encod
   let text: string;
   try { text = textDecoder(encoding, bytes); }
   catch {
-    if (override || encoding !== 'utf-8') throw new Error(`The file could not be decoded as ${encoding}. Choose its original encoding and try again.`);
+    if (override || encoding !== 'utf-8') throw new Error(`无法按 ${encoding} 解码此 TXT，请选择文件的原始编码后重试。`);
     try { text = textDecoder('gb18030', bytes); encoding = 'gb18030'; }
-    catch { throw new Error('The file is neither valid UTF-8 nor GB18030. Choose Big5 or the original encoding and try again.'); }
-    warnings.push('UTF-8 decoding failed, so GB18030 was used. Automatic encoding detection is uncertain; choose the original encoding if the text looks wrong.');
+    catch { throw new Error('此 TXT 不是有效的 UTF-8 或 GB18030，请选择 Big5 等原始编码后重试。'); }
+    warnings.push('已使用 GB18030 解码；若文字显示不正确，请选择原始编码重新导入。');
   }
   text = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
-  if (/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(text)) throw new Error('The file contains binary control characters. Choose the original text encoding or a plain-text file.');
-  return { text, encoding, warnings };
+  const compatible = compatibleTextControls(text, encoding);
+  if (compatible.compatibility) warnings.push('已兼容处理文本格式字符，原始文件完整保留。');
+  return { ...compatible, encoding, warnings };
 }
 
 /** Deliberately conservative: a heading must occupy a short, standalone line. */
@@ -101,7 +103,7 @@ function importTxt(filename: string, bytes: Uint8Array, override?: string): Omit
   }
   if (repeatedHeading) decoded.warnings.push('Repeated chapter headings were retained as separate sections to preserve the source text.');
   if (chapters.length === 1 && chapters[0]!.title === 'Opening') chapters[0]!.title = filenameTitle(filename);
-  return { title: filenameTitle(filename), author: '', format: 'txt', chapters, encoding: decoded.encoding, warnings: decoded.warnings, layoutVersion: 2 };
+  return { title: filenameTitle(filename), author: '', format: 'txt', chapters, encoding: decoded.encoding, warnings: decoded.warnings, layoutVersion: 2, ...(decoded.compatibility ? { textCompatibility: decoded.compatibility } : {}) };
 }
 
 /** Discard inert document types before either parser sees them. Never load a DTD. */

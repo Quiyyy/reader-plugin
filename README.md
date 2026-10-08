@@ -1,6 +1,6 @@
 # Reader
 
-**Reader 0.1.11：结构化 EPUB 阅读。** 图片、字体、表格、多级目录、脚注、外观切换和独立定位已接入。保留 0.1.10 增量阅读修复。见 [版本说明](docs/RELEASE_0.1.11.md) 与 [Windows 单包交付流程](docs/WINDOWS_DELIVERY.md)。原生宿主 UI 未验证项会在交付收据中单独列明。
+**Reader 0.1.12：TXT 格式字符兼容。** 默认兼容明确可识别的独立填充行、换页、垂直制表和末尾 EOF；保留原始文件与安全检查，无法判断的字符给出中文定位提示。延续结构化 EPUB 和增量阅读功能。见 [版本说明](docs/RELEASE_0.1.12.md) 与 [Windows 单包交付流程](docs/WINDOWS_DELIVERY.md)。原生宿主 UI 未验证项会在交付收据中单独列明。
 
 一个安静、私人的小说阅读插件。React + TypeScript 阅读界面，真实 MCP Apps 协议与 OpenAI MCP Extensions 接入，书籍和进度由 Reader 服务持久保存。
 

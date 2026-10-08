@@ -9,7 +9,8 @@ export interface Locator { chapter: number; paragraph: number; chapterId?: strin
 export interface Bookmark { id: string; locator: Locator; label: string; createdAt: string; }
 export interface BookSummary { tocComplete?: boolean; id: string; title: string; author: string; format: BookFormat; addedAt: string; lastReadAt?: string; progress: number; locator: Locator; chapterCount: number; wordCount: number; }
 export interface Chapter { sourcePath?: string; id: string; title: string; paragraphs: string[]; paragraphStarts?: number[]; loaded?: boolean; }
-export interface BookDocument { tocComplete?: boolean; id: string; title: string; author: string; format: BookFormat; chapters: Chapter[]; encoding?: string; warnings: string[]; layoutVersion?: number; }
+export interface TextCompatibility { version: 1; paddingCharacters: number; paddingLines: number; formFeeds: number; verticalTabs: number; terminalEof: number; }
+export interface BookDocument { tocComplete?: boolean; id: string; title: string; author: string; format: BookFormat; chapters: Chapter[]; encoding?: string; warnings: string[]; layoutVersion?: number; textCompatibility?: TextCompatibility; }
 export interface BookDetail { summary: BookSummary; document: BookDocument; bookmarks: Bookmark[]; }
 export interface LibraryState { books: BookSummary[]; settings: ReaderSettings; storage: { mode: 'server'; description: string }; }
 export interface TrashEntry { version: 1; summary: BookSummary; trashedAt: string; }

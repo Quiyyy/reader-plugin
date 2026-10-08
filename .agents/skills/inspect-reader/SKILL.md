@@ -8,6 +8,7 @@ Use the repository's existing preview, native MCP server and AppBridge test harn
 ```powershell
 npm run inspect:reader -- --surface bridge --scenario epub
 npm run inspect:reader -- --surface bridge --scenario epub --book "D:/Download/万历十五年.epub"
+npm run inspect:reader -- --surface bridge --scenario txt --book "D:/Download/authorized-copy.txt"
 npm run inspect:reader -- --surface standalone --serve
 npm run inspect:reader -- --build-only
 npm run inspect:reader -- --surface bridge --scenario epub --package artifacts/marketplace/win32-x64 --no-build
