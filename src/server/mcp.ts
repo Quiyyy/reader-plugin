@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import {agentTools,agentDescriptions} from './workspace-service.js';
 import { readFile } from 'node:fs/promises';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -5,30 +7,30 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from '@model
 import { OpenAIExtensions, OpenAIFileEntrypointInputSchema, type OpenAIUiToolMetadata, type OpenAIUiResourceMetadata } from '@openai/mcp-extensions/server';
 import { actionSchemas, type ReaderService } from './service.js';
 import { IncompleteLoadError } from '../shared/online.js';
-export const UI_URI = 'ui://reader/v0.1.12/bookshelf.html';
+export const UI_URI = 'ui://reader/v0.2.0/bookshelf.html';
 const names: Record<string, string> = { reader_list: '读取书架', reader_get: '打开书籍', reader_import_begin: '开始导入书籍', reader_import_chunk: '传输书籍分块', reader_import_finish: '完成书籍导入', reader_import_cancel: '取消书籍导入', reader_progress: '保存阅读进度', reader_settings: '保存阅读设置', reader_bookmark_add: '添加书签', reader_bookmark_remove: '移除书签' };
 export function createMcpServer(service: ReaderService, htmlPath: string): McpServer {
-  const server = new McpServer({ name: 'reader-plugin', version: '0.1.12' });
+  const server = new McpServer({ name: 'reader-plugin', version: '0.2.0' });
   new OpenAIExtensions(server);
   const meta = { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] }, prefersBorder: false }, 'openai/ui': { preferredDisplayMode: 'fullscreen', availableDisplayModes: ['inline', 'fullscreen'] } satisfies OpenAIUiResourceMetadata };
   registerAppResource(server, 'Reader', UI_URI, { _meta: meta }, async () => ({ contents: [{ uri: UI_URI, mimeType: RESOURCE_MIME_TYPE, text: await readFile(htmlPath, 'utf8'), _meta: meta }] }));
   registerAppTool(server, 'reader_open', {
-    title: 'Reader', description: 'Open the private Reader bookshelf. Book text is not sent to the model; import and reading happen in the app.', inputSchema: {},
+    title: 'Reader', description: 'Open the private Reader bookshelf. Books and notes remain on the Reader server. Model access follows the selected reading scope.', inputSchema: {},
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
     _meta: { ui: { resourceUri: UI_URI }, 'openai/ui': { entrypoints: [{ type: 'global' }, { type: 'thread' }] } satisfies OpenAIUiToolMetadata },
   }, async () => ({ content: [{ type: 'text', text: 'Reader is ready. Use the app to import and read your books.' }] }));
   registerAppTool(server, 'reader_open_file', {
-    title: 'Reader', description: 'Open a DRM-free TXT or EPUB file from a host-managed resource.', inputSchema: OpenAIFileEntrypointInputSchema,
+    title: 'Reader', description: 'Open a TXT, DRM-free EPUB, or PDF file from a host-managed resource.', inputSchema: OpenAIFileEntrypointInputSchema,
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
-    _meta: { ui: { resourceUri: UI_URI, visibility: ['app'] }, 'openai/ui': { entrypoints: [{ type: 'file', extensions: ['.txt', '.epub'] }] } satisfies OpenAIUiToolMetadata },
+    _meta: { ui: { resourceUri: UI_URI, visibility: ['app'] }, 'openai/ui': { entrypoints: [{ type: 'file', extensions: ['.txt', '.epub', '.pdf'] }] } satisfies OpenAIUiToolMetadata },
   }, async () => ({ content: [] }));
   for (const [name, schema] of Object.entries(actionSchemas)) {
     server.registerTool(name, {
-      title: names[name] ?? name, description: 'Private Reader UI operation. Not intended for model invocation.', inputSchema: schema,
-      annotations: { readOnlyHint: ['reader_list', 'reader_online_sources', 'reader_keyboard', 'reader_trash_list'].includes(name), destructiveHint: ['reader_bookmark_remove', 'reader_online_remove', 'reader_trash'].includes(name), openWorldHint: name.startsWith('reader_online_') || name === 'reader_get' },
-      _meta: { ui: { visibility: ['app'] } },
+      title: names[name] ?? name, description: agentDescriptions[name] ?? (agentTools.has(name)?'Reader 笔记、批注与文件夹操作。修改前读取当前标识与 revision。':'Private Reader UI operation. Not intended for model invocation.'), inputSchema: schema, outputSchema:agentTools.has(name)?z.object({data:z.unknown()}):undefined,
+      annotations: { readOnlyHint: ['reader_list','reader_online_sources','reader_keyboard','reader_trash_list','reader_books_search','reader_book_toc','reader_read_passage','reader_note_list','reader_note_get','reader_source_get','reader_annotation_list','reader_folder_list','reader_study_search','reader_workspace_search','reader_pdf_text','reader_image_get','reader_chat_get','reader_chat_list'].includes(name), destructiveHint: ['reader_bookmark_remove','reader_online_remove','reader_trash','reader_study_trash','reader_study_purge','reader_book_purge'].includes(name), openWorldHint: name.startsWith('reader_online_') || name === 'reader_get' || name === 'reader_read_passage' || name === 'reader_book_toc' },
+      _meta: { ui: { visibility: agentTools.has(name)?['model','app']:['app'] } },
     }, async (args: unknown): Promise<CallToolResult> => {
-      try { return { content: [], _meta: { reader: await service.call(name, args) } }; }
+      try { const data=await service.call(name,args);const content:CallToolResult['content']=agentTools.has(name)?[{type:'text',text:JSON.stringify(data)}]:[];if(name==='reader_source_get'&&(data as any)?.imageId){const image=await service.workspace.store.image((data as any).imageId);content.push({type:'image',...image});}return {content,...(agentTools.has(name)?{structuredContent:{data}}:{}),_meta:{reader:data}}; }
       catch (error) { return { isError: true, content: [{ type: 'text', text: error instanceof Error ? error.message : 'Reader 操作失败' }], ...(error instanceof IncompleteLoadError ? { _meta: { readerIncomplete: error.incomplete } } : {}) }; }
     });
   }

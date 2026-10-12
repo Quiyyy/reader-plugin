@@ -121,8 +121,8 @@ async function snapshot(root) {
 }
 
 test('Node compatibility matches the documented supported major versions', () => {
-  for (const number of ['22.12.0', '22.23.3', '24.0.0', '26.0.0']) assert.equal(supportedNode(number), true);
-  for (const number of ['18.20.0', '20.19.0', '22.11.0', '23.0.0', '25.8.0']) assert.equal(supportedNode(number), false);
+  for (const number of ['22.13.0', '22.23.3', '24.0.0', '26.0.0']) assert.equal(supportedNode(number), true);
+  for (const number of ['18.20.0', '20.19.0', '22.11.0', '22.12.0', '23.0.0', '25.8.0']) assert.equal(supportedNode(number), false);
 });
 
 test('extracted package executes its isolated WASM worker without PATH, npm or a TS loader', { timeout: 30000 }, async () => {

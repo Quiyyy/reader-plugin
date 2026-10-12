@@ -5,7 +5,7 @@ import type { BookDetail, ReaderApi } from '../shared/types';
 import { IncompleteLoadError } from '../shared/online';
 
 type Rpc = (name: string, args: Record<string, unknown>) => Promise<unknown>;
-const MAX_FILE = 32 * 1024 * 1024;
+const MAX_FILE = 64 * 1024 * 1024;
 const PREVIEW_REQUEST_TIMEOUT_MS = 15000;
 export function encodeBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -13,7 +13,7 @@ export function encodeBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 export function decodeBase64(value: string): Uint8Array {
-  if (value.length > Math.ceil(MAX_FILE / 3) * 4) throw new Error('文件超过 32 MiB 导入上限');
+  if (value.length > Math.ceil(MAX_FILE / 3) * 4) throw new Error('文件超过 64 MiB 导入上限');
   return Uint8Array.from(atob(value), char => char.charCodeAt(0));
 }
 function unwrap(result: any): unknown {
@@ -23,7 +23,9 @@ function unwrap(result: any): unknown {
 }
 export function createReaderApi(): ReaderApi {
   let call: Rpc;
+  let download:((filename:string,mimeType:string,data:Uint8Array)=>Promise<void>)|undefined;
   let hostClose: (() => Promise<void>) | undefined;
+  let nativeMessage: ((text:string)=>Promise<void>) | undefined;
   const beforeClose = new Set<() => Promise<unknown>>();
   let onBook: ((book: BookDetail) => void) | undefined;
   let onError: ((message: string) => void) | undefined;
@@ -33,9 +35,9 @@ export function createReaderApi(): ReaderApi {
   const opened = (book: BookDetail) => { if (onBook) onBook(book); else queuedBook = book; };
   const failed = (error: unknown) => { const message = error instanceof Error ? error.message : '无法打开文件'; if (onError) onError(message); else queuedError = message; };
 
-  const importFile = async (file: File, encoding?: string): Promise<BookDetail> => {
-    if (file.size === 0 || file.size > MAX_FILE) throw new Error('请选择 1 字节至 32 MiB 的 TXT 或 EPUB 文件');
-    const begin = await call('reader_import_begin', { filename: file.name, size: file.size, ...(encoding ? { encoding } : {}) }) as { uploadId: string; chunkBytes: number };
+  const importFile = async (file: File, encoding?: string, password?: string): Promise<BookDetail> => {
+    if (file.size === 0 || file.size > MAX_FILE) throw new Error('请选择 TXT、EPUB（32 MiB 内）或 PDF（64 MiB 内）');
+    const begin = await call('reader_import_begin', { filename: file.name, size: file.size, ...(encoding ? { encoding } : {}), ...(password ? {password} : {}) }) as { uploadId: string; chunkBytes: number };
     try {
       for (let offset = 0, index = 0; offset < file.size; offset += begin.chunkBytes, index++) {
         const bytes = new Uint8Array(await file.slice(offset, offset + begin.chunkBytes).arrayBuffer());
@@ -45,9 +47,10 @@ export function createReaderApi(): ReaderApi {
     } catch (error) { await call('reader_import_cancel', { uploadId: begin.uploadId }).catch(() => {}); throw error; }
   };
   if (window.parent === window) {
+    download=async(filename,mimeType,data)=>{const url=URL.createObjectURL(new Blob([new Uint8Array(data)],{type:mimeType}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),5000);};
     call = async (name, args) => {
       const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), name.startsWith('reader_online_') || name === 'reader_get' ? 60000 : PREVIEW_REQUEST_TIMEOUT_MS);
+      const timeout = window.setTimeout(() => controller.abort(), name.startsWith('reader_online_') || name.startsWith('reader_pdf_') || name.startsWith('reader_chat_') || name === 'reader_import_finish' || name === 'reader_get' ? 60000 : PREVIEW_REQUEST_TIMEOUT_MS);
       try {
         const response = await fetch('/api/tool', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Reader-Client': 'preview' }, body: JSON.stringify({ name, arguments: args }), signal: controller.signal });
         if (!response.ok) { const error = await response.json().catch(() => ({})); const message = error.error ?? `Reader 服务未就绪 (${response.status})`; throw error.incomplete ? new IncompleteLoadError(message, error.incomplete) : new Error(message); }
@@ -58,7 +61,7 @@ export function createReaderApi(): ReaderApi {
       } finally { window.clearTimeout(timeout); }
     };
   } else {
-    const app = new App({ name: 'Reader', version: '0.1.12' });
+    const app = new App({ name: 'Reader', version: '0.2.0' });
     const extensions = new OpenAIExtensions(app);
     const applyContext = (context: ReturnType<App['getHostContext']>) => {
       if (context?.theme) { applyDocumentTheme(context.theme); document.documentElement.dataset.hostTheme = context.theme; }
@@ -90,10 +93,24 @@ export function createReaderApi(): ReaderApi {
       });
     };
     ready = app.connect(undefined, { timeout: 15000 }).then(() => applyContext(app.getHostContext()));
+    download=async(filename,mimeType,data)=>{await ready;const result=await app.downloadFile({contents:[{type:'resource',resource:{uri:'file:///'+encodeURIComponent(filename),mimeType,blob:encodeBase64(data)}}]});if(result.isError)throw Error('宿主未完成导出，可以重试或复制笔记文字');};
+    nativeMessage = async text => { await ready; const result=await app.sendMessage({role:'user',content:[{type:'text',text}]});if(result.isError)throw Error('宿主未接受消息，请复制内容后继续'); };
     hostClose = async () => { await ready; await app.requestTeardown(); };
     call = async (name, args) => { await ready; return unwrap(await app.callServerTool({ name, arguments: args })); };
   }
   return {
+    study: {
+      download,
+      call: (name,args={})=>call(name,args) as any,
+      snapshot: ()=>call('reader_workspace',{}) as any,
+      note: id=>call('reader_note_get',{id}) as any,
+      source: source=>call('reader_source_create',{source}) as any,
+      asset: id=>call('reader_image_get',{id}) as any,
+      uploadImage: data=>call('reader_image_put',{data}) as any,
+      search: (query,bookId)=>call('reader_workspace_search',{query,...(bookId?{bookId}:{})}) as any,
+      openSource: id=>call('reader_source_open',{id,navigate:false}) as any,
+      nativeMessage,
+    },
     epub: {
       open: id => call('reader_epub_open', { id }) as any,
       chapter: (id, resource) => call('reader_epub_chapter', { id, resource }) as any,

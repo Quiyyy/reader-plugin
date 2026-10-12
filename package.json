@@ -1,10 +1,10 @@
 {
   "name": "reader-plugin",
-  "version": "0.1.12",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
-    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+    "node": "^22.13.0 || ^24.0.0 || >=26.0.0"
   },
   "scripts": {
     "dev": "vite build && tsx src/server/index.ts --http",
@@ -32,19 +32,21 @@
     "@modelcontextprotocol/sdk": "1.31.0",
     "@openai/apps-sdk-ui": "0.2.2",
     "@openai/mcp-extensions": "0.1.0",
+    "@thednp/dommatrix": "3.1.2",
     "acorn": "8.15.0",
+    "cssom": "0.5.0",
     "fast-xml-parser": "5.11.2",
     "fflate": "0.8.3",
     "htmlparser2": "10.1.0",
     "iconv-lite": "0.7.3",
     "linkedom": "0.18.13",
     "lucide-react": "1.49.0",
+    "pdfjs-dist": "6.4.299",
     "quickjs-emscripten": "0.32.0",
     "re2js": "2.8.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "4.6.5",
-    "cssom": "0.5.0"
+    "zod": "4.6.5"
   },
   "overrides": {
     "@openai/apps-sdk-ui": {
@@ -62,5 +64,24 @@
     "typescript": "7.0.2",
     "vite": "8.3.2",
     "vitest": "5.0.3"
-  }
+  },
+  "description": "A local reading and learning workspace for books, notes and Codex conversations.",
+  "license": "MIT",
+  "author": "Quiyyy",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Quiyyy/reader-plugin.git"
+  },
+  "homepage": "https://github.com/Quiyyy/reader-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/Quiyyy/reader-plugin/issues"
+  },
+  "keywords": [
+    "reader",
+    "codex",
+    "mcp",
+    "epub",
+    "pdf",
+    "notes"
+  ]
 }

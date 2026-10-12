@@ -1,3 +1,4 @@
+import {openDiscovery} from './navigation';
 import { test, expect } from '@playwright/test';
 import { fixtureSource } from '../online/source';
 
@@ -11,7 +12,7 @@ for (const width of [320, 390, 1280]) {
     });
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/');
-    await page.getByRole('button', { name: '找书', exact: true }).click();
+    await openDiscovery(page);
     const dialog = page.getByRole('main', { name: '找书与书源', exact: true });
     await dialog.getByRole('button', { name: '管理书源' }).click();
   await dialog.getByRole('button', { name: '导入书源', exact: true }).click();
@@ -103,7 +104,7 @@ for (const width of [320, 390, 1280]) {
 }
 
 test('blocked script source displays exact field diagnosis and cannot be enabled', async ({ page }) => {
-  await page.goto('/'); await page.getByRole('button', { name: '找书', exact: true }).click();
+  await page.goto('/'); await openDiscovery(page);
   const dialog = page.getByRole('main', { name: '找书与书源', exact: true });
   await dialog.getByRole('button', { name: '管理书源' }).click();
   await dialog.getByRole('button', { name: '导入书源', exact: true }).click();

@@ -64,13 +64,19 @@ if (!values.fixture) {
     for (const dependency of Object.keys(metadata.dependencies ?? {})) await copyEngine(dependency);
   };
   await copyEngine('quickjs-emscripten');
+  await copyEngine('pdfjs-dist');
+  bundles.push(await bundle('src/server/pdf-worker.ts','dist/server/pdf-worker.js',['pdfjs-dist/legacy/build/pdf.mjs']));
 }
 const builtins = new Set(builtinModules.flatMap(name => [name, `node:${name}`]));
 for (const item of bundles.flatMap(b => Object.values(b.metafile.outputs)).flatMap(item => item.imports)) {
-  if (item.external && !builtins.has(item.path) && !enginePackages.has(item.path)) throw new Error(`Runtime has an unpackaged dependency: ${item.path}`);
+  if (item.external && !builtins.has(item.path) && ![...enginePackages].some(name=>item.path===name||item.path.startsWith(name+'/'))) throw new Error(`Runtime has an unpackaged dependency: ${item.path}`);
 }
 await fs.copyFile(join(source, 'dist/ui/index.html'), join(app, 'dist/ui/index.html'));
-await fs.writeFile(join(app, 'package.json'), json({ type: 'module', version: pkg.version }));
+await fs.writeFile(join(app, 'package.json'), json({ type: 'module', version: pkg.version, license: pkg.license }));
+if (!values.fixture) {
+  await fs.copyFile(join(source, 'LICENSE'), join(stage, 'LICENSE'));
+  await fs.copyFile(join(source, 'LICENSE'), join(app, 'LICENSE'));
+}
 
 const archiveURL = `https://nodejs.org/download/release/v${pinned.version}/${target.archive}`;
 const downloads = join(root, 'artifacts/runtime-downloads'); await fs.mkdir(downloads, { recursive: true });
@@ -115,7 +121,7 @@ const supplemental = await readJson(join(root, 'distribution/licenses/sources.js
 for (const notice of supplemental) if (hash(await fs.readFile(join(stage, 'licenses/upstream', notice.file))) !== notice.sha256) throw new Error('Supplemental license mismatch.');
 const lock = await readJson(join(source, 'package-lock.json')), dependencies = [];
 for (const [path, entry] of Object.entries(lock.packages)) {
-  if (!path || entry.dev) continue;
+  if (!path || entry.dev || entry.optional&&path.startsWith('node_modules/@napi-rs/canvas')) continue;
   const directory = join(source, path), installed = await readJson(join(directory, 'package.json'));
   if (installed.version !== entry.version) throw new Error(`Dependency differs from lock: ${path}`);
   const files = (await fs.readdir(directory, { withFileTypes: true })).filter(item => item.isFile() && /^(licen[cs]e|copying|notice)([.-]|$)/i.test(item.name));
@@ -136,7 +142,7 @@ const executable = target.goos === 'windows' ? 'reader-launcher.exe' : 'reader-l
 // Git-backed installs must preserve the exact checksummed bytes on Windows too.
 await fs.writeFile(join(stage, '.gitattributes'), '* -text\n');
 await fs.writeFile(join(stage, 'plugin.json'), json({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: id, version: pkg.version,
-  description: `Local TXT and DRM-free EPUB reader; bundled runtime for ${target.label}.`, author: { name: 'Quiyyy' }, repository: 'https://github.com/Quiyyy/reader-plugin',
+  description: `Local TXT, EPUB and PDF reading workspace with notes; bundled runtime for ${target.label}.`, author: { name: 'Quiyyy' }, repository: 'https://github.com/Quiyyy/reader-plugin',
   extensions: { 'com.openai': { interface: { displayName: 'Reader', shortDescription: `${target.label}。本地阅读，无需 Node 或 npm。`, longDescription: `Bundled runtime for ${target.label}. Choose only the package matching this device. Book storage is separate from the plugin cache. System trust prompts may apply.`, developerName: 'Quiyyy', category: 'Productivity', capabilities: ['Interactive', 'Write'], defaultPrompt: ['打开 Reader 书架'] } } } }));
 await fs.writeFile(join(stage, 'mcp.json'), json({ $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json', mcpServers: { reader: { type: 'stdio', command: `./${executable}`, args: [], env: { NODE_OPTIONS: '', NODE_PATH: '' } } } }));
 const files = {};

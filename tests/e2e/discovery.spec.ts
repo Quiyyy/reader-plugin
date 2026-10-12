@@ -1,3 +1,4 @@
+import {openDiscovery} from './navigation';
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { fixtureSource } from '../online/source';
 
@@ -24,7 +25,7 @@ for (const width of [320, 390, 1280]) {
     await clearSources(request);
     await page.setViewportSize({ width, height: width === 320 ? 720 : 900 });
     await page.goto('/');
-    await page.getByRole('button', { name: '找书', exact: true }).click();
+    await openDiscovery(page);
     await expect(page.getByText('先添加一个找书的来源')).toBeVisible();
     await page.screenshot({ path: `artifacts/redesign-empty-${width}.png` });
     await page.getByRole('button', { name: '导入书源', exact: true }).click();
@@ -61,7 +62,7 @@ for (const width of [320, 390, 1280]) {
     await expect(page.getByText('还没有启用的书源')).toBeVisible();
     await page.getByRole('button', { name: '去启用书源' }).click();
     await page.getByRole('switch', { name: '启用 原创公开文本测试源', exact: true }).click();
-    await page.getByRole('button', { name: '找书', exact: true }).click();
+    await openDiscovery(page);
     }
     await expect(page.getByLabel('在线搜索关键词')).toBeFocused();
     await page.getByLabel('在线搜索关键词').fill('原创');
@@ -101,15 +102,15 @@ for (const width of [320, 390, 1280]) {
     await page.screenshot({ path: `artifacts/redesign-results-${width}.png` });
     expect(await page.locator('.discovery-shell').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     await page.getByRole('button', { name: '书架', exact: true }).click();
-    await expect(page.getByRole('button', { name: '找书', exact: true })).toBeFocused();
-    await page.getByRole('button', { name: '找书', exact: true }).click();
+    await expect(page.getByRole('button', { name: '添加选项', exact: true })).toBeFocused();
+    await openDiscovery(page);
     await expect(page.getByLabel('在线搜索关键词')).toHaveValue('原创');
   });
 }
 
 for (const action of ['cancel', 'close']) test(`wizard validates errors and ${action} ignores in-flight preview without a late result`, async ({ page, request }) => {
   await clearSources(request); await page.goto('/');
-  await page.getByRole('button', { name: '找书', exact: true }).click();
+  await openDiscovery(page);
   await page.getByRole('button', { name: '导入书源', exact: true }).click();
   const wizard = page.getByRole('dialog', { name: '导入书源', exact: true });
   await page.getByLabel('选择书源 JSON').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{broken') });
@@ -146,7 +147,7 @@ for (const action of ['cancel', 'close']) test(`wizard validates errors and ${ac
 test('failed sources stay below usable results, retry preserves results, cancel ignores late search', async ({ page, request }) => {
   await clearSources(request);
   await seed(request, [fixtureSource, { ...fixtureSource, bookSourceName: '暂时离线的来源', bookSourceUrl: 'https://reader.example.com/failing', searchUrl: '/missing' }]);
-  await page.goto('/'); await page.getByRole('button', { name: '找书', exact: true }).click();
+  await page.goto('/'); await openDiscovery(page);
   await page.getByLabel('在线搜索关键词').fill('原创');
   await page.getByRole('button', { name: '搜索', exact: true }).click();
   const results = page.getByRole('region', { name: '在线搜索结果' });

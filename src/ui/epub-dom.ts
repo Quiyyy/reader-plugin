@@ -1,4 +1,6 @@
 import type { EpubApi, EpubAppearance, EpubChapter, EpubLocation, EpubNode, EpubTarget } from '../shared/epub';
+import type { Annotation,SourceInput,SourceRef } from '../shared/workspace';
+import { rangeAt } from './reading-selection';
 
 const normalize=(text:string)=>text.replace(/\s+/g,' ').trim();
 const permitted=new Set('p div span section article main aside header footer h1 h2 h3 h4 h5 h6 blockquote pre code kbd samp var em strong b i u s del ins small sub sup abbr cite q dfn mark ruby rt rp rb ul ol li dl dt dd table caption colgroup col thead tbody tfoot tr th td hr br a img figure figcaption'.split(' '));
@@ -18,6 +20,18 @@ export class EpubDom {
   private cacheBytes=0;
   private imageTasks:Promise<unknown>[]=[];
   private appearance:EpubAppearance={style:'original',flow:'scroll',fontSize:20};
+  private markStyle?:HTMLStyleElement;
+  selection():{source:SourceInput;rect:DOMRect}|undefined {
+    const selection=(this.root as any).getSelection?.()??window.getSelection();if(!selection||selection.isCollapsed||!selection.rangeCount||!this.chapter)return;
+    const composed=selection.getComposedRanges?.({shadowRoots:[this.root]})?.[0];const range=composed?document.createRange():selection.getRangeAt(0);
+    if(composed){range.setStart(composed.startContainer,composed.startOffset);range.setEnd(composed.endContainer,composed.endOffset);}
+    if(!this.root.contains(range.startContainer)||!this.root.contains(range.endContainer))return;
+    const a=(range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement)?.closest('[data-reader-node]') as HTMLElement|null,b=(range.endContainer.nodeType===1?range.endContainer:range.endContainer.parentElement)?.closest('[data-reader-node]') as HTMLElement|null;if(!a||!b)return;
+    const part=(el:Element,node:Node,at:number)=>{const r=document.createRange();r.selectNodeContents(el);r.setEnd(node,at);return r.toString().length;};const quote=range.toString().trim();if(!quote)return;if(quote.length>20000)throw Error('请选择少于两万字的片段');
+    return {source:{bookId:this.id,quote,anchor:{kind:'epub',resource:this.chapter.resource,start:{element:a.dataset.readerNode!,offset:part(a,range.startContainer,range.startOffset)},end:{element:b.dataset.readerNode!,offset:part(b,range.endContainer,range.endOffset)}}},rect:range.getBoundingClientRect()};
+  }
+  highlights(annotations:Annotation[],sources:SourceRef[]){const registry=(CSS as any).highlights,HighlightClass=(globalThis as any).Highlight;if(!registry||!HighlightClass)return;const colors:Record<string,string>={yellow:'#e8d56b66',green:'#75b88366',blue:'#80b2e966',pink:'#df8fb066'};if(!this.markStyle){this.markStyle=document.createElement('style');this.root.append(this.markStyle);}const rules:string[]=[];for(const color of Object.keys(colors)){const ranges:Range[]=[];for(const a of annotations.filter(a=>a.color===color)){const s=sources.find(s=>s.id===a.sourceId);if(s?.bookId!==this.id||s.anchor.kind!=='epub'||s.anchor.resource!==this.chapter?.resource)continue;const find=(id:string)=>[...this.root.querySelectorAll<HTMLElement>('[data-reader-node]')].find(el=>el.dataset.readerNode===id),from=find(s.anchor.start.element),to=find(s.anchor.end.element);if(!from||!to)continue;const r=rangeAt(from,s.anchor.start.offset,s.anchor.start.offset),end=rangeAt(to,s.anchor.end.offset,s.anchor.end.offset);if(r&&end){r.setEnd(end.endContainer,end.endOffset);ranges.push(r);}}registry.set('epub-'+color,new HighlightClass(...ranges));rules.push(`::highlight(epub-${color}){background-color:${colors[color]};color:inherit}`);}this.markStyle.textContent=rules.join('\n');}
+  restoreSource(source:SourceRef){if(source.anchor.kind!=='epub'||source.anchor.resource!==this.chapter?.resource)return false;const point=source.anchor.start,el=[...this.root.querySelectorAll<HTMLElement>('[data-reader-node]')].find(e=>e.dataset.readerNode===point.element);if(!el)return false;const range=rangeAt(el,point.offset,point.offset);if(!range)return false;this.reveal(el);this.scrollToRange(range);return true;}
   constructor(private host:HTMLDivElement,private id:string,private api:EpubApi,private onLink:(target:EpubTarget,note:boolean)=>void,private onImage:(src:string,alt:string)=>void,private onResourceError:(message:string)=>void){
     this.root=host.shadowRoot??host.attachShadow({mode:'open'});
     const base=document.createElement('style');base.textContent=baseStyles;

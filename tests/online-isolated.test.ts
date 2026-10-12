@@ -122,7 +122,9 @@ it('runs an original JS/GBK source through pagination and persisted book/chapter
   expect(Object.values(preview.sources[0].stages).every(s => ['supported','partial'].includes(s.syntax))).toBe(true);
   await online.commit(preview.token); const id = preview.sources[0].id; await online.manage(id, true);
   const results = await online.search(id, '中文', 2, signal()); expect(body).toBe('q=%D6%D0%CE%C4&p=1');
-  const detail = await online.detail(results[0], signal()), book = await online.add(detail, signal());
+  const detail = await online.detail(results[0], signal()), first = await online.add(detail, signal());
+  expect(first.document.chapters).toHaveLength(1); expect(first.document.tocComplete).toBe(false);
+  const book = await online.refresh(first.summary.id, signal());
   expect(book.document.chapters).toHaveLength(2); expect(book.document.chapters[0].paragraphs).toHaveLength(4);
   const second = book.document.chapters[1].id; await online.chapter(book.summary.id, second, signal());
   const locator = { chapter: 1, paragraph: 1, chapterId: second };

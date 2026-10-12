@@ -183,10 +183,13 @@ it.each(['classic', 'xpath'])('runs original %s source through search, detail, p
   expect(results[0]).toMatchObject({ title: '原创纸桥', author: '样例作者' });
   const detail = await online.detail(results[0], signal());
   expect(detail.intro).toBe('原创的两章短文。');
-  const book = await online.add(detail, signal());
+  const first = await online.add(detail, signal());
+  expect(first.document.chapters).toHaveLength(1);
+  expect(first.document.tocComplete).toBe(false);
+  const book = await online.refresh(first.summary.id, signal());
   expect(book.document.chapters).toHaveLength(2);
   expect(book.document.chapters[0].paragraphs).toEqual(['折好的纸桥横跨浅浅的水洼。', '纸桥的另一端留着一片叶子。']);
-  expect(f.requests).toEqual(['/grammar/search', '/grammar/book', '/grammar/toc', '/grammar/toc-2', '/grammar/one', '/grammar/one-2']);
+  expect(f.requests).toEqual(['/grammar/search', '/grammar/book', '/grammar/toc', '/grammar/one', '/grammar/one-2', '/grammar/toc-2']);
   const locator = { chapter: 0, paragraph: 1, chapterId: book.document.chapters[0].id };
   await online.saveProgress(book.summary.id, locator); await online.addBookmark(book.summary.id, locator, '原创书签');
   expect(Object.values((await online.listSources())[0].stages).every(s => s.network === 'passed')).toBe(true);
@@ -195,4 +198,6 @@ it.each(['classic', 'xpath'])('runs original %s source through search, detail, p
   const restored = await restarted.open(book.summary.id, signal());
   expect(restored.summary.locator).toEqual(locator); expect(restored.bookmarks[0].label).toBe('原创书签');
   expect(restored.document.chapters[0].paragraphs).toHaveLength(2); expect(f.requests).toHaveLength(requests);
+  expect(await restarted.searchCached(book.summary.id,'另一端',10)).toMatchObject([{chapter:0,paragraph:1,text:'纸桥的另一端留着一片叶子。'}]);
+  expect(f.requests).toHaveLength(requests);
 }, 15000);

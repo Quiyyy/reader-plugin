@@ -6,7 +6,7 @@ import type { ReaderService } from './service.js';
 import { IncompleteLoadError } from '../shared/online.js';
 // A <=1 MiB catalog JSON string is escaped once more inside the RPC envelope.
 // Each action retains its own narrower schema/byte budget.
-const MAX_BODY = 2 * 1024 * 1024 + 4096;
+const MAX_BODY = 8 * 1024 * 1024 + 4096;
 function json(response: ServerResponse, code: number, value: unknown) { response.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(value)); }
 async function readBody(request: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = []; let size = 0;
@@ -31,7 +31,7 @@ export function createReaderHttpServer(service: ReaderService, htmlPath: string)
         response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self'; frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(await readFile(htmlPath)); return;
       }
-      if (request.method === 'GET' && pathname === '/health') { json(response, 200, { status: 'ok', mode: 'loopback-preview', version: '0.1.12' }); return; }
+      if (request.method === 'GET' && pathname === '/health') { json(response, 200, { status: 'ok', mode: 'loopback-preview', version: '0.2.0' }); return; }
       if (request.method === 'POST' && (pathname === '/api/tool' || pathname === '/mcp')) {
         if (!request.headers['content-type']?.startsWith('application/json')) { json(response, 415, { error: '需要 application/json' }); return; }
         const body = await readBody(request);

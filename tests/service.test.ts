@@ -1,3 +1,4 @@
+import {agentTools} from '../src/server/workspace-service.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -62,8 +63,8 @@ describe('real MCP server SDK integration', () => {
     try {
       const { tools } = await client.listTools(); const open = tools.find(tool => tool.name === 'reader_open')!; const file = tools.find(tool => tool.name === 'reader_open_file')!;
       expect((open._meta?.['openai/ui'] as any).entrypoints).toEqual([{ type: 'global' }, { type: 'thread' }]);
-      expect((file._meta?.['openai/ui'] as any).entrypoints[0].extensions).toEqual(['.txt', '.epub']);
-      for (const tool of tools.filter(tool => !['reader_open'].includes(tool.name))) expect((tool._meta?.ui as any).visibility).toEqual(['app']);
+      expect((file._meta?.['openai/ui'] as any).entrypoints[0].extensions).toEqual(['.txt', '.epub', '.pdf']);
+      for (const tool of tools.filter(tool => !['reader_open'].includes(tool.name))) expect((tool._meta?.ui as any).visibility).toEqual(agentTools.has(tool.name)?['model','app']:['app']);
       const resource = await client.readResource({ uri: UI_URI });
       expect(resource.contents[0].mimeType).toBe('text/html;profile=mcp-app');
       expect((resource.contents[0]._meta?.ui as any).csp.connectDomains).toEqual([]);
@@ -71,6 +72,17 @@ describe('real MCP server SDK integration', () => {
       const result = await client.callTool({ name: 'reader_list', arguments: {} });
       expect(result.content).toEqual([]); expect((result._meta?.reader as any).books).toEqual([]);
       expect(result.structuredContent).toBeUndefined();
+      const folder = await client.callTool({ name:'reader_folder_save', arguments:{name:'协议测试',parentId:null} });
+      const folders = await client.callTool({ name:'reader_folder_list', arguments:{} });
+      expect((folders.structuredContent as any).data[0].id).toBe((folder.structuredContent as any).data.value.id);
+      const book=await service.store.importBook('协议原创.txt',Buffer.from('第一章 协议\n\n这段原文应保持读取范围。'));
+      const denied=await client.callTool({name:'reader_read_passage',arguments:{id:book.summary.id}});expect(denied.isError).toBe(true);
+      const quote=book.document.chapters[0]!.paragraphs[0]!;
+      const image=await service.workspace.store.putImage('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS1kAAAAASUVORK5CYII=');
+      const source=await service.workspace.createSource({bookId:book.summary.id,quote,imageId:image.id,anchor:{kind:'text',start:{chapter:0,paragraph:0,offset:0},end:{chapter:0,paragraph:0,offset:quote.length}}});
+      const selected=await client.callTool({name:'reader_source_get',arguments:{id:source.id}});
+      expect(selected.isError).not.toBe(true);expect((selected.content as any[]).some(item=>item.type==='image'&&item.mimeType==='image/png')).toBe(true);
+      expect((selected.structuredContent as any).data.quote).toBe(quote);
     } finally { await client.close(); await server.close(); }
   });
 });

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import * as fs from 'node:fs/promises';
-import { tmpdir, devNull } from 'node:os';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -18,9 +18,12 @@ test('Git sends one scoped CI header even when checkout already supplied authori
   });
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
   const cwd = await fs.mkdtemp(join(tmpdir(), 'reader-publish-auth-'));
-  const base = { ...process.env, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_COUNT: '0', NO_PROXY: '127.0.0.1', no_proxy: '127.0.0.1' };
+  // Git for Windows cannot use Node's \\.\nul device path as a config file.
+  const emptyConfig = join(cwd, 'empty-global-config');
+  const base = { ...process.env, GIT_CONFIG_GLOBAL: emptyConfig, GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_COUNT: '0', NO_PROXY: '127.0.0.1', no_proxy: '127.0.0.1' };
   const origin = `http://127.0.0.1:${server.address().port}/`;
   try {
+    await fs.writeFile(emptyConfig, '');
     await run('git', ['init', '--bare', '.'], { cwd, env: base });
     await run('git', ['config', `http.${origin}.extraheader`, 'AUTHORIZATION: synthetic-checkout-header'], { cwd, env: base });
     await assert.rejects(run('git', ['ls-remote', `${origin}reader-test.git`], { cwd, env: { ...base, ...httpAuthorizationEnvironment(origin, 'synthetic-ci-header') }, timeout: 10000 }));

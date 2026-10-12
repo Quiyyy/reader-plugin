@@ -19,6 +19,7 @@ if (!process.env.npm_execpath) throw new Error('Maintainers must run this throug
 if (!/^\d+\.\d+\.\d+$/.test(pkg.version)) throw new Error('Invalid package version');
 if (values.fixture && pkg.version !== '0.1.2') throw new Error('Only the recorded 0.1.2 legacy fixture is supported.');
 for (const [name, data] of Object.entries(lock.packages)) {
+  if(data.optional&&name.startsWith('node_modules/@napi-rs/canvas'))continue; // Unused: PDF text extraction uses a JS matrix shim.
   if (name && !data.dev && (data.os || data.cpu || data.hasInstallScript)) throw new Error(`Production dependency needs platform/build review: ${name}`);
 }
 const destination = join(root, 'artifacts', 'releases');
@@ -29,13 +30,17 @@ await fs.mkdir(runtime);
 await fs.copyFile(join(source, 'package.json'), join(runtime, 'package.json'));
 await fs.copyFile(join(source, 'package-lock.json'), join(runtime, 'package-lock.json'));
 // Use Node + npm's JS entry, avoiding npm.cmd shell quoting and lifecycle hooks.
-const install = await run(process.execPath, [process.env.npm_execpath, 'ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', runtime], { maxBuffer: 8 * 1024 * 1024 });
+const install = await run(process.execPath, [process.env.npm_execpath, 'ci', '--omit=dev', '--omit=optional', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', runtime], { maxBuffer: 8 * 1024 * 1024 });
 process.stdout.write(install.stdout);
 // .bin contains platform-specific command wrappers/symlinks, unused by the Node entrypoint.
 await fs.rm(join(runtime, 'node_modules', '.bin'), { recursive: true, force: true });
 await fs.rm(join(runtime, 'node_modules', '.package-lock.json'), { force: true });
 await fs.rm(join(runtime, 'package-lock.json'));
-await fs.writeFile(join(runtime, 'package.json'), JSON.stringify({ name: pkg.name, version: pkg.version, private: true, type: 'module', engines: pkg.engines, scripts: { start: 'node dist/server/index.js' } }, null, 2) + '\n');
+await fs.writeFile(join(runtime, 'package.json'), JSON.stringify({ name: pkg.name, version: pkg.version, private: true, type: 'module', license: pkg.license, engines: pkg.engines, scripts: { start: 'node dist/server/index.js' } }, null, 2) + '\n');
+if (!values.fixture) {
+  await fs.copyFile(join(source, 'LICENSE'), join(stage, 'LICENSE'));
+  await fs.copyFile(join(source, 'LICENSE'), join(runtime, 'LICENSE'));
+}
 for (const subtree of ['server', 'shared']) {
   const built = join(source, 'dist', subtree);
   for (const name of await filesUnder(built)) {
@@ -62,7 +67,7 @@ for (const [name, data] of Object.entries(lock.packages)) {
   const directory = join(runtime, name);
   let installed;
   try { installed = JSON.parse(await fs.readFile(join(directory, 'package.json'), 'utf8')); }
-  catch (error) { if (error.code === 'ENOENT' && data.optional) continue; throw error; }
+  catch (error) { if (error.code === 'ENOENT' && (data.optional || data.devOptional)) continue; throw error; }
   if (installed.version !== data.version) throw new Error(`Production dependency version mismatch: ${name}`);
   const licenses = (await fs.readdir(directory)).filter(file => /^(licen[cs]e|copying|notice)([.-]|$)/i.test(file));
   const extra = supplemental.filter(item => item.packages.includes(`${installed.name}@${installed.version}`));

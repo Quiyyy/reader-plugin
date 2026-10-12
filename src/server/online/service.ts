@@ -382,6 +382,24 @@ export class OnlineSourceService {
     await this.clearPages(source, 'toc', detail.tocUrl, ['add', id, await this.store.lifecycle(id)]);
     return this.open(id, signal);
   }
+  async peek(id: string,chapterId?:string): Promise<BookDetail> { return this.asDetail(await this.read(id),chapterId); }
+  async searchCached(id: string, query: string, limit: number) {
+    const book = await this.read(id), hits: { chapter: number; chapterId: string; paragraph: number; title: string; text: string }[] = [];
+    let names: string[];
+    try { names = await fs.readdir(join(this.directory, 'cache', book.id, book.revision)); }
+    catch (error) { if (missing(error)) return hits; throw error; }
+    const cachedIds = new Set(names.map(name => name.replace(/\.json$/, ''))), needle = query.toLocaleLowerCase();
+    for (const [chapter, item] of book.chapters.entries()) {
+      if (!cachedIds.has(item.id)) continue;
+      const paragraphs = await this.cached(book, item.id) ?? [];
+      for (const [paragraph, text] of paragraphs.entries()) {
+        const at = text.toLocaleLowerCase().indexOf(needle);
+        if (at >= 0) hits.push({ chapter, chapterId: item.id, paragraph, title: item.title, text: text.slice(Math.max(0, at - 60), at + 180) });
+        if (hits.length >= limit) return hits;
+      }
+    }
+    return hits;
+  }
   async open(id: string, signal: AbortSignal): Promise<BookDetail> {
     const book = await this.read(id);
     await this.chapter(id, book.locator.chapterId, signal);

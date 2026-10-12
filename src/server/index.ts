@@ -19,8 +19,9 @@ if (process.argv.includes('--reflow-text')) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid PORT');
   const server = createReaderHttpServer(service, uiPath);
   server.listen(port, '127.0.0.1', () => { const address = server.address(); console.error(`Reader preview: http://127.0.0.1:${address && typeof address !== 'string' ? address.port : port}`); });
-  const close = () => server.close(() => process.exit(0));
+  const close = () => server.close(() => {void service.close().finally(()=>process.exit(0));});
   process.on('SIGINT', close); process.on('SIGTERM', close);
 } else {
-  await createMcpServer(service, uiPath).connect(new StdioServerTransport());
+  const mcp=createMcpServer(service, uiPath);await mcp.connect(new StdioServerTransport());
+  let closing=false;const close=()=>{if(closing)return;closing=true;void service.close().finally(()=>mcp.close());};process.stdin.once('end',close);process.once('SIGINT',close);process.once('SIGTERM',close);
 }

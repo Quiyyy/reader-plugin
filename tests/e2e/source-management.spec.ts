@@ -1,3 +1,4 @@
+import {openDiscovery} from './navigation';
 import { test, expect, type APIRequestContext } from '@playwright/test';
 import { fixtureSource } from '../online/source';
 import { defaultSettings } from '../../src/shared/types';
@@ -15,7 +16,7 @@ for (const width of [320, 390, 1280]) {
     await tool(request, 'reader_settings', { settings: defaultSettings });
     await page.setViewportSize({ width, height: width === 320 ? 720 : 900 });
     await page.goto('/');
-    await page.getByRole('button', { name: '找书', exact: true }).click();
+    await openDiscovery(page);
     await page.getByRole('button', { name: '管理书源', exact: true }).click();
     await expect(page.getByRole('heading', { name: '还没有书源' })).toBeVisible();
     await page.screenshot({ path: `artifacts/source-manager-empty-${width}.png` });
@@ -29,7 +30,7 @@ for (const width of [320, 390, 1280]) {
     await tool(request, 'reader_online_commit', { token: preview.token });
     await tool(request, 'reader_online_enable', { id: preview.sources[0].id, enabled: true });
     await page.reload();
-    await page.getByRole('button', { name: '找书', exact: true }).click();
+    await openDiscovery(page);
     await page.getByRole('button', { name: '管理书源', exact: true }).click();
     const manager = page.getByRole('region', { name: '已保存书源' });
     await expect(manager.locator('.managed-source')).toHaveCount(3);

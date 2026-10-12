@@ -1,3 +1,4 @@
+import {openDiscovery} from './navigation';
 import { test, expect } from '@playwright/test';
 import { declarativeSource } from '../online/declarative';
 
@@ -13,7 +14,7 @@ for (const width of [320, 390, 1280]) test(`declarative source shows stage limit
   page.on('request', req => { if (!req.url().startsWith('http://127.0.0.1:4178/')) external.push(req.url()); });
   await page.setViewportSize({ width, height: 844 });
   await page.goto('/');
-  await page.getByRole('button', { name: '找书', exact: true }).click();
+  await openDiscovery(page);
   const panel = page.getByRole('main', { name: '找书与书源' });
   await panel.getByRole('button', { name: '管理书源' }).click();
   await panel.getByRole('button', { name: '导入书源', exact: true }).click();
@@ -49,6 +50,8 @@ for (const width of [320, 390, 1280]) test(`declarative source shows stage limit
   await expect(page.locator('.reading-paragraphs img, .reading-paragraphs script')).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).GRAMMAR_EXECUTED)).toBeUndefined();
   await page.screenshot({ path: `artifacts/declarative-reading-${width}.png`, fullPage: true });
+  await expect(page.getByRole('button', { name: /加载更多章节/ })).toBeVisible();
+  await page.getByRole('button', { name: /加载更多章节/ }).click();
   await page.getByRole('button', { name: /下一章 第二章 灯笼/ }).click();
   await expect(page.getByRole('heading', { name: '第二章 灯笼', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '收藏当前段落（B）' }).click();

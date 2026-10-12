@@ -1,0 +1,53 @@
+import * as fs from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { Worker } from 'node:worker_threads';
+import { z } from 'zod';
+import { ReaderStore, atomicWrite } from './store.js';
+import type { BookDetail, BookSummary } from '../shared/types.js';
+import type { PdfBook } from '../shared/workspace.js';
+
+const idSchema=z.string().regex(/^[a-f0-9]{64}$/),missing=(e:unknown)=>(e as NodeJS.ErrnoException)?.code==='ENOENT';
+const recordSchema=z.object({id:idSchema,title:z.string(),author:z.string(),pages:z.number().int().min(1).max(10000),addedAt:z.string(),lastReadAt:z.string().optional(),page:z.number().int().min(1),scroll:z.number().min(0).max(1),scale:z.number().min(.3).max(3),rotation:z.number().int().multipleOf(90),outline:z.array(z.object({title:z.string(),page:z.number().int(),depth:z.number().int()})).max(2000),warnings:z.array(z.string()),locked:z.boolean(),labels:z.array(z.string()).nullable().optional()});
+let workers=0;
+export class PdfService {
+  readonly directory:string;
+  private passwords=new Map<string,string>();private unlockedText=new Map<string,{page:number;text:string}>();
+  private indexing=new Map<string,Promise<void>>();private activeWorkers=new Set<Worker>();
+  constructor(readonly store:ReaderStore){this.directory=join(store.dataDir,'pdf-v1');}
+  private path(id:string){idSchema.parse(id);return join(this.directory,id);}
+  private async record(id:string){await this.store.assertActive(id);return recordSchema.parse(JSON.parse(await fs.readFile(join(this.path(id),'record.json'),'utf8')));}
+  private async write(record:PdfBook){await atomicWrite(join(this.path(record.id),'record.json'),JSON.stringify(record));}
+  private extract<T>(bytes:Uint8Array,password?:string,page?:number,indexFrom?:number):Promise<T>{
+    if(workers>=2)throw Error('PDF 解析繁忙，请稍后重试');const dev=import.meta.url.endsWith('.ts');
+    return new Promise((resolve,reject)=>{let settled=false;const worker=new Worker(new URL(dev?'./pdf-worker-entry.mjs':'./pdf-worker.js',import.meta.url),{workerData:{bytes,password,page,indexFrom,...(dev?{entry:new URL('./pdf-worker.ts',import.meta.url).href}:{})},env:{},execArgv:[],stdout:true,stderr:true,resourceLimits:{maxOldGenerationSizeMb:192,maxYoungGenerationSizeMb:32,stackSizeMb:4}});
+      workers++;this.activeWorkers.add(worker);
+      const finish=(error?:Error,value?:T)=>{if(settled)return;settled=true;clearTimeout(timer);this.activeWorkers.delete(worker);void worker.terminate().finally(()=>workers--);error?reject(error):resolve(value!);};
+      const timer=setTimeout(()=>finish(Error('PDF 解析超时；原文件未修改')),45000);worker.stdout.resume();worker.stderr.resume();worker.on('message',m=>finish(m.ok?undefined:Error(m.error),m.value));worker.on('error',e=>finish(e instanceof Error?e:Error(String(e))));worker.on('exit',code=>{if(!settled)finish(Error('PDF 解析进程退出：'+code));});});
+  }
+  async has(id:string){try{await fs.access(join(this.path(id),'record.json'));return true;}catch(e){if(missing(e))return false;throw e;}}
+  summary(book:PdfBook):BookSummary{return {id:book.id,title:book.title,author:book.author,format:'pdf',addedAt:book.addedAt,lastReadAt:book.lastReadAt,progress:book.pages<=1?0:(book.page-1)/(book.pages-1),locator:{chapter:book.page-1,paragraph:0},chapterCount:book.pages,wordCount:0};}
+  detail(book:PdfBook):BookDetail{return {summary:this.summary(book),document:{id:book.id,title:book.title,author:book.author,format:'pdf',chapters:[],warnings:book.warnings},bookmarks:[]};}
+  async list(){let names:string[];try{names=await fs.readdir(this.directory);}catch(e){if(missing(e))return [];throw e;}const books:BookSummary[]=[];for(const id of names.filter(x=>/^[a-f0-9]{64}$/.test(x)))if(!await this.store.isTrashed(id))books.push(this.summary(await this.record(id)));return books;}
+  async importBook(filename:string,bytes:Uint8Array,password?:string):Promise<BookDetail>{
+    if(!bytes.length||bytes.length>64*1024*1024||!Buffer.from(bytes.subarray(0,1024)).includes(Buffer.from('%PDF-')))throw Error('请选择不超过 64 MiB 的有效 PDF');
+    const id=createHash('sha256').update(bytes).digest('hex');await this.store.assertActive(id);if(await this.has(id)){if(password)await this.unlock(id,password);return this.detail(await this.record(id));}
+    const parsed=await this.extract<Pick<PdfBook,'pages'|'title'|'author'|'outline'|'locked'|'warnings'>&{labels:string[]|null}>(bytes,password);
+    return this.store.locked('pdf-'+id,async()=>{if(await this.has(id))return this.detail(await this.record(id));const record=recordSchema.parse({...parsed,id,title:parsed.title.trim()||filename.split(/[\\/]/).pop()!.replace(/\.pdf$/i,''),addedAt:new Date().toISOString(),page:1,scroll:0,scale:1,rotation:0});const directory=this.path(id);await fs.mkdir(directory,{recursive:true,mode:0o700});await atomicWrite(join(directory,'source.pdf'),bytes);await this.write(record);if(password)this.passwords.set(id,password);return this.detail(record);});
+  }
+  async peek(id:string){return this.record(id);}
+  async open(id:string){return this.store.locked('pdf-'+id,async()=>{const record=await this.record(id);record.lastReadAt=new Date().toISOString();await this.write(record);return record;});}
+  async unlock(id:string,password:string){await this.store.assertActive(id);const bytes=await fs.readFile(join(this.path(id),'source.pdf'));await this.extract(bytes,password);this.passwords.set(id,password);return {unlocked:true};}
+  async save(id:string,input:{page:number;scroll:number;scale:number;rotation:number}){return this.store.locked('pdf-'+id,async()=>{const record=await this.record(id);if(input.page>record.pages)throw Error('页码超出范围');Object.assign(record,input,{lastReadAt:new Date().toISOString()});const checked=recordSchema.parse(record);await this.write(checked);return this.summary(checked);});}
+  async bytes(id:string,offset:number){await this.store.assertActive(id);const handle=await fs.open(join(this.path(id),'source.pdf'),'r');try{const total=(await handle.stat()).size;if(offset<0||offset>total||total>64*1024*1024)throw Error('PDF 范围无效');const buffer=Buffer.alloc(Math.min(192*1024,total-offset));await handle.read(buffer,0,buffer.length,offset);return {data:buffer.toString('base64'),total,next:offset+buffer.length<total?offset+buffer.length:null};}finally{await handle.close();}}
+  async text(id:string,page:number){const record=await this.record(id);if(page>record.pages||page<1)throw Error('页码超出范围');if(record.locked){if(!this.passwords.has(id))throw Error('PDF_PASSWORD_REQUIRED：请先在阅读器中解锁本书');const key=id+':'+page,prior=this.unlockedText.get(key);if(prior)return prior;const value=await this.extract<{page:number;text:string}>(await fs.readFile(join(this.path(id),'source.pdf')),this.passwords.get(id),page);this.unlockedText.set(key,value);while([...this.unlockedText.values()].reduce((sum,p)=>sum+p.text.length*2,0)>16*1024*1024)this.unlockedText.delete(this.unlockedText.keys().next().value!);return value;}const path=join(this.path(id),`page-${page}.json`);try{return JSON.parse(await fs.readFile(path,'utf8')) as {page:number;text:string};}catch(e){if(!missing(e))throw e;}const result=await this.extract<{page:number;text:string}>(await fs.readFile(join(this.path(id),'source.pdf')),this.passwords.get(id),page);await this.store.locked('pdf-'+id,async()=>{await this.store.assertActive(id);await atomicWrite(path,JSON.stringify(result));});return result;}
+  async font(kind:'cMapUrl'|'standardFontDataUrl',filename:string){if(!/^[\w.-]{1,128}$/.test(filename)||filename.includes('..'))throw Error('无效 PDF 字体资源');const root=dirname(createRequire(import.meta.url).resolve('pdfjs-dist/package.json'));const dir=kind==='cMapUrl'?'cmaps':'standard_fonts';const bytes=await fs.readFile(join(root,dir,filename));if(bytes.length>4*1024*1024)throw Error('字体资源过大');return {data:bytes.toString('base64')};}
+  async trash(id:string){return this.store.locked('pdf-'+id,async()=>this.store.markTrashed(this.summary(await this.record(id))));}
+  async indexStatus(id:string):Promise<{next:number;complete:boolean;bytes:number;error?:string}>{try{return JSON.parse(await fs.readFile(join(this.path(id),'index.json'),'utf8'));}catch(e){if(missing(e))return {next:1,complete:false,bytes:0};throw e;}}
+  async startIndex(id:string){const book=await this.record(id);if(book.locked)return {next:1,complete:false,bytes:0,running:false,error:'加密 PDF 只在解锁会话中读取文字'};await this.store.assertActive(id);const status=await this.indexStatus(id);if(status.complete||this.indexing.has(id))return {...status,running:this.indexing.has(id)};
+    const job=(async()=>{let checkpoint=status;try{const bytes=await fs.readFile(join(this.path(id),'source.pdf'));while(!checkpoint.complete){await this.store.assertActive(id);if(checkpoint.bytes>32*1024*1024)throw Error('索引已达到 32 MiB 上限，其余页仍可单独阅读');const batch=await this.extract<{pages:{page:number;text:string}[];next:number;total:number}>(bytes,this.passwords.get(id),undefined,checkpoint.next);await this.store.locked('pdf-'+id,async()=>{await this.store.assertActive(id);for(const page of batch.pages){const json=JSON.stringify(page);await atomicWrite(join(this.path(id),`page-${page.page}.json`),json);checkpoint.bytes+=Buffer.byteLength(json);}checkpoint={next:batch.next,complete:batch.next>batch.total,bytes:checkpoint.bytes};await atomicWrite(join(this.path(id),'index.json'),JSON.stringify(checkpoint));});}}catch(e){await atomicWrite(join(this.path(id),'index.json'),JSON.stringify({...checkpoint,error:e instanceof Error?e.message:'索引暂未完成'})).catch(()=>{});}finally{this.indexing.delete(id);}})();this.indexing.set(id,job);return {...status,running:true};
+  }
+  async close(){await Promise.all([...this.activeWorkers].map(worker=>worker.terminate()));}
+  async search(id:string,query:string,limit:number){const book=await this.record(id);if(book.locked){if(!this.passwords.has(id))return [];return [...this.unlockedText.entries()].filter(([key,p])=>key.startsWith(id+':')&&p.text.toLowerCase().includes(query.toLowerCase())).slice(0,limit).map(([,p])=>({page:p.page,text:p.text.slice(0,240)}));}const hits:{page:number;text:string}[]=[];const files=(await fs.readdir(this.path(id))).filter(n=>/^page-\d+\.json$/.test(n)).sort((a,b)=>Number(a.match(/\d+/)![0])-Number(b.match(/\d+/)![0]));for(const file of files){const page=JSON.parse(await fs.readFile(join(this.path(id),file),'utf8')) as {page:number;text:string};const at=page.text.toLocaleLowerCase().indexOf(query.toLocaleLowerCase());if(at>=0)hits.push({page:page.page,text:page.text.slice(Math.max(0,at-60),at+200)});if(hits.length>=limit)break;}return hits;}
+}

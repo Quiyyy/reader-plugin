@@ -83,7 +83,7 @@ try{
       }
       await route.fulfill({status:404,body:''});
     });
-    const start=async()=>{await page.goto(origin+(values.surface==='bridge'?'/__test_host':'/'));const frame=values.surface==='bridge'?page.frameLocator('#reader'):page;await frame.getByRole('heading',{name:'书架',exact:true}).waitFor();return frame;};
+    const start=async()=>{await page.goto(origin+(values.surface==='bridge'?'/__test_host':'/'));const frame=values.surface==='bridge'?page.frameLocator('#reader'):page;await frame.getByRole('heading',{name:/^书[架库]$/,exact:true}).waitFor();return frame;};
     let app=await start();
     if(textBytes)await inspectTxt({page,app,client,dataDir,output,report,bytes:textBytes,expectedChapters:values['expected-chapters-sha256']});
     await app.locator('input[type=file][accept*=".epub"]').setInputFiles({name:'inspection.epub',mimeType:'application/epub+zip',buffer:Buffer.from(bytes)});

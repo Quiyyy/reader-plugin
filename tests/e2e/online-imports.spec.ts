@@ -1,3 +1,4 @@
+import {openDiscovery} from './navigation';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
@@ -8,7 +9,7 @@ test('sample source imports through file and URL UI, paginates, restarts and rea
   const base = 'https://raw.githubusercontent.com/Quiyyy/reader-plugin/refs/heads/main/examples/online/';
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/');
-  await page.getByRole('button', { name: '找书', exact: true }).click();
+  await openDiscovery(page);
   const dialog = page.getByRole('main', { name: '找书与书源', exact: true });
   await dialog.getByRole('button', { name: '管理书源' }).click();
   for (const [entry, filename] of [['file', 'reader-demo.json'], ['file', 'reader-demo-array.json'], ['url', 'reader-demo.json'], ['url', 'reader-demo-array.json']] as const) {
@@ -41,6 +42,7 @@ test('sample source imports through file and URL UI, paginates, restarts and rea
   await dialog.getByRole('button', { name: '开始阅读' }).click();
   await expect(page.getByRole('heading', { name: '第一章 河岸来信', exact: true })).toBeVisible();
   await expect(page.locator('.reading-paragraphs')).toContainText('这是第一章的第二页');
+  await page.getByRole('button', { name: /加载更多章节/ }).click();
   await page.getByRole('button', { name: '目录（T）' }).click();
   await expect(page.getByRole('navigation', { name: '章节目录' }).getByRole('button')).toHaveCount(2);
   await page.getByRole('navigation', { name: '章节目录' }).getByRole('button', { name: /第二章 灯下回信/ }).click();

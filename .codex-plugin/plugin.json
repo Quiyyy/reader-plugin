@@ -1,15 +1,15 @@
 {
   "name": "reader-plugin",
-  "version": "0.1.12",
-  "description": "A private, local-first TXT and EPUB novel reader with an embedded bookshelf and durable reading progress.",
+  "version": "0.2.0",
+  "description": "A local reading and learning workspace for TXT, EPUB and PDF, with notes, annotations and scoped Codex conversations.",
   "author": {
     "name": "Quiyyy"
   },
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Reader",
-    "shortDescription": "安静读书，接着上次的位置。",
-    "longDescription": "A focused Chinese-language novel reader for MCP Apps hosts. Import DRM-free TXT and EPUB books, browse chapters, save bookmarks, and customize typography. Host sidebar and panel compatibility requires client validation.",
+    "shortDescription": "阅读、思考，留下自己的笔记。",
+    "longDescription": "A Chinese-language reading workspace for MCP Apps hosts. Import TXT, DRM-free EPUB and PDF, organize books and notes, capture passages and page regions, and discuss them in a floating Codex conversation. Notes stay in Reader; Space handoff is optional. Floating chat requires the official Codex CLI and a signed-in account.",
     "developerName": "Quiyyy",
     "category": "Productivity",
     "capabilities": [
@@ -17,7 +17,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "打开 Reader 书架"
+      "打开 Reader 书库"
     ]
   }
 }

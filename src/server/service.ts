@@ -1,3 +1,6 @@
+import {ChatService,chatSchemas} from './chat-service.js';
+import { PdfService } from './pdf-service.js';
+import { WorkspaceService, workspaceSchemas } from './workspace-service.js';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { keyboardSchema, defaultKeyboard } from '../shared/keyboard.js';
@@ -12,10 +15,12 @@ const id = z.string().regex(/^[a-f0-9]{64}$/);
 const requestId = z.string().uuid();
 const onlineResult = z.object({ sourceId: id, revision: id, title: z.string().max(500), author: z.string().max(500), url: z.string().max(4096) }).strict();
 export const settingsSchema = z.object({ theme: z.enum(['system','light','sepia','dark']), fontSize: z.number().min(14).max(36), lineHeight: z.number().min(1.3).max(2.6), lineWidth: z.number().min(420).max(960), fontFamily: z.enum(['serif','sans']) }).strict();
-const MAX_FILE = 32 * 1024 * 1024;
+const MAX_FILE = 64 * 1024 * 1024;
 const MAX_CHUNK = 256 * 1024;
 const TTL = 15 * 60 * 1000;
 export const actionSchemas = {
+  ...workspaceSchemas,
+  ...chatSchemas,
   reader_epub_open: z.object({ id }).strict(),
   reader_epub_chapter: z.object({ id, resource: z.string().min(1).max(1024) }).strict(),
   reader_epub_resource: z.object({ id, resource: z.string().min(1).max(1024), offset: z.number().int().min(0).max(16*1024*1024) }).strict(),
@@ -44,7 +49,7 @@ export const actionSchemas = {
   reader_online_chapter: z.object({ id, chapterId: id, requestId }).strict(),
   reader_online_refresh: z.object({ id, requestId }).strict(),
   reader_online_cancel: z.object({ requestId }).strict(),
-  reader_import_begin: z.object({ filename: z.string().min(1).max(255), size: z.number().int().min(1).max(MAX_FILE), encoding: z.enum(['utf-8','utf-16le','utf-16be','gb18030','big5']).optional() }).strict(),
+  reader_import_begin: z.object({ filename: z.string().min(1).max(255), size: z.number().int().min(1).max(MAX_FILE), encoding: z.enum(['utf-8','utf-16le','utf-16be','gb18030','big5']).optional(), password:z.string().max(256).optional() }).strict(),
   reader_import_chunk: z.object({ uploadId: z.string().uuid(), index: z.number().int().min(0), data: z.string().max(Math.ceil(MAX_CHUNK / 3) * 4).regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/) }).strict(),
   reader_import_finish: z.object({ uploadId: z.string().uuid() }).strict(),
   reader_import_cancel: z.object({ uploadId: z.string().uuid() }).strict(),
@@ -54,16 +59,22 @@ export const actionSchemas = {
   reader_bookmark_remove: z.object({ id, bookmarkId: z.string().max(100) }).strict(),
 } as const;
 export type ActionName = keyof typeof actionSchemas;
-type Upload = { filename: string; size: number; encoding?: string; chunks: Buffer[]; received: number; next: number; expires: number };
+type Upload = { password?:string; filename: string; size: number; encoding?: string; chunks: Buffer[]; received: number; next: number; expires: number };
 export class ReaderService {
   private uploads = new Map<string, Upload>();
   readonly online: OnlineSourceService;
   readonly epub: EpubService;
-  constructor(public readonly store: ReaderStore, online?: OnlineSourceService) { this.online = online ?? new OnlineSourceService(store); this.epub = new EpubService(store); }
+  readonly pdf: PdfService;
+  readonly workspace: WorkspaceService;
+  readonly chat: ChatService;
+  constructor(public readonly store: ReaderStore, online?: OnlineSourceService) { this.online = online ?? new OnlineSourceService(store); this.epub = new EpubService(store); this.pdf = new PdfService(store); this.workspace=new WorkspaceService(this);this.chat=new ChatService(this.workspace); }
+  async close(){await this.chat.close();await this.pdf.close();}
   async call(name: string, input: unknown): Promise<unknown> {
     for (const [key, value] of this.uploads) if (value.expires < Date.now()) this.uploads.delete(key);
     if (!Object.hasOwn(actionSchemas, name)) throw new Error('未知的 Reader 操作');
     const args = actionSchemas[name as ActionName].parse(input) as any;
+    if (Object.hasOwn(chatSchemas,name)) return this.chat.call(name,args);
+    if (Object.hasOwn(workspaceSchemas,name)) return this.workspace.call(name,args);
     switch (name as ActionName) {
       case 'reader_epub_open': return this.epub.open(args.id);
       case 'reader_epub_chapter': return this.epub.chapter(args.id, args.resource);
@@ -76,12 +87,12 @@ export class ReaderService {
       case 'reader_keyboard_save': return this.store.saveKeyboard(args.settings);
       case 'reader_keyboard_reset': return this.store.saveKeyboard(defaultKeyboard);
       case 'reader_trash_list': return this.store.listTrash();
-      case 'reader_trash': return (await this.online.has(args.id) ? this.online : this.store).trashBook(args.id);
+      case 'reader_trash': if(await this.pdf.has(args.id))return this.pdf.trash(args.id); return (await this.online.has(args.id) ? this.online : this.store).trashBook(args.id);
       case 'reader_restore': await this.store.restoreBook(args.id); return { restored: true };
-      case 'reader_list': { const library = await this.store.list(); return { ...library, books: [...library.books, ...await this.online.listBooks()] }; }
-      case 'reader_get': return await this.online.has(args.id) ? this.online.run(args.requestId ?? randomUUID(), `open:${args.id}`, signal => this.online.open(args.id, signal)) : this.store.open(args.id);
+      case 'reader_list': { const library = await this.store.list(); return { ...library, books: [...library.books, ...await this.online.listBooks(),...await this.pdf.list()] }; }
+      case 'reader_get': if(await this.pdf.has(args.id))return this.pdf.detail(await this.pdf.open(args.id)); return await this.online.has(args.id) ? this.online.run(args.requestId ?? randomUUID(), `open:${args.id}`, signal => this.online.open(args.id, signal)) : this.store.open(args.id);
       case 'reader_progress': return (await this.online.has(args.id) ? this.online : this.store).saveProgress(args.id, args.locator);
-      case 'reader_settings': return this.store.saveSettings(args.settings);
+      case 'reader_settings': {const prior=await this.store.settings(),saved=await this.store.saveSettings(args.settings);if(prior.theme!==saved.theme){const appearance=(await this.workspace.store.snapshot()).appearance;await this.workspace.store.appearance({...appearance,mode:saved.theme==='sepia'?'light':saved.theme,paper:saved.theme==='sepia'?'cream':'white'});}return saved;}
       case 'reader_bookmark_add': return (await this.online.has(args.id) ? this.online : this.store).addBookmark(args.id, args.locator, args.label);
       case 'reader_bookmark_remove': return (await this.online.has(args.id) ? this.online : this.store).removeBookmark(args.id, args.bookmarkId);
       case 'reader_online_sources': return this.online.listSources();
@@ -99,7 +110,8 @@ export class ReaderService {
       case 'reader_online_cancel': return this.online.cancel(args.requestId);
       case 'reader_import_begin': {
         if (this.uploads.size >= 2) throw new Error('同时导入过多，请稍后重试');
-        if (!/\.(txt|epub)$/i.test(args.filename)) throw new Error('目前支持 TXT 和 EPUB 文件');
+        if (!/\.(txt|epub|pdf)$/i.test(args.filename)) throw new Error('目前支持 TXT、EPUB 和 PDF 文件');
+        if(!/\.pdf$/i.test(args.filename)&&args.size>32*1024*1024)throw Error('TXT 和 EPUB 文件最多 32 MiB');
         const uploadId = randomUUID();
         this.uploads.set(uploadId, { ...args, chunks: [], received: 0, next: 0, expires: Date.now() + TTL });
         return { uploadId, chunkBytes: 192 * 1024 };
@@ -118,7 +130,7 @@ export class ReaderService {
         if (!upload) throw new Error('导入已过期，请重新选择文件');
         this.uploads.delete(args.uploadId);
         if (upload.received !== upload.size) throw new Error('文件传输不完整，请重试');
-        return this.store.importBook(upload.filename, Buffer.concat(upload.chunks), upload.encoding);
+        return /\.pdf$/i.test(upload.filename)?this.pdf.importBook(upload.filename,Buffer.concat(upload.chunks),upload.password):this.store.importBook(upload.filename, Buffer.concat(upload.chunks), upload.encoding);
       }
       case 'reader_import_cancel': this.uploads.delete(args.uploadId); return { cancelled: true };
     }

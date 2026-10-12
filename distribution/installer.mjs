@@ -15,7 +15,7 @@ const missing = error => error?.code === 'ENOENT';
 
 export function supportedNode(version) {
   const [major, minor] = version.split('.').map(Number);
-  return (major === 22 && minor >= 12) || major === 24 || major >= 26;
+  return (major === 22 && minor >= 13) || major === 24 || major >= 26;
 }
 function within(parent, child) {
   const rel = relative(parent, child);
@@ -148,7 +148,7 @@ async function lock(root, recover) {
 }
 
 export async function setup({ packageRoot, installDir, dataDir, rollback, recoverLock = false }) {
-  if (!supportedNode(process.versions.node)) throw new Error('Install a compatible Node first: 22.12+ (22.x), 24.x, or 26+. Node 24 LTS is recommended.');
+  if (!supportedNode(process.versions.node)) throw new Error('Install a compatible Node first: 22.13+ (22.x), 24.x, or 26+. Node 24 LTS is recommended.');
   const input = await verifyPackage(packageRoot);
   const paths = defaults();
   const requestedRoot = installDir ?? paths.install;

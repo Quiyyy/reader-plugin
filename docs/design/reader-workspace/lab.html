@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reader 产品交互实验室</title><link rel="stylesheet" href="lab.css"></head>
+<body>
+<header class="lab-bar"><a class="lab-brand" href="design.html">R<span>Reader <small>交互实验室</small></span></a><div class="lab-controls">
+<label>场景<select id="scenario"><option value="library">书库</option><option value="reader">EPUB 阅读</option><option value="pdf">PDF 区域摘录</option><option value="notes">笔记与引用</option><option value="search">统一搜索</option></select></label>
+<label>视图<select id="viewport"><option value="wide">宽屏</option><option value="900">紧凑 900</option><option value="390">窄侧栏 390</option><option value="320">窄侧栏 320</option></select></label>
+<label>状态<select id="condition"><option value="normal">正常</option><option value="empty">空内容</option><option value="offline">离线</option><option value="save-error">保存失败</option><option value="missing-source">来源缺失</option><option value="host-unavailable">连接不可用</option></select></label>
+</div><button id="selection" class="lab-button">选区示例</button><button id="walkthrough" class="lab-button">对话流程</button><button id="reset" class="lab-button">重置</button><a class="lab-button" href="design.html">设计文档 ↗</a></header>
+<div class="lab-caption"><span><i></i> 本地设计原型 · 回答为固定演示</span><span id="size-label"></span></div>
+<main class="stage" id="stage"><div class="frame-wrap" id="frame-wrap"><iframe id="prototype" title="Reader 产品交互原型" src="prototype.html?view=library" sandbox="allow-scripts allow-same-origin allow-downloads"></iframe></div></main>
+<footer class="lab-footer"><span>不连接真实 Codex、Space 或书库</span><details><summary>交互记录 <span id="event-count">0</span></summary><ol id="events"></ol></details></footer>
+<script src="lab.js"></script></body></html>

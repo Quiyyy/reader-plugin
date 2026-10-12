@@ -95,7 +95,7 @@ test('native stdio imports TXT/EPUB and preserves sources, progress, bookmarks a
     assert.equal(tools.find(tool => tool.name === 'reader_open_file').title, 'Reader');
     assert.equal((await client.listResources()).resources[0].name, 'Reader');
     assert.deepEqual(tools.find(tool => tool.name === 'reader_open')._meta['openai/ui'].entrypoints, [{ type: 'global' }, { type: 'thread' }]);
-    assert.deepEqual(tools.find(tool => tool.name === 'reader_open_file')._meta['openai/ui'].entrypoints[0].extensions, ['.txt', '.epub']);
+    assert.deepEqual(tools.find(tool => tool.name === 'reader_open_file')._meta['openai/ui'].entrypoints[0].extensions, ['.txt', '.epub', '.pdf']);
     const resource = await client.readResource({ uri: `ui://reader/v${pkg.version}/bookshelf.html` });
     assert.equal(resource.contents[0].mimeType, 'text/html;profile=mcp-app');
     assert.ok(resource.contents[0].text.includes('<html'));

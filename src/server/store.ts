@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import * as fs from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, join, resolve, relative } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { defaultSettings, type BookDetail, type BookSummary, type Bookmark, type LibraryState, type Locator, type ReaderSettings } from '../shared/types.js';
@@ -160,7 +160,7 @@ export class ReaderStore {
   }
   async trashBook(id: string): Promise<TrashEntry> { return this.locked(id, async () => this.markTrashed((await this.readState(id)).summary)); }
   private async readTrash(id: string): Promise<TrashEntry & { state: 'trashed' | 'active' }> {
-    const schema = z.object({ state: z.enum(['trashed', 'active']).default('trashed'), version: z.literal(1), summary: summarySchema.extend({ format: z.enum(['txt', 'epub', 'online']), locator: locatorSchema.extend({ chapterId: z.string().optional() }) }), trashedAt: z.string() });
+    const schema = z.object({ state: z.enum(['trashed', 'active']).default('trashed'), version: z.literal(1), summary: summarySchema.extend({ format: z.enum(['txt', 'epub', 'online', 'pdf']), locator: locatorSchema.extend({ chapterId: z.string().optional() }) }), trashedAt: z.string() });
     const entry = schema.parse(JSON.parse(await fs.readFile(this.trashPath(id), 'utf8')));
     if (entry.summary.id !== id) throw new Error('回收站记录损坏；原文件未改动');
     return entry;
@@ -176,14 +176,21 @@ export class ReaderStore {
   }
   async restoreBook(id: string): Promise<void> {
     const entry = await this.readTrash(id);
-    await this.locked(entry.summary.format === 'online' ? `online-${id}` : id, async () => {
+    await this.locked(entry.summary.format === 'online' ? `online-${id}` : entry.summary.format === 'pdf' ? `pdf-${id}` : id, async () => {
       const latest = await this.readTrash(id);
       if (latest.state !== 'trashed') return;
       // IDs, not titles, are identities. Same-title books coexist unchanged.
-      const record = entry.summary.format === 'online' ? join(this.dataDir, 'online-v1', `${id}.json`) : join(this.bookPath(id), 'record.json');
+      const record = entry.summary.format === 'pdf' ? join(this.dataDir,'pdf-v1',id,'record.json') : entry.summary.format === 'online' ? join(this.dataDir, 'online-v1', `${id}.json`) : join(this.bookPath(id), 'record.json');
       await fs.access(record);
       await atomicWrite(this.trashPath(id), JSON.stringify({ ...entry, state: 'active', generation: randomUUID() })); await syncDirectory(join(this.dataDir, 'trash-v1'));
     });
+  }
+  async purgeBook(id:string,trashedAt:string):Promise<{deleted:true}>{
+    this.bookPath(id);const entry=await this.readTrash(id),key=entry.summary.format==='online'?`online-${id}`:entry.summary.format==='pdf'?`pdf-${id}`:id;
+    return this.locked(key,async()=>{const latest=await this.readTrash(id);if(latest.state!=='trashed'||latest.trashedAt!==trashedAt)throw Error('回收站条目已变化，请刷新后重试');
+      const targets=latest.summary.format==='pdf'?[join(this.dataDir,'pdf-v1',id)]:latest.summary.format==='online'?[join(this.dataDir,'online-v1',`${id}.json`),join(this.dataDir,'online-v1','cache',id)]:[this.bookPath(id)];
+      for(const target of targets){const inside=relative(this.dataDir,resolve(target));if(!inside||isAbsolute(inside)||inside.startsWith('..'))throw Error('拒绝删除书库之外的内容');await fs.rm(target,{recursive:true,force:true});}
+      await fs.unlink(this.trashPath(id));return {deleted:true};});
   }
   async keyboard(): Promise<KeyboardSettings> {
     try { return keyboardSchema.parse(JSON.parse(await fs.readFile(join(this.dataDir, 'keyboard-v1.json'), 'utf8'))); }
@@ -317,6 +324,8 @@ export class ReaderStore {
     });
   }
 
+  async peek(id: string): Promise<BookDetail> { return this.locked(id, async () => detail(await this.readBook(id))); }
+
   async open(id: string): Promise<BookDetail> {
     this.bookPath(id);
     return this.locked(id, async () => {
@@ -350,6 +359,7 @@ export class ReaderStore {
       return checked;
     });
   }
+  async settings():Promise<ReaderSettings>{try{return settingsSchema.parse(JSON.parse(await fs.readFile(join(this.dataDir,'settings.json'),'utf8')));}catch(error){if(isMissing(error))return {...defaultSettings};throw Error('阅读设置损坏，书籍文件不受影响');}}
 
   async addBookmark(id: string, locator: Locator, label: string): Promise<Bookmark[]> {
     this.bookPath(id);

@@ -1,3 +1,4 @@
+import {openDiscovery} from './navigation';
 import { test, expect } from '@playwright/test';
 import { fixtureSource } from '../online/source';
 
@@ -11,7 +12,7 @@ for (const width of [320, 390, 1280]) {
     const raw = { ...fixtureSource, bookSourceName: `原创长目录 ${width}`, bookSourceUrl: `https://reader.example.com/long-${width}`, ruleBookInfo: { ...fixtureSource.ruleBookInfo, tocUrl: '@js:"https://reader.example.com/long-toc"' } };
     const preview = await rpc('reader_online_preview', { json: JSON.stringify(raw) });
     await rpc('reader_online_commit', { token: preview.token }); await rpc('reader_online_enable', { id: preview.sources[0].id, enabled: true });
-    await page.goto('/'); await page.getByRole('button', { name: '找书', exact: true }).click();
+    await page.goto('/'); await openDiscovery(page);
     await page.getByLabel('搜索书源').selectOption(preview.sources[0].id);
     await page.getByLabel('在线搜索关键词').fill('原创'); await page.getByRole('button', { name: '搜索', exact: true }).click();
     await page.getByRole('button', { name: /^原创河岸故事 Reader 测试作者/ }).click();
@@ -35,7 +36,7 @@ test('a paginated next chapter retains the current chapter until complete and ca
   const raw = { ...fixtureSource, bookSourceName: '原创长章测试', bookSourceUrl: 'https://reader.example.com/long-content-source', ruleBookInfo: { ...fixtureSource.ruleBookInfo, tocUrl: '@js:"https://reader.example.com/long-content-toc"' } };
   const preview = await rpc('reader_online_preview', { json: JSON.stringify(raw) });
   await rpc('reader_online_commit', { token: preview.token }); await rpc('reader_online_enable', { id: preview.sources[0].id, enabled: true });
-  await page.goto('/'); await page.getByRole('button', { name: '找书', exact: true }).click();
+  await page.goto('/'); await openDiscovery(page);
   await page.getByLabel('搜索书源').selectOption(preview.sources[0].id);
   await page.getByLabel('在线搜索关键词').fill('原创'); await page.getByRole('button', { name: '搜索', exact: true }).click();
   await page.getByRole('button', { name: /^原创河岸故事 Reader 测试作者/ }).click();

@@ -1,3 +1,4 @@
+import {openDiscovery} from './navigation';
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { catalogPackage } from '../catalog-fixture';
@@ -8,7 +9,7 @@ for (const width of [320, 390, 1280]) {
     await request.post('/api/tool', { headers: { 'X-Reader-Client': 'preview' }, data: { name: 'reader_keyboard_reset', arguments: {} } });
     await page.setViewportSize({ width, height: 844 }); await page.goto('/');
     const title = `键盘-${width}-${testInfo.repeatEachIndex}`;
-    await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(original + title) });
+    await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(original + title) });
     const reading = page.getByLabel('正文，向下滚动阅读'); await expect(reading).toBeVisible(); await reading.focus();
     await page.keyboard.press('ArrowDown'); await expect.poll(() => reading.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
     await page.keyboard.press('ArrowRight'); await expect(page.getByRole('heading', { name: '第二章 回收', exact: true })).toBeVisible();
@@ -38,19 +39,20 @@ for (const width of [320, 390, 1280]) {
     await page.screenshot({ path: `artifacts/candidate-keyboard-${width}.png`, fullPage: true });
     await dialog.getByRole('button', { name: '关闭键盘快捷键' }).click();
     await page.getByText('本书操作', { exact: true }).click(); await page.getByRole('button', { name: '移到回收站', exact: true }).click();
-    await expect(page.getByRole('heading', { name: '书架', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
     await page.getByRole('button', { name: '撤销', exact: true }).click(); await page.getByRole('searchbox', { name: '搜索书名或作者' }).fill(title);
     const card = page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) }); await card.focus(); await page.keyboard.press('Enter');
     await expect(page.getByRole('heading', { name: '第二章 回收', exact: true })).toBeVisible();
     await page.getByRole('button', { name: '我的书签', exact: true }).click(); await expect(page.locator('.bookmark-list li')).toHaveCount(1); await page.keyboard.press('Escape');
-    await reading.focus(); await page.keyboard.press('Escape'); await expect(page.getByRole('heading', { name: '书架', exact: true })).toBeVisible();
+    await reading.focus(); await page.keyboard.press('Escape'); await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
     let releaseTrash!: () => void; const gate = new Promise<void>(resolve => { releaseTrash = resolve; });
     await page.route('**/api/tool', async route => { if (route.request().postDataJSON()?.name === 'reader_trash') await gate; await route.continue(); });
-    await page.getByLabel(`更多：${title}`, { exact: true }).click(); await page.getByRole('button', { name: '移到回收站', exact: true }).click();
-    try { await expect(page.getByRole('button', { name: '回收站', exact: true })).toBeDisabled(); } finally { releaseTrash(); }
-    await page.getByRole('button', { name: '回收站', exact: true }).click(); await expect(page.getByRole('dialog', { name: '回收站' })).toContainText(title);
+    await page.getByLabel(`管理 ${title}`, { exact: true }).click(); await page.getByRole('button', { name: '移到回收站', exact: true }).click();
+    try { await expect(page.getByRole('button', { name: '移到回收站', exact: true })).toBeDisabled(); } finally { releaseTrash(); }
+    await expect(page.getByRole('dialog',{name:'书籍信息'})).toHaveCount(0);if(width<720)await page.getByRole('button',{name:'文件夹',exact:true}).click();
+    await page.getByRole('button', { name: '回收站', exact: true }).click(); await expect(page.locator('.study-trash')).toContainText(title);
     await page.screenshot({ path: `artifacts/candidate-trash-${width}.png`, fullPage: true });
-    await page.locator('.trash-row').filter({ hasText: title }).getByRole('button', { name: '恢复', exact: true }).click(); await page.getByRole('button', { name: '关闭回收站' }).click();
+    await page.locator('.study-trash-row').filter({ hasText: title }).getByRole('button', { name: '恢复', exact: true }).click(); await page.getByRole('button', { name: '书库', exact: true }).click();
     await page.getByRole('button', { name: '切换列表' }).click(); await card.focus(); await page.keyboard.press('ArrowDown'); await expect(card).toBeFocused();
     await page.screenshot({ path: `artifacts/candidate-list-${width}.png`, fullPage: true });
     await page.getByRole('button', { name: '切换卡片' }).click(); await page.screenshot({ path: `artifacts/candidate-cards-${width}.png`, fullPage: true });
@@ -62,7 +64,7 @@ for (const width of [320, 390, 1280]) {
 test('MCP AppBridge catalog UI and declined teardown keep the actual UI visible', async ({ page }) => {
   const html = await readFile('dist/test-host/index.html', 'utf8');
   await page.route('**/__test_host', route => route.fulfill({ contentType: 'text/html', body: html })); await page.goto('/__test_host');
-  const app = page.frameLocator('#reader'); await expect(app.getByRole('heading', { name: '书架', exact: true })).toBeVisible();
+  const app = page.frameLocator('#reader'); await expect(app.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
   await app.getByRole('button', { name: '键盘快捷键', exact: true }).click(); await app.getByRole('button', { name: '请求关闭宿主面板', exact: true }).click();
   await expect.poll(() => page.evaluate(() => (window as any).__readerHarness.teardownRequests.length)).toBe(1);
   await expect(app.locator('.host-close-message')).toContainText('已发送关闭请求'); await expect(page.locator('#reader')).toBeVisible();
@@ -77,7 +79,7 @@ test('MCP AppBridge catalog UI and declined teardown keep the actual UI visible'
   await iframe.evaluate(() => { (window as any).openai = { requestClose: () => Promise.reject(new Error('test host rejected close')) }; });
   await app.getByRole('button', { name: '键盘快捷键', exact: true }).focus(); await page.keyboard.press('Control+Shift+Period');
   await expect(app.locator('.host-close-message')).toContainText('未完成关闭请求'); await expect(page.locator('#reader')).toBeVisible(); await app.getByRole('button', { name: '知道了' }).click();
-  await app.getByRole('button', { name: '找书', exact: true }).click(); await app.getByRole('button', { name: '管理书源', exact: true }).click(); await app.getByRole('button', { name: '导入书源', exact: true }).click();
+  await openDiscovery(app); await app.getByRole('button', { name: '管理书源', exact: true }).click(); await app.getByRole('button', { name: '导入书源', exact: true }).click();
   const pkg = catalogPackage([{ ...fixtureSource, bookSourceName: '清单原创源', bookSourceUrl: 'https://reader.example.com/catalog' }]);
   await app.getByLabel('选择书源 JSON').setInputFiles({ name: 'fixture.reader-catalog.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(pkg)) });
   await expect(app.locator('.catalog-receipt')).not.toHaveAttribute('open', '');
@@ -93,7 +95,7 @@ test('MCP AppBridge catalog UI and declined teardown keep the actual UI visible'
 });
 
 test('editable content and focus outside Reader never dispatch reading shortcuts', async ({ page }) => {
-  await page.goto('/'); await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles({ name: '焦点边界.txt', mimeType: 'text/plain', buffer: Buffer.from(original + 'boundary') });
+  await page.goto('/'); await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles({ name: '焦点边界.txt', mimeType: 'text/plain', buffer: Buffer.from(original + 'boundary') });
   await expect(page.getByRole('heading', { name: '第一章 键盘', exact: true })).toBeVisible();
   const prevented = await page.evaluate(() => {
     const root = document.querySelector('.reader-app')!;
@@ -108,7 +110,7 @@ test('editable content and focus outside Reader never dispatch reading shortcuts
 
 test('shelf arrows move between cards and Enter opens the focused title', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('选择 TXT 或 EPUB 书籍').setInputFiles(['书架焦点甲', '书架焦点乙'].map(title => ({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`第一章 ${title}\n\n原创焦点测试。`) })));
+  await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles(['书架焦点甲', '书架焦点乙'].map(title => ({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`第一章 ${title}\n\n原创焦点测试。`) })));
   const query = page.getByRole('searchbox', { name: '搜索书名或作者' }); await query.fill('书架焦点');
   const cards = page.locator('.book-card'); await expect(cards).toHaveCount(2);
   await cards.first().focus(); await page.keyboard.press('ArrowRight'); await expect(cards.nth(1)).toBeFocused();
