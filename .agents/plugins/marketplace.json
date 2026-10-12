@@ -1,0 +1,86 @@
+{
+  "name": "reader-marketplace",
+  "interface": {
+    "displayName": "Reader"
+  },
+  "plugins": [
+    {
+      "name": "reader-darwin-arm64",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/Quiyyy/reader-plugin.git",
+        "sha": "a5c89019d435d6dcb498ecad5345422893b705e8"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "reader-darwin-x64",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/Quiyyy/reader-plugin.git",
+        "sha": "9deb3051e116f3706011123d33c9b92683017959"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "reader-linux-arm64",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/Quiyyy/reader-plugin.git",
+        "sha": "5cd528233a0d31ebecc548a2377ffb8ccdb15072"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "reader-linux-x64",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/Quiyyy/reader-plugin.git",
+        "sha": "885b7472839b77539cb1e596e5a17d9d4424ea3f"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "reader-win32-arm64",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/Quiyyy/reader-plugin.git",
+        "sha": "b6dc44b70bb66e34f70a1bd01a793db692870ee0"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "reader-win32-x64",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/Quiyyy/reader-plugin.git",
+        "sha": "a3648c95226c4504c61b6990597b8de3b2b007ec"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
