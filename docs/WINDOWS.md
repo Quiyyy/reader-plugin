@@ -1,13 +1,13 @@
-# Windows 原生安装与验证
+# Windows 源码接入与验证
 
-**普通用户使用 0.1.3 [免编译运行包](INSTALL.md)。该流程只要求 Node，无需 Git、npm 或构建。本文以下源码流程供开发者使用。**
+普通使用者先查看 [安装指南](INSTALL.md) 选择平台包或运行 ZIP。本文供希望构建指定源码版本的开发者使用。
 
-Reader 0.1.3 使用 Windows 原生 Node.js 和本地 stdio，不要求 WSL。Windows Codex 支持插件，不代表所有 global/thread/file 界面入口均已验收。本次开发没有连接用户的 Windows 电脑。
+Reader 使用 Windows 原生 Node.js 和本地 stdio，不要求 WSL。0.2.0 已通过本机独立预览与模拟 AppBridge 检查，真实宿主的 global/thread/file 界面仍需分别验收。
 
 ## 前置条件
 
 - 官方 ChatGPT/Codex Windows 客户端，选择 **Windows native**。
-- 官方 Node.js 24 LTS（或 22.12+ 的 22 系列）和 Git；新终端中 `node --version`、`npm.cmd --version`、`git --version` 可用。
+- 官方 Node.js 24 LTS（或 22.13+ 的 22 系列）和 Git；新终端中 `node --version`、`npm.cmd --version`、`git --version` 可用。
 - 注册示例使用公开 `codex plugin marketplace add`；本文核对的 CLI 为 0.159.2。也可使用桌面提供的本地 marketplace 添加流程。
 - 不需要管理员、修改 PowerShell ExecutionPolicy、关闭沙箱或添加防火墙规则。若系统策略阻止程序运行，按本机正常批准流程处理。
 
@@ -23,12 +23,13 @@ npm.cmd ci
 npm.cmd run check
 ```
 
-确认 `package.json` 是 0.1.3 或所需更新版本。`check` 运行脚本语法检查、TypeScript、单元/协议测试、构建、插件校验及真实子进程持久化测试。测试仅使用原创小样本与临时书库。
+构建前切换到所需源码分支，并确认 `package.json` 中的版本。`check` 运行脚本语法检查、TypeScript、单元/协议测试、构建、插件校验及真实子进程持久化测试。测试仅使用原创小样本与临时书库。
 
 ## 生成本机安装材料
 
 ```powershell
-$marketplace = Join-Path $env:LOCALAPPDATA 'Reader Plugin\marketplace-0.1.3'
+$readerVersion = (Get-Content .\package.json | ConvertFrom-Json).version
+$marketplace = Join-Path $env:LOCALAPPDATA "Reader Plugin\marketplace-$readerVersion"
 $library = Join-Path $env:LOCALAPPDATA 'Reader'
 node .\scripts\prepare-local-plugin.mjs --output "$marketplace" --data-dir "$library"
 ```
@@ -63,7 +64,7 @@ node .\scripts\local-mcp-config.mjs --data-dir "$library"
 
 - 默认书库：`%LOCALAPPDATA%\Reader`；显式 `READER_DATA_DIR` 优先。库内保留源文件、文档、进度、书签和设置。
 - PowerShell 的 `$env:READER_DATA_DIR` 不一定传给已运行的桌面进程；生成器 `--data-dir` 可固定插件启动配置。
-- 升级保留同一书库路径。构建新版后，用新的 marketplace 目录重新生成，按官方流程刷新注册/插件，保存阅读后重启旧进程。0.1.2 不改变存储格式，不要求重新导入。
+- 升级保留同一书库路径。构建新版后，用新的 marketplace 目录重新生成，按官方流程刷新注册/插件，保存阅读后重启旧进程。新版沿用原始书籍与定位，笔记和 PDF 使用独立存储。
 - Node 或源码目录移动后需重新生成 wrapper，不要通过移动书库修复启动路径。
 - 等待“已保存”并关闭 Reader 后，备份整个书库。不要上传书库到 GitHub。Windows ACL 由账户和系统管理，Unix mode 参数不是 Windows 访问控制承诺。
 - 活动书库建议放本机普通磁盘；未验证网络共享盘、OneDrive 同步竞争、超长路径策略或 ARM64 Windows。
@@ -91,13 +92,13 @@ CI 在含空格、中文的 checkout 中运行 Windows Node 22/24、macOS Node 2
 
 协议测试通过真实 Node stdio 子进程与 SDK 初始化、读取 UI、分块导入 TXT/EPUB、保存进度/书签/设置，启动新进程恢复并比对原文件；也验证生成的 marketplace wrapper。结果以对应提交的 [GitHub Actions](https://github.com/Quiyyy/reader-plugin/actions) 为准。
 
-Windows 电脑在线且获授权后，仍需逐项验收：
+实际安装后，仍需逐项验收：
 
 1. 记录 Windows、桌面与内置 Codex 版本，通过正常插件安装/信任流程。
 2. 分别在主导航、本地任务侧栏打开 Reader，确认真实工具调用成功。
-3. 导入中文/空格文件名的 TXT、无 DRM EPUB，滚动并等待保存，添加书签、修改主题。
+3. 导入中文/空格文件名的 TXT、无 DRM EPUB 和 PDF，滚动并等待保存，添加书签、修改主题。
 4. 关闭并重启桌面，确认书库、位置、书签和设置恢复。
-5. 分别从宿主 TXT、EPUB 文件入口打开，确认资源 API、格式和去重。手动导入成功不代表 file handler 通过。
-6. 单独检查云端/dot 任务。Mac 的 [openai/codex#50152](https://github.com/openai/codex/issues/50152) 宿主路由问题仍未修复，0.1.2 不作绕过或修复承诺。
+5. 分别从宿主 TXT、EPUB、PDF 文件入口打开，确认资源 API、格式和去重。手动导入成功不代表 file handler 通过。
+6. 单独检查云端/dot 任务。Mac 的 [openai/codex#50152](https://github.com/openai/codex/issues/50152) 宿主路由问题仍未修复，历史问题不作未经实测的修复承诺。
 
 官方依据：[Windows 原生客户端](https://developers.openai.com/codex/windows)、[插件打包与 marketplace](https://developers.openai.com/plugins/build/plugins)、[global/thread/file 扩展](https://developers.openai.com/plugins/build/extensions)。

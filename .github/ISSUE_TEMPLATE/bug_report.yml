@@ -1,0 +1,38 @@
+name: 问题反馈
+description: 报告可复现的 Reader 功能或界面问题
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "请勿附上个人书库、凭据、真实对话或受限制的书籍。安全漏洞请先按仓库 SECURITY.md 联系维护者。"
+  - type: input
+    id: version
+    attributes:
+      label: Reader 版本或提交号
+      placeholder: "例如：0.2.0 / commit SHA"
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 使用环境
+      description: 操作系统、插件或浏览器预览、宿主版本；连接问题可补充 Codex CLI 和 Node 版本。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 尽量使用原创最小样本；界面问题请注明窗口大小。
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 预期与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 截图或脱敏日志（可选）

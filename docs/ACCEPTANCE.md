@@ -1,3 +1,7 @@
+# 历史验收记录
+
+本文保留 0.1.1–0.1.3 及后续问题调查的原始证据，所述版本、机器状态和能力边界仅适用于对应记录。当前开发版结果见 [0.2.0 验收](RELEASE_0.2.0.md)，持续验证方法见 [开发指南](DEVELOPMENT.md)。
+
 # 0.1.3 prebuilt distribution scope
 
 ## Settings persistence timing regression

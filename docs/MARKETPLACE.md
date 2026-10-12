@@ -1,4 +1,6 @@
-# GitHub marketplace 自包含发行（0.1.6 预览）
+# 平台 marketplace 安装与分发
+
+本文说明自包含平台包机制，最初建立于 0.1.6；每个平台当前版本以安装包 manifest 和来源提交为准。0.2.0 源码开发预览尚不表示平台包已升级。
 
 Reader 的平台运行包自带官方 Node 24.21.0；用户无需安装 Node、npm、Go，也无需运行 setup。源码仓库中的 npm/Go 命令只用于维护者构建。插件不执行 npm lifecycle、postinstall 或隐藏安装脚本，首次启动不访问网络。
 
@@ -42,7 +44,7 @@ Node 上游基线：macOS 13.5+；Linux kernel 4.18+、glibc 2.28+、libstdc++ 6
 - Linux：`${XDG_DATA_HOME:-~/.local/share}/reader-plugin`
 - 显式 `READER_DATA_DIR`：继续使用指定的绝对路径。
 
-卸载插件或清理 `PLUGIN_DATA` 不应清除上述书库。备份应覆盖整个书库；原始 TXT/EPUB、解析结果、进度、书签和阅读设置均在其中。
+卸载插件或清理 `PLUGIN_DATA` 不应清除上述书库。备份应覆盖整个书库；原始书籍、解析结果、进度、书签和设置均在其中；0.2.0 还包含 PDF、笔记、批注、图片及阅读对话。
 
 **旧安装若指定了自定义书库路径，切换插件 ID 不会自动迁移旧 wrapper 中的环境变量。** 先记录并保留该路径，通过受支持的本地配置继续提供相同 `READER_DATA_DIR`，并停用旧实例后再切换。不要将空默认书库误判为数据丢失，不要复制旧快照覆盖正在使用的书库。自包含包不会自动迁移旧安装；已有依赖 Node 的本地安装可通过显式 setup 单独升级，见 [界面更新说明](UI_COMPACT.md)。
 
@@ -50,7 +52,7 @@ Node 上游基线：macOS 13.5+；Linux kernel 4.18+、glibc 2.28+、libstdc++ 6
 
 `distribution/node-runtime.json` 固定六个官方归档和 SHA-256，来源为 [Node 24.21.0 校验清单](https://nodejs.org/download/release/v24.21.0/SHASUMS256.txt)。维护者从官方 HTTPS 下载并校验；运行包只保存未经修改的 Node 二进制的 gzip 数据和上游许可证，单文件低于 GitHub 100 MiB 限制，无 Git LFS。
 
-启动器使用 Go 1.27.1 标准库，没有第三方 Go 依赖。服务由锁定的生产依赖打成单一 ESM，所有非 Node 内置依赖必须被打包；UI 是无 CDN 的内联 HTML。EPUB 文本路径保留 linkedom 自带的非 canvas 回退，不引入原生 canvas。
+启动器使用 Go 1.27.1 标准库，没有第三方 Go 依赖。服务由锁定的生产依赖打成单一 ESM，非 Node 内置依赖必须被打包或作为已审查的引擎包完整复制；UI 是无 CDN 的内联 HTML。EPUB 文本路径保留 linkedom 自带的非 canvas 回退，不引入原生 canvas。0.2.0 的 PDF.js 字体、CMap 和 worker 资源随包提供。
 
 包内 `runtime-manifest.json` 记录源提交、依赖锁哈希、目标平台、上游归档/二进制哈希；`PACKAGE-SHA256.json` 提供全部文件清单。包内 `.gitattributes` 禁止 Git 换行转换，远程安装 CI 逐文件比对宿主缓存和原始构建产物。Node、Go、JavaScript 依赖和补充声明保留于 `licenses/`、`DEPENDENCIES.json`、`THIRD_PARTY_NOTICES.md`。哈希用于完整性验证，不是发布者签名的替代品。
 

@@ -1,112 +1,95 @@
-# Reader 免编译运行版
+# 安装指南
 
-此运行包包含已构建服务、完整生产依赖、内联阅读 UI、第三方许可证和显式 setup。运行时只需要兼容 Node.js；无需源码 checkout、npm、编译或保留开发目录。
+Reader 提供平台 marketplace、需要系统 Node 的运行包，以及源码接入三种方式。请选择与你取得的版本相符的方式；0.2.0 当前为源码开发预览，不能据此假定 marketplace 已更新到同一版本。
 
-## 准备
+## 选择安装方式
 
-1. 从本项目发布附件或对应 Library 运行包取得 `reader-0.1.3-runtime.zip`，与同时提供的 SHA-256 比较。源码 ZIP 不等于运行包。
-2. 安装官方 Node.js 24 LTS，或使用已安装的兼容版本：22.12+（22 系列）、24、26+。自动化验证覆盖 Windows Node 22/24、macOS/Linux Node 24；26+、Windows ARM64 尚未验证。
-3. 将 ZIP 解压到临时普通目录，可包含中文和空格。不要修改解压内容。系统 Node 由用户预装，不假设 Codex 内置 Node。
+| 方式 | 适用场景 | 要求 |
+| --- | --- | --- |
+| 平台 marketplace | 安装已经分发的 Windows／Linux 平台包 | 支持 portable 插件的宿主、Git 与 GitHub 连接；Node 随包提供 |
+| `reader-<版本>-runtime.zip` | 使用维护者提供的免编译运行包 | 系统 Node；不需要 npm 或源码目录 |
+| 源码接入 | 开发或体验当前源码分支 | Node、npm、安装依赖和构建 |
 
-没有自动安装钩子、开机服务、后台授权或公开端口。无需关闭沙箱、修改 PowerShell 执行策略、管理员权限或防火墙设置。
+平台包及 macOS 当前限制见 [marketplace 说明](https://github.com/Quiyyy/reader-plugin/blob/main/docs/MARKETPLACE.md)。源码接入步骤见 [Windows 指南](https://github.com/Quiyyy/reader-plugin/blob/main/docs/WINDOWS.md)。以下内容用于独立运行 ZIP。
 
-## Windows 原生安装
+## 准备运行包
 
-可使用资源管理器解压 ZIP；自动化已使用 Windows 自带 .NET ZIP 接口。若在 PowerShell 解压，可执行以下命令（目标目录选择新的空目录）：
+1. 取得维护者明确提供的 `reader-<版本>-runtime.zip` 及配套 `.sha256`，核对摘要。GitHub 的源码 ZIP 不等于运行包；没有对应附件时不要使用猜测的下载地址。
+2. 安装 Node.js 24，或使用兼容版本：22.13+（22 系列）、24、26+。不依赖桌面内置 Node。
+3. 将 ZIP 解压到新的普通目录，进入解压后的 `reader-<版本>-runtime` 文件夹。目录名可包含中文和空格。
+
+校验 SHA-256：
 
 ```powershell
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-[System.IO.Compression.ZipFile]::ExtractToDirectory('C:\下载\reader-0.1.3-runtime.zip', 'C:\下载\Reader 解压')
+# Windows：将文件名替换为实际版本
+Get-FileHash -Algorithm SHA256 -LiteralPath '.\reader-<版本>-runtime.zip'
 ```
 
-在解压后的 `reader-0.1.3-runtime` 文件夹打开 PowerShell：
+```sh
+# macOS
+shasum -a 256 reader-<version>-runtime.zip
+# Linux
+sha256sum reader-<version>-runtime.zip
+```
 
-```powershell
+## 安装运行文件
+
+在解压目录执行：
+
+```sh
 node --version
-node .\setup.mjs
+node setup.mjs
 ```
 
-默认安装目录 `%LOCALAPPDATA%\ReaderPlugin`；默认书库 `%LOCALAPPDATA%\Reader`。setup 输出实际安装路径与 marketplace 路径。
+| 系统 | 默认程序目录 | 默认书库 |
+| --- | --- | --- |
+| Windows | `%LOCALAPPDATA%/ReaderPlugin` | `%LOCALAPPDATA%/Reader` |
+| macOS | `~/Library/Application Support/ReaderPlugin` | `~/Library/Application Support/Reader` |
+| Linux | `${XDG_DATA_HOME:-~/.local/share}/reader-plugin-install` | `${XDG_DATA_HOME:-~/.local/share}/reader-plugin` |
 
-如原书库在别处，首次安装时明确指定：
+已有书库在其他位置时，首次安装明确指定其绝对路径：
 
 ```powershell
 node .\setup.mjs --install-dir 'D:\Reader 程序' --data-dir 'D:\我的书库'
 ```
 
-两个路径必须绝对且互不包含。已有同名目录但没有 Reader 安装标记时会拒绝覆盖，请选择全新程序目录；不要清空未知目录。setup 不创建、迁移、覆盖或删除书库文件。
+程序和书库路径必须互不包含，不要将程序安装到解压目录内。已有同名目录但没有 Reader 安装标记时，安装器会拒绝覆盖。setup 不创建、迁移、覆盖或删除书库，不写宿主认证配置，不自动注册插件。
 
-## macOS / Linux
+## 注册插件
 
-```sh
-node --version
-node ./setup.mjs
-```
-
-- macOS 安装目录：`~/Library/Application Support/ReaderPlugin`；书库：`~/Library/Application Support/Reader`。
-- Linux 安装目录：`${XDG_DATA_HOME:-~/.local/share}/reader-plugin-install`；书库：`${XDG_DATA_HOME:-~/.local/share}/reader-plugin`。
-
-`--install-dir` / `--data-dir` 可使用加引号的绝对路径。不要将安装目录放进解压包或书库。
-
-## 在官方客户端注册
-
-setup 只生成本地 marketplace，不修改 Codex 用户配置，也不自动安装插件。使用它输出的 **marketplace** 完整路径：
+setup 会输出实际安装路径及本地 marketplace 路径。通过支持该流程的官方客户端注册输出路径，例如：
 
 ```text
 codex plugin marketplace add "<setup 输出的 marketplace 路径>"
-```
-
-此路径内有真实 `.agents/plugins/marketplace.json`，指向其内部已安装的版本及插件 wrapper。wrapper 使用本机 Node 绝对路径、独立参数数组和持久书库路径。打开桌面插件目录，在 **Reader Local** 中安装/刷新 **Reader**。支持相应公开命令的 CLI 也可执行 `codex plugin add reader-plugin@reader-local`；CLI 本身不渲染阅读 UI。
-
-Windows 中若 npm 安装的 `codex.ps1` 被策略拦截，可使用随附的 `codex.cmd`，不修改执行策略。若 CLI 不在 PATH，使用桌面支持的本地 marketplace 添加入口或官方 CLI 的实际可执行路径。
-
-不要把 GitHub 源码仓库 URL 或 ZIP URL 当作这个本地 marketplace 的安装来源；源码仓库不包含生产依赖。也不要手工覆盖整个 `~/.codex/config.toml`。本包不依赖未声明的安装钩子。
-
-安装并验证后可移走解压包。稳定安装目录及 Node 必须保留，运行时不再引用下载目录或开发目录。
-
-## 从 0.1.2 升级
-
-0.1.2 的 wrapper 指向源码目录。先查看其现有 `.mcp.json` 中 `READER_DATA_DIR`，确认真实书库位置。等待界面显示“已保存”并关闭旧 Reader 后，按日常方式备份整个书库。
-
-1. 解压新运行包；运行 `node setup.mjs --data-dir "旧书库的绝对路径"`，必要时指定新的稳定安装目录。
-2. setup 不修改旧 wrapper、旧源码或用户书库。记录旧 marketplace 路径作为恢复入口。
-3. 使用官方流程将 `reader-local` 注册源更新为新安装目录，并安装/刷新 Reader。若客户端报告已存在的 marketplace，先查看现有来源，仅通过客户端支持的 marketplace 管理流程切换；不要编辑或覆盖未知配置。
-4. 重新打开 Reader，确认书架、进度、书签和设置，再考虑归档旧开发目录。旧 Reader 进程不会被 setup 强制停止。
-
-公开 CLI 0.159.2 已在隔离配置目录实测：同一路径重复添加是幂等操作；同名市场换路径会报错，要求先移除旧注册。先用 `codex plugin marketplace list --json` 记录并确认 Reader 的旧来源，再执行：
-
-```text
-codex plugin marketplace remove reader-local
-codex plugin marketplace add "新 setup 输出的 marketplace 路径"
 codex plugin add reader-plugin@reader-local
 ```
 
-这里移除的是 Reader 的 marketplace 注册；不删除旧源码、运行安装目录或书库。若新来源添加失败，使用刚记录的旧路径重新添加。其它客户端版本以其公开管理流程为准，不移除其它市场或插件。
+也可以使用桌面的本地 marketplace 管理入口，在 **Reader Local** 中安装或刷新 **Reader**。CLI 本身不渲染阅读 UI，具体界面入口仍需宿主支持。
 
-版本 0.1.3 保持既有数据格式，不重新导入、不重置阅读记录。若需退回未托管的 0.1.2，保留书库，按官方流程重新注册旧 marketplace；旧开发目录仍需完整存在。
+Windows 若 `codex.ps1` 被执行策略拦截，可使用官方 npm 安装随附的 `codex.cmd`；无需修改执行策略。不要把运行 ZIP 的下载 URL 当作本地 marketplace 路径，也不要覆盖整个 `~/.codex/config.toml`。
 
-## 后续升级、重复运行与恢复
+确认安装成功后可以移走解压包，但需保留稳定安装目录和 Node 可执行文件。若 Node 路径变动，应重新生成安装配置。
 
-每个版本存放在 `versions/<版本>`，旧版本保留。升级先校验完整文件清单和校验和，完成新版本写入后，才原子切换 catalog；旧 catalog 存入 `backups`。同版本、同 Node 路径、同包重复 setup 返回 `unchanged`。手工改动的插件配置、同版本不同内容、未知文件或不同书库路径会明确报错并保留原状。
+## 升级与回退
 
-回退到本安装目录中已保留的版本：
+升级前等待“已保存”、关闭 Reader，并备份整个书库。使用新包运行 setup，保持原来的书库路径。新版本位于 `versions/<版本>`；完整校验成功后才切换 catalog，旧版本和 catalog 备份保留。
+
+同一版本、相同内容及 Node 路径的重复安装是幂等操作。手工改动的配置、同版本不同内容、未知文件或书库路径变化会被拒绝覆盖。不要删除旧目录来强行绕过这些检查。
+
+回退到该安装目录中保留的版本：
 
 ```text
-node setup.mjs --install-dir "稳定安装目录" --rollback 0.1.3
+node setup.mjs --install-dir "稳定安装目录" --rollback <已保留的版本号>
 ```
 
-只回退程序/catalog，不恢复或覆盖书库；然后刷新客户端插件，保存阅读后重启。未保留的版本不会自动下载。旧安装包不能无提示降级较新版本。
+回退只切换程序和 catalog，不恢复书库快照。旧版本可能无法显示新版笔记或 PDF；降级前保留完整备份。
 
-中断后重跑 setup。若留下锁，确认先前 setup 已退出后加 `--recover-lock`；脚本只在原 PID 已不存在时将锁归档，不会强制终止进程。若安装目录没有完整所有权标记，不会自动修复或删除它；先保留该目录供检查，再选择新安装目录。已完成的旧 catalog 始终引用完整版本，未激活的 staging 目录保留供检查。
+从早期源码 wrapper 迁移时，先记录旧 `.mcp.json` 中的 `READER_DATA_DIR`，再将同一路径传给新 setup。同名 marketplace 若不允许改变来源，先记录旧注册路径，通过客户端的官方管理流程移除 Reader 的旧注册并添加新路径；失败时可重新注册旧路径。不删除其他插件或书库。
 
-Node 可执行文件搬家时，不覆盖旧同版本 wrapper；选择新安装目录并明确使用原书库，重新注册。活动书库建议在普通本地磁盘；网络盘、同步盘竞争与额外长路径策略尚未实测。
+安装中断后可重跑。遗留锁仅在确认原安装进程已退出后使用 `--recover-lock`；不清空未知目录。网络盘、同步盘竞争和特殊长路径策略不在本地验收范围内。
 
-## 已测与未测
+## 验证安装
 
-发行 CI 从干净 ZIP 解压目录（包含中文、空格）直接运行 setup 和真实 MCP：无需在解压包执行 npm install/build；覆盖 TXT/EPUB 导入、读取、实际子进程重启恢复、重复 setup、旧 0.1.2 数据保留、托管版本升级/回退及未知配置拒绝覆盖。历史 0.1.2 测试载荷来自准确提交 `f398d0ddffc158e6f5282e77abac9cb11f1bb37a`；为测试托管升级而套用当前 installer，不表示曾发布 0.1.2 免编译包。
+检查实际安装版本，然后验证导入、阅读、保存与桌面重启恢复。原生 global/thread/file 入口、下载和原生消息交接须分别检查，手动导入成功不等于宿主文件分派成功。
 
-实际 Windows 用户电脑仍未连接验收：安装/信任提示、global/thread/TXT/EPUB 文件入口、桌面重启恢复待实测。Mac 的宿主路由问题 [#50152](https://github.com/openai/codex/issues/50152) 仍未修复；本版本不 patch 宿主、不恢复远程探针、不增加权限。
-
-完整生产依赖及其上游许可证随包保留，见 `THIRD_PARTY_NOTICES.md`、`DEPENDENCIES.json` 和 `runtime/node_modules`。不包含 Node 本体或原生系统组件。校验和用于确认传输/安装内容，并非代码签名或软件信任批准。
-
-依据：[官方本地 marketplace 与插件机制](https://developers.openai.com/plugins/build/plugins)。
+运行包附有项目 LICENSE、`THIRD_PARTY_NOTICES.md`、`DEPENDENCIES.json` 及文件摘要清单。摘要验证内容完整性，不代替系统信任判断或发布者签名。平台与宿主记录见 [项目文档](https://github.com/Quiyyy/reader-plugin/tree/main/docs)；问题反馈见 [Issues](https://github.com/Quiyyy/reader-plugin/issues)。
