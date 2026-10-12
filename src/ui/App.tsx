@@ -50,7 +50,7 @@ function trapDialogFocus(event: React.KeyboardEvent<HTMLElement>) {
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
 }
 
-export function App({ api,initialBook,onReturn,source,annotations,sources,onSelect,extraTools,returnLabel,registerGuard }: { api: ReaderApi;extraTools?:React.ReactNode;returnLabel?:string;registerGuard?:(guard:(()=>Promise<boolean>)|null)=>void;initialBook?:BookDetail;onReturn?:()=>void;source?:SourceRef;annotations?:Annotation[];sources?:SourceRef[];onSelect?:(source:SourceInput,rect:DOMRect)=>void }) {
+export function App({ api,initialBook,initialSettings,onReturn,source,annotations,sources,onSelect,extraTools,returnLabel,registerGuard }: { api: ReaderApi;extraTools?:React.ReactNode;returnLabel?:string;registerGuard?:(guard:(()=>Promise<boolean>)|null)=>void;initialBook?:BookDetail;initialSettings?:ReaderSettings;onReturn?:()=>void;source?:SourceRef;annotations?:Annotation[];sources?:SourceRef[];onSelect?:(source:SourceInput,rect:DOMRect)=>void }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const epubGuard=useRef<(()=>Promise<boolean>)|null>(null);const registerEpubGuard=useCallback((next:(()=>Promise<boolean>)|null)=>{epubGuard.current=next;},[]);
   const [keyboard, setKeyboard] = useState<KeyboardSettings>(defaultKeyboard);
@@ -64,7 +64,7 @@ export function App({ api,initialBook,onReturn,source,annotations,sources,onSele
   const [hostCloseMessage, setHostCloseMessage] = useState('');
   const closeBusyRef = useRef(false);
   const [books, setBooks] = useState<BookSummary[]>([]);
-  const [settings, setSettings] = useState<ReaderSettings>(defaultSettings);
+  const [settings, setSettings] = useState<ReaderSettings>(initialSettings??defaultSettings);
   const [book, setBook] = useState<BookDetail | null>(initialBook??null);
   const [epubLegacy, setEpubLegacy] = useState(false);
   const [chapterIndex, setChapterIndex] = useState(0);
@@ -103,6 +103,8 @@ export function App({ api,initialBook,onReturn,source,annotations,sources,onSele
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bookRef = useRef<BookDetail | null>(null);
   const settingsRef = useRef(settings);
+  const settingsEditVersionRef = useRef(0);
+  const progressDelegatedRef = useRef(false);
   const currentLocatorRef = useRef<Locator>(locator);
   const restoreRef = useRef(false);
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -194,12 +196,17 @@ export function App({ api,initialBook,onReturn,source,annotations,sources,onSele
   }, [api]);
 
   const loadLibrary = useCallback(async () => {
+    const editVersion = settingsEditVersionRef.current;
     setLoading(true); setError(''); failedOpenRef.current = null;
     try {
       const data = await api.list();
       if (!mountedRef.current) return;
       setBooks(data.books);
-      setSettings(data.settings); settingsRef.current = data.settings;
+      // An initial book can be interactive before its settings request returns.
+      // A late response must not replace edits already made in this reader.
+      if (settingsEditVersionRef.current === editVersion) {
+        setSettings(data.settings); settingsRef.current = data.settings;
+      }
     } catch (reason) { if (mountedRef.current) setError(messageOf(reason)); }
     finally { if (mountedRef.current) setLoading(false); }
   }, [api]);
@@ -213,7 +220,10 @@ export function App({ api,initialBook,onReturn,source,annotations,sources,onSele
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('pagehide', onPageHide);
     return () => {
-      void flushProgress(); flushSettings(); mountedRef.current = false;
+      // A completed return hands failed progress to the workspace retry UI.
+      // Do not start a second background save after that handoff.
+      if (!progressDelegatedRef.current) { void flushProgress(); flushSettings(); }
+      mountedRef.current = false;
       if (onlineRequestRef.current) void api.online?.cancel(onlineRequestRef.current);
       if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
       document.removeEventListener('visibilitychange', onVisibility);
@@ -416,7 +426,9 @@ export function App({ api,initialBook,onReturn,source,annotations,sources,onSele
       // Let an already queued scroll observer capture the final visible paragraph.
       if (scrollFrameRef.current !== null) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       await Promise.all([flushProgress(), flushSettings()]);
+      if (settingsDirtyRef.current) return;
       if (mountedRef.current && request === openRequestRef.current) {
+        progressDelegatedRef.current = !!onReturn;
         bookRef.current = null; setBook(null); setPanel(null); setBookmarkError('');onReturn?.();
         requestAnimationFrame(() => rootRef.current?.querySelector<HTMLElement>('.book-card')?.focus());
       }
@@ -424,6 +436,7 @@ export function App({ api,initialBook,onReturn,source,annotations,sources,onSele
   }, [flushProgress, flushSettings,onReturn]);
 
   const changeSettings = useCallback((patch: Partial<ReaderSettings>) => {
+    settingsEditVersionRef.current++;
     const next = { ...settingsRef.current, ...patch };
     settingsRef.current = next; setSettings(next); settingsDirtyRef.current = true;
     if (bookRef.current) {

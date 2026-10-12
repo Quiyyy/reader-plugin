@@ -32,7 +32,7 @@ async function importSettingsBook(page: Page, request: APIRequestContext, title:
   // different settings so a previous successful save cannot mask a lost write.
   await previewTool(request, 'reader_settings', { settings: defaultSettings });
   await page.goto('/');
-  await expect(page.getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
+  await expect(page.locator('.study-page-head').getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
   await importFile(page, { name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`第一章 样式保存\n\n${title}：原创时序验收内容。`) });
   await expect(page.getByRole('heading', { name: '第一章 样式保存', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '阅读样式', exact: true }).click();
@@ -49,7 +49,7 @@ for (const [layout, width, height] of [['wide', 1280, 900], ['narrow', 390, 844]
     await previewTool(request, 'reader_settings', { settings: defaultSettings });
     await page.setViewportSize({ width, height });
     await page.goto('/');
-    await expect(page.getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
+    await expect(page.locator('.study-page-head').getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
     await expect(page.getByRole('link', { name: 'Reader 书架', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: '键盘快捷键', exact: true }).click();
     await expect(page.getByRole('dialog', { name: '键盘快捷键' })).toBeVisible();
@@ -57,7 +57,7 @@ for (const [layout, width, height] of [['wide', 1280, 900], ['narrow', 390, 844]
     const title = `紧凑布局 ${layout}`;
     await waitForImport(page, async () => {
       const chooser = page.waitForEvent('filechooser');
-      await page.getByRole('button', { name: '导入书籍', exact: true }).click();
+      await page.locator('.study-page-head').getByRole('button', { name: '导入书籍', exact: true }).click();
       await (await chooser).setFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`${original}\n\n${title}原创验收`) });
     });
     await expect(page.getByRole('heading', { name: '第一章 雨后的书店', exact: true })).toBeVisible();
@@ -96,7 +96,7 @@ test('TXT import, progress, bookmarks, settings and restart', async ({ page, req
   await previewTool(request, 'reader_settings', { settings: defaultSettings });
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
-  await expect(page.getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
+  await expect(page.locator('.study-page-head').getByRole('button', { name: '导入书籍', exact: true })).toBeEnabled();
   await importFile(page, { name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`${original}\n\n验收轮次 ${testInfo.repeatEachIndex}`) });
   await expect(page.getByRole('heading', { name: '第一章 雨后的书店' })).toBeVisible();
   await page.getByRole('button', { name: '目录（T）', exact: true }).click();
@@ -182,6 +182,62 @@ for (const inFlight of [false, true]) {
     }
   });
 }
+test('a late reader settings response preserves edits and existing typography', async ({ page, request }, testInfo) => {
+  const initial = { ...defaultSettings, fontSize: 24 }, title = `延迟设置-${testInfo.repeatEachIndex}`;
+  await previewTool(request, 'reader_settings', { settings: initial });
+  const bytes = Buffer.from(original + '\n\n' + title);
+  const upload = await previewTool(request, 'reader_import_begin', { filename: `${title}.txt`, size: bytes.length });
+  await previewTool(request, 'reader_import_chunk', { uploadId: upload.uploadId, index: 0, data: bytes.toString('base64') });
+  await previewTool(request, 'reader_import_finish', { uploadId: upload.uploadId });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
+  const observed = signal(), release = signal(), delivered = signal(); let held = false;
+  await page.route('**/api/tool', async route => {
+    if (!held && route.request().postDataJSON()?.name === 'reader_list') {
+      held = true; const response = await route.fetch(); observed.resolve(); await release.promise;
+      await route.fulfill({ response }); delivered.resolve(); return;
+    }
+    await route.continue();
+  });
+  try {
+    await page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) }).click(); await observed.promise;
+    await expect(page.locator('.reader-app')).toHaveCSS('--reading-size', '24px');
+    await page.getByRole('button', { name: '阅读样式', exact: true }).click();
+    await page.getByRole('button', { name: '纸色', exact: true }).click();
+    release.resolve(); await delivered.promise;
+    await page.getByRole('button', { name: '增大字号', exact: true }).click();
+    await page.getByRole('button', { name: '关闭阅读样式', exact: true }).click();
+    await page.getByRole('button', { name: '返回书架', exact: true }).click();
+    await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
+    const expected = { ...initial, theme: 'sepia' as const, fontSize: 25 };
+    expect((await previewTool(request, 'reader_list')).settings).toEqual(expected);
+    await expectSettingsAfterReload(page, title, expected);
+  } finally { release.resolve(); await page.unrouteAll({ behavior: 'wait' }); }
+});
+
+test('failed settings keep the edited reader open until the save can be retried', async ({ page, request }, testInfo) => {
+  const title = `样式失败-${testInfo.repeatEachIndex}`;
+  await importSettingsBook(page, request, title);
+  let failSave = true;
+  await page.route('**/api/tool', route => {
+    if (failSave && route.request().postDataJSON()?.name === 'reader_settings') return route.abort('failed');
+    return route.continue();
+  });
+  await page.getByRole('button', { name: '纸色', exact: true }).click();
+  await page.getByRole('button', { name: '关闭阅读样式', exact: true }).click();
+  await page.getByRole('button', { name: '返回书架', exact: true }).click();
+  const error = page.getByRole('alert').filter({ hasText: '阅读样式未保存' });
+  await expect(error).toBeVisible();
+  await expect(page.locator('.returning-overlay')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '书库', exact: true })).toHaveCount(0);
+  await expect(page.locator('.reader-app')).toHaveClass(/theme-sepia/);
+  failSave = false; await error.getByRole('button', { name: '重试', exact: true }).click();
+  await expect(error).toHaveCount(0);
+  await page.getByRole('button', { name: '返回书架', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
+  expect((await previewTool(request, 'reader_list')).settings.theme).toBe('sepia');
+});
+
 test('EPUB strips active content and fits narrow panel', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); const external: string[] = [];
   page.on('request', request => { if (!request.url().startsWith('http://127.0.0.1:4178') && !request.url().startsWith('data:')) external.push(request.url()); });
@@ -219,13 +275,15 @@ test('Chinese hard wraps reflow, cross-line search works, and fragment bookmarks
   await expect(page.locator('.toast')).toHaveCount(0);
   await page.screenshot({ path: 'artifacts/reader-chinese-reflow.png', fullPage: true });
 });
-test('a stalled progress request releases the return overlay and can be retried', async ({ page }) => {
+test('a stalled progress request releases the return overlay and can be retried', async ({ page }, testInfo) => {
   test.setTimeout(45000); // One bounded import plus the deliberately stalled 15-second save.
   await page.goto('/');
-  await importFile(page, { name: '超时恢复.txt', mimeType: 'text/plain', buffer: Buffer.from(original + '\n\n网络超时恢复测试。') });
+  const title = `超时恢复-${testInfo.repeatEachIndex}`;
+  await importFile(page, { name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(original + '\n\n网络超时恢复测试。' + title) });
   await expect(page.getByRole('heading', { name: '第一章 雨后的书店' })).toBeVisible();
+  let allowSave = false, attempts = 0;
   await page.route('**/api/tool', route => {
-    if (route.request().postDataJSON().name === 'reader_progress') return;
+    if (route.request().postDataJSON().name === 'reader_progress') { attempts++; if (!allowSave) return; }
     return route.continue();
   });
   await page.getByLabel('正文，向下滚动阅读').hover();
@@ -235,11 +293,13 @@ test('a stalled progress request releases the return overlay and can be retried'
   await expect(page.locator('.returning-overlay')).toBeVisible();
   await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible({ timeout: 20000 });
   await expect(page.getByRole('alert')).toContainText('阅读位置未保存：Reader 服务响应超时，请重试');
-  await page.unroute('**/api/tool');
+  expect(attempts).toBe(1);
+  allowSave = true;
   await page.getByRole('button', { name: '重试', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(attempts).toBe(2);
   await page.reload();
-  await page.getByRole('button', { name: /打开 超时恢复/ }).click();
+  await page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) }).click();
   await expect.poll(() => page.getByLabel('正文，向下滚动阅读').evaluate(el => el.scrollTop)).toBeGreaterThan(1000);
 });
 test('real AppBridge in opaque iframe imports host file and persists through app-only RPC', async ({ page }) => {
