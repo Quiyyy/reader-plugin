@@ -9,7 +9,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "c180fc6975193f8246a11256e582845abd32a6ff"
+        "sha": "f8123432983fce85c173ddd36bf9a27eb3a623f1"
       },
       "policy": {
         "installation": "NOT_AVAILABLE",
@@ -22,7 +22,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "a8aaf9089aecb2d896debb36bf5852b2dbacbeff"
+        "sha": "024538e5f67a287767ff071d00be1f538c5b645a"
       },
       "policy": {
         "installation": "NOT_AVAILABLE",
@@ -35,7 +35,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "91f1ab30c232588fa70d85093a5e84ae2411259b"
+        "sha": "90dd7d5e79ea07328c49251b489a90d9aa197409"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -48,7 +48,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "0d10ae8d135b93f7cab8b646f47af6b1e30daf9f"
+        "sha": "78447eee3c71accd85d37651e04c04642bb1b4fa"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -61,7 +61,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "6abf248e256526c40720a5ffaad00e5f28be1ff9"
+        "sha": "5336647bee69edd6e1820f204b4a393e07d8c9b5"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -74,7 +74,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Quiyyy/reader-plugin.git",
-        "sha": "4662993ef54ee0a68365b58ec45b982cba1cd19b"
+        "sha": "139dd6278da0d66f0d6727e0f3da9ec21c148899"
       },
       "policy": {
         "installation": "AVAILABLE",
