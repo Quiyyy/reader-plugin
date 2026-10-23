@@ -17,11 +17,13 @@ class Transport implements CodexTransport {
   holdClose?: Promise<void>;
   closed = false;
   threadId = 'test-thread';
+  modelPages:Record<string,any>={start:{data:[{model:'model-default',displayName:'Default model',isDefault:true,defaultReasoningEffort:'medium',supportedReasoningEfforts:[{reasoningEffort:'medium'},{reasoningEffort:'high'}]},{model:'model-fast',displayName:'Fast model',defaultReasoningEffort:'low',supportedReasoningEfforts:[{reasoningEffort:'low'}]}],nextCursor:null}};
   async request(method: string, params: any = {}) {
     if (this.closed) throw Error('Codex 连接已关闭');
     this.requests.push({ method, params });
     if (method === 'account/read') return { account: { type: 'chatgpt' } };
-    if (method === 'config/read') return { config: { mcp_servers: { existing: { command: 'unused' } }, plugins: { existing: {} } } };
+    if (method === 'config/read') return { config: { model:'model-default',model_reasoning_effort:'high',mcp_servers: { existing: { command: 'unused' } }, plugins: { existing: {} } } };
+    if (method === 'model/list') return this.modelPages[params.cursor??'start'];
     if (method === 'thread/start') { await this.holdStart; if (this.closed) throw Error('Codex 连接已关闭'); return { thread: { id: this.threadId } }; }
     if (method === 'thread/resume') { this.threadId = params.threadId; return { thread: { id: this.threadId } }; }
     if (method === 'turn/start') { await this.holdTurn; if (this.closed) throw Error('Codex 连接已关闭'); return { turn: { id: 'test-turn' } }; }
@@ -49,6 +51,43 @@ async function setup() {
 async function started(transport: Transport, count = 1) { await expect.poll(() => transport.requests.filter(r => r.method === 'turn/start').length).toBe(count); }
 
 describe('documented Codex transport and reading scope', () => {
+  it('allows the current book by default, including old restricted drafts, without widening to other books',async()=>{
+    const {reader,transport,chat,book}=await setup();
+    const session=await chat.create(book.summary.id);expect(session.allowBook).toBe(true);
+    await chat.draft(session.id,'旧草稿',[],false);
+    await chat.send({id:session.id,messageId:randomUUID(),text:'总结本章',sourceIds:[]});await started(transport);
+    expect(await transport.tool('reader_read_passage',{id:book.summary.id})).toMatchObject({success:true});
+    const other=await reader.store.importBook('另一本.txt',Buffer.from('第一章 其他\n\n不属于当前对话的正文。'));
+    await expect(transport.tool('reader_read_passage',{id:other.summary.id})).rejects.toThrow();
+    expect((await chat.get(session.id)).allowBook).toBe(true);
+  });
+
+  it('paginates the real catalog, omits hidden entries and closes the discovery connection',async()=>{
+    const {transport,chat}=await setup();
+    transport.modelPages.start.nextCursor='next';
+    transport.modelPages.next={data:[{model:'hidden-model',displayName:'Hidden',hidden:true},{model:'model-extra',displayName:'Extra',inputModalities:['text'],supportedReasoningEfforts:[]}],nextCursor:null};
+    const catalog=await chat.models();
+    expect(catalog.models.map(model=>model.id)).toEqual(['model-default','model-fast','model-extra']);
+    expect(catalog.defaultModel).toBe('model-default');expect(transport.closed).toBe(true);
+    expect(transport.requests.filter(r=>r.method==='model/list').map(r=>r.params.cursor)).toEqual([undefined,'next']);
+  });
+
+  it('persists a model choice and applies it to new and resumed turns, including returning to the configured default',async()=>{
+    const {reader,transport,transports,chat}=await setup(),session=await chat.create();
+    await chat.draft(session.id,'问题',[],undefined,'model-fast');
+    const restored=new ChatService(reader.workspace,()=>new Transport());cleanup.push(()=>restored.close());
+    expect((await restored.get(session.id)).model).toBe('model-fast');
+    await chat.send({id:session.id,messageId:randomUUID(),text:'解释',sourceIds:[]});await started(transport);
+    expect(transport.requests.find(r=>r.method==='thread/start')?.params.model).toBe('model-fast');
+    expect(transport.requests.find(r=>r.method==='turn/start')?.params).toMatchObject({model:'model-fast',effort:'low'});
+    await expect(chat.draft(session.id,'不应覆盖',[],undefined,'model-default')).rejects.toThrow('回复结束');
+    expect((await chat.get(session.id)).model).toBe('model-fast');
+    transport.emit('turn/completed',{turn:{status:'completed'}});await expect.poll(async()=>(await chat.get(session.id)).status).toBe('idle');
+    await chat.draft(session.id,'追问',[],undefined,null);
+    await chat.send({id:session.id,messageId:randomUUID(),text:'继续',sourceIds:[]});await started(transports[1]!);
+    expect(transports[1]!.requests.find(r=>r.method==='thread/resume')?.params.model).toBe('model-default');
+    expect(transports[1]!.requests.find(r=>r.method==='turn/start')?.params).toMatchObject({model:'model-default',effort:'high'});
+  });
   it('enforces the current turn scope even when full-book access was granted elsewhere', async () => {
     const { reader, transport, transports, chat, book, source } = await setup();
     await reader.workspace.store.allowBook(book.summary.id, true);

@@ -31,7 +31,9 @@ export interface Mutation<T> { value:T; undoId?:string; revision:number; }
 export interface SearchHit { kind:'book'|'note'|'annotation'|'passage'; id:string; title:string; text:string; source?:SourceRef; locator?:{chapter:number;paragraph:number;chapterId?:string}; }
 export interface PdfBook { id:string; title:string; author:string; pages:number; addedAt:string; lastReadAt?:string; page:number; scroll:number; scale:number; rotation:number; outline:{title:string;page:number;depth:number}[]; warnings:string[]; locked:boolean; }
 export interface ChatMessage { id:string; role:'user'|'assistant'|'tool'; text:string; sourceIds:string[]; createdAt:string; }
-export interface ChatSession { id:string; bookId?:string; title:string; threadId?:string; messages:ChatMessage[]; draft:string; draftSourceIds?:string[]; allowBook?:boolean; status:'idle'|'running'|'error'|'interrupted'; error?:string; createdAt:string; updatedAt:string; revision:number; }
+export interface ChatModel { id:string; name:string; defaultReasoningEffort?:string; supportedReasoningEfforts:string[]; }
+export interface ChatModels { models:ChatModel[]; defaultModel:string|null; }
+export interface ChatSession { id:string; bookId?:string; title:string; threadId?:string; messages:ChatMessage[]; draft:string; draftSourceIds?:string[]; allowBook?:boolean; model?:string|null; status:'idle'|'running'|'error'|'interrupted'; error?:string; createdAt:string; updatedAt:string; revision:number; }
 export interface WorkspaceApi {
   download?(filename:string,mimeType:string,data:Uint8Array):Promise<void>;
   call<T=unknown>(name:string,args?:Record<string,unknown>):Promise<T>;

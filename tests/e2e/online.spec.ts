@@ -45,7 +45,9 @@ for (const width of [320, 390, 1280]) {
     await results.getByRole('button', { name: '上一页搜索', exact: true }).click();
     await dialog.getByRole('button', { name: /^原创河岸故事 Reader 测试作者/ }).click();
     await expect(dialog.getByRole('region', { name: '在线书籍详情' })).toContainText('合成的原创测试文本');
+    const added=page.waitForResponse(response=>response.url().endsWith('/api/tool')&&response.request().postDataJSON()?.name==='reader_online_add');
     await dialog.getByRole('button', { name: '开始阅读' }).click();
+    const bookId=(await (await added).json())._meta.reader.summary.id;
     await expect(page.getByRole('heading', { name: '第一章 河岸', exact: true })).toBeVisible();
     await expect(page.locator('.reading-paragraphs')).toContainText('河水缓慢流过石桥');
     // Retain an earlier chapter in the response to verify the UI's explicit
@@ -96,7 +98,7 @@ for (const width of [320, 390, 1280]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await dialog.getByRole('button', { name: '书架', exact: true }).click();
     await page.reload();
-    await page.getByRole('button', { name: /^打开 原创河岸故事/ }).first().click();
+    await page.locator(`[data-book-id="${bookId}"]`).getByRole('button', { name: /^打开 原创河岸故事/ }).click();
     await expect(page.getByRole('heading', { name: '第二章 灯光', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '移除当前段落书签（B）' })).toBeVisible();
     expect(external).toEqual([]); expect(errors).toEqual([]);

@@ -49,7 +49,7 @@ for (const width of [320, 390, 1280]) {
     await page.route('**/api/tool', async route => { if (route.request().postDataJSON()?.name === 'reader_trash') await gate; await route.continue(); });
     await page.getByLabel(`管理 ${title}`, { exact: true }).click(); await page.getByRole('button', { name: '移到回收站', exact: true }).click();
     try { await expect(page.getByRole('button', { name: '移到回收站', exact: true })).toBeDisabled(); } finally { releaseTrash(); }
-    await expect(page.getByRole('dialog',{name:'书籍信息'})).toHaveCount(0);if(width<720)await page.getByRole('button',{name:'文件夹',exact:true}).click();
+    await expect(page.getByRole('dialog',{name:'书籍信息'})).toHaveCount(0);if(width<720)await page.getByRole('button',{name:'更多导航',exact:true}).click();
     await page.getByRole('button', { name: '回收站', exact: true }).click(); await expect(page.locator('.study-trash')).toContainText(title);
     await page.screenshot({ path: `artifacts/candidate-trash-${width}.png`, fullPage: true });
     await page.locator('.study-trash-row').filter({ hasText: title }).getByRole('button', { name: '恢复', exact: true }).click(); await page.getByRole('button', { name: '书库', exact: true }).click();

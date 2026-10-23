@@ -20,8 +20,8 @@ test('workbench layout is independent of appearance, responsive and preserves re
   for(const title of titles)await expect(page.getByRole('button',{name:new RegExp('^打开 '+title+'，')})).toBeVisible();
   const library=await call(request,'reader_list'),books=titles.map(title=>(library.books as BookSummary[]).find(b=>b.title===title)!);
   const folder=(await call(request,'reader_folder_save',{name:'我的书库',parentId:null})).value;
-  for(const [index,book] of books.entries())await call(request,'reader_book_metadata',{id:book.id,revision:0,metadata:{title:titles[index],folderId:folder.id,tags:[]}});
-  const openFolder=async()=>{await page.getByRole('button',{name:'展开导航',exact:true}).click();await page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name:'我的书库',exact:true}).click();await expect(page.getByRole('heading',{name:'我的书库',exact:true})).toBeVisible();};
+  for(const [index,book] of books.entries())await call(request,'reader_book_metadata',{id:book.id,revision:0,metadata:{title:titles[index],folderId:folder.id,tags:['界面验收']}});
+  const openShelf=async()=>{await expect(page.getByRole('heading',{name:'书库',exact:true})).toBeVisible();await page.getByRole('searchbox',{name:'搜索书名或作者'}).fill('界面验收');};
   for(const index of [0,1,2,3])await call(request,'reader_progress',{id:books[index]!.id,locator:{chapter:0,paragraph:index%2}});
   const finished=await call(request,'reader_get',{id:books[5]!.id}),lastChapter=finished.document.chapters.length-1;
   await call(request,'reader_progress',{id:books[5]!.id,locator:{chapter:lastChapter,paragraph:finished.document.chapters[lastChapter].paragraphs.length-1}});
@@ -29,7 +29,7 @@ test('workbench layout is independent of appearance, responsive and preserves re
   expect(paragraph).toBeGreaterThanOrEqual(0);
   const source=await call(request,'reader_source_create',{source:{bookId:books[0]!.id,quote,anchor:{kind:'text',start:{chapter:0,paragraph,offset:0},end:{chapter:0,paragraph,offset:quote.length}}}});
   for(const [title,body] of [['把阅读变成自己的经验','理解不只是记住原句，而是能够用自己的话解释，再放进新的情境。'],['给问题留一个位置','先记录一个疑问，下次阅读时再回来，看看它是否连接起了新的线索。']])await call(request,'reader_note_create',{title,body,folderId:folder.id,tags:[],sourceIds:[source.id],imageIds:[],relatedBookId:books[0]!.id});
-  await page.reload();await openFolder();
+  await page.reload();await openShelf();
   await expect(page.getByRole('region',{name:'正在阅读'}).locator('.book-card')).toHaveCount(4);
   await expect(page.getByRole('region',{name:'稍后阅读'}).locator('.book-card')).toHaveCount(1);
   await expect(page.getByRole('region',{name:'已读完'}).locator('.book-card')).toHaveCount(1);
@@ -49,9 +49,9 @@ test('workbench layout is independent of appearance, responsive and preserves re
   await page.getByLabel('强调色十六进制值').fill('#8551B2');await page.getByRole('button',{name:'完成',exact:true}).click();
   await expect(page.getByRole('dialog',{name:'外观',exact:true})).toHaveCount(0);
   expect(await geometry()).toEqual(baseline);await page.screenshot({animations:'disabled',path:'artifacts/workbench-library-cream-1280.png'});
-  await page.reload();await openFolder();await expect(page.locator('.study-workspace')).toHaveCSS('--study-accent','#8551B2');await expect(page.locator('.study-workspace')).toHaveAttribute('data-layout','workbench');
+  await page.reload();await openShelf();await expect(page.locator('.study-workspace')).toHaveCSS('--study-accent','#8551B2');await expect(page.locator('.study-workspace')).toHaveAttribute('data-layout','workbench');
   await page.getByRole('searchbox',{name:'搜索书名或作者'}).fill('山河');await expect(page.locator('.book-card')).toHaveCount(1);
-  await page.getByRole('searchbox',{name:'搜索书名或作者'}).fill('');
+  await page.getByRole('searchbox',{name:'搜索书名或作者'}).fill('界面验收');
   await page.getByRole('button',{name:/^正在阅读 4$/}).click();await expect(page.getByRole('region',{name:'正在阅读'}).locator('.book-card')).toHaveCount(0);
   await page.getByRole('button',{name:/^正在阅读 4$/}).click();await expect(page.locator('.book-card')).toHaveCount(6);
   await page.getByRole('button',{name:'切换卡片',exact:true}).click();await expect(page.locator('.study-book-grid.cards')).toHaveCount(3);

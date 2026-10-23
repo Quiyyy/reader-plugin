@@ -37,7 +37,7 @@ export function KeyboardEditor({ value, error, closeStatus, searchLabel, onSave,
     <button type="button" className="icon-button shortcut-clear" disabled={busy || !value.bindings[action]} aria-label={`清除${shortcutLabels[action]}`} title="清除快捷键" onClick={() => void save({ version: 1, bindings: { ...value.bindings, [action]: '' } })}><X size={14} /></button>
   </div>;
   return <div className="keyboard-editor">
-    <p className="keyboard-intro">点击按键即可修改，仅在 Reader 内生效。</p>
+
     <section className="shortcut-group" aria-label="阅读快捷键"><h3>阅读</h3>{shortcutActions.filter(action => action !== 'closeHost').map(bindingRow)}</section>
     <section className="shortcut-group" aria-label="面板快捷键"><h3>面板</h3>{bindingRow('closeHost')}<div className="shortcut-host-note"><span>关闭由所在应用响应</span><button type="button" className="text-button" aria-label="请求关闭宿主面板" onClick={() => void onCloseHost()}>尝试关闭</button></div></section>
     {(error || message) && <p className="keyboard-feedback" role="status">{error || message}</p>}
