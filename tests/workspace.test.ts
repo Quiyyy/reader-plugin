@@ -5,9 +5,19 @@ import { join } from 'node:path';
 import { ReaderService } from '../src/server/service.js';
 import { ReaderStore } from '../src/server/store.js';
 import { WorkspaceStore } from '../src/server/workspace-store.js';
+import { defaultAppearance } from '../src/shared/workspace.js';
 const using=async(work:(service:ReaderService,dir:string)=>Promise<void>)=>{const dir=await mkdtemp(join(tmpdir(),'Reader workspace '));try{await work(new ReaderService(new ReaderStore(dir)),dir);}finally{await rm(dir,{recursive:true,force:true});}};
 const noteInput={title:'阅读记录',body:'我的理解',folderId:null,tags:[],sourceIds:[],imageIds:[]};
 describe('learning workspace durability and boundaries',()=>{
+  it('defaults new libraries to a list and keeps a saved layout independent of appearance',()=>using(async(s,dir)=>{
+    expect((await s.workspace.store.snapshot()).layout).toBe('list');
+    await s.workspace.store.layout('cards');
+    await s.workspace.store.appearance({...defaultAppearance,mode:'dark'});
+    const restarted=new WorkspaceStore(new ReaderStore(dir));
+    expect((await restarted.snapshot()).layout).toBe('cards');
+    await restarted.appearance({...defaultAppearance,mode:'light',paper:'cream'});
+    expect((await restarted.snapshot()).layout).toBe('cards');
+  }));
   it('preserves notes after restart and rejects stale concurrent edits, including after undo',()=>using(async(s,dir)=>{
     const created=await s.workspace.store.createNote(noteInput),id=created.value.id;
     const second=new WorkspaceStore(new ReaderStore(dir));expect((await second.note(id)).body).toBe('我的理解');

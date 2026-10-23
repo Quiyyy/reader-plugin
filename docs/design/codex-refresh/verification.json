@@ -1,0 +1,331 @@
+{
+  "kind": "static-design-prototype",
+  "realCodexHost": false,
+  "realModel": false,
+  "externalRequests": [],
+  "pageErrors": [],
+  "checks": [
+    "Three variants render at 1280, 390 and 320px with no horizontal overflow",
+    "Book search, format filter and reading navigation",
+    "Source expansion, removal and reattachment",
+    "Local demo reply, minimize and restore",
+    "Comparison lab switches variant and screen"
+  ],
+  "screenshots": [
+    "assets/proposal-a.png",
+    "assets/a-library-1280.png",
+    "assets/a-reader-1280.png",
+    "assets/a-library-390.png",
+    "assets/a-reader-390.png",
+    "assets/proposal-b.png",
+    "assets/b-library-1280.png",
+    "assets/b-reader-1280.png",
+    "assets/b-library-390.png",
+    "assets/b-reader-390.png",
+    "assets/proposal-c.png",
+    "assets/c-library-1280.png",
+    "assets/c-reader-1280.png",
+    "assets/c-library-390.png",
+    "assets/c-reader-390.png"
+  ],
+  "viewports": [
+    {
+      "variant": "a",
+      "view": "library",
+      "width": 1280,
+      "document": 1280,
+      "body": 1280,
+      "containers": [
+        {
+          "name": "library-main",
+          "client": 1104,
+          "scroll": 1104
+        }
+      ]
+    },
+    {
+      "variant": "a",
+      "view": "reader",
+      "width": 1280,
+      "document": 1280,
+      "body": 1280,
+      "containers": [
+        {
+          "name": "chat-window",
+          "client": 386,
+          "scroll": 386
+        },
+        {
+          "name": "composer",
+          "client": 356,
+          "scroll": 356
+        }
+      ]
+    },
+    {
+      "variant": "a",
+      "view": "library",
+      "width": 390,
+      "document": 390,
+      "body": 390,
+      "containers": [
+        {
+          "name": "library-main",
+          "client": 390,
+          "scroll": 390
+        }
+      ]
+    },
+    {
+      "variant": "a",
+      "view": "reader",
+      "width": 390,
+      "document": 390,
+      "body": 390,
+      "containers": [
+        {
+          "name": "chat-window",
+          "client": 372,
+          "scroll": 372
+        },
+        {
+          "name": "composer",
+          "client": 346,
+          "scroll": 346
+        }
+      ]
+    },
+    {
+      "variant": "a",
+      "view": "library",
+      "width": 320,
+      "document": 320,
+      "body": 320,
+      "containers": [
+        {
+          "name": "library-main",
+          "client": 320,
+          "scroll": 320
+        }
+      ]
+    },
+    {
+      "variant": "a",
+      "view": "reader",
+      "width": 320,
+      "document": 320,
+      "body": 320,
+      "containers": [
+        {
+          "name": "chat-window",
+          "client": 302,
+          "scroll": 302
+        },
+        {
+          "name": "composer",
+          "client": 276,
+          "scroll": 276
+        }
+      ]
+    },
+    {
+      "variant": "b",
+      "view": "library",
+      "width": 1280,
+      "document": 1280,
+      "body": 1280,
+      "containers": [
+        {
+          "name": "library-main",
+          "client": 1240,
+          "scroll": 1240
+        }
+      ]
+    },
+    {
+      "variant": "b",
+      "view": "reader",
+      "width": 1280,
+      "document": 1280,
+      "body": 1280,
+      "containers": [
+        {
+          "name": "chat-window",
+          "client": 398,
+          "scroll": 398
+        },
+        {
+          "name": "composer",
+          "client": 368,
+          "scroll": 368
+        }
+      ]
+    },
+    {
+      "variant": "b",
+      "view": "library",
+      "width": 390,
+      "document": 390,
+      "body": 390,
+      "containers": [
+        {
+          "name": "library-main",
+          "client": 390,
+          "scroll": 390
+        }
+      ]
+    },
+    {
+      "variant": "b",
+      "view": "reader",
+      "width": 390,
+      "document": 390,
+      "body": 390,
+      "containers": [
+        {
+          "name": "chat-window",
+          "client": 372,
+          "scroll": 372
+        },
+        {
+          "name": "composer",
+          "client": 346,
+          "scroll": 346
+        }
+      ]
+    },
+    {
+      "variant": "b",
+      "view": "library",
+      "width": 320,
+      "document": 320,
+      "body": 320,
+      "containers": [
+        {
+          "name": "library-main",
+          "client": 320,
+          "scroll": 320
+        }
+      ]
+    },
+    {
+      "variant": "b",
+      "view": "reader",
+      "width": 320,
+      "document": 320,
+      "body": 320,
+      "containers": [
+        {
+          "name": "chat-window",
+          "client": 302,
+          "scroll": 302
+        },
+        {
+          "name": "composer",
+          "client": 276,
+          "scroll": 276
+        }
+      ]
+    },
+    {
+      "variant": "c",
+      "view": "library",
+      "width": 1280,
+      "document": 1280,
+      "body": 1280,
+      "containers": [
+        {
+          "name": "library-main",
+          "client": 993,
+          "scroll": 993
+        }
+      ]
+    },
+    {
+      "variant": "c",
+      "view": "reader",
+      "width": 1280,
+      "document": 1280,
+      "body": 1280,
+      "containers": [
+        {
+          "name": "chat-window",
+          "client": 386,
+          "scroll": 386
+        },
+        {
+          "name": "composer",
+          "client": 356,
+          "scroll": 356
+        }
+      ]
+    },
+    {
+      "variant": "c",
+      "view": "library",
+      "width": 390,
+      "document": 390,
+      "body": 390,
+      "containers": [
+        {
+          "name": "library-main",
+          "client": 344,
+          "scroll": 344
+        }
+      ]
+    },
+    {
+      "variant": "c",
+      "view": "reader",
+      "width": 390,
+      "document": 390,
+      "body": 390,
+      "containers": [
+        {
+          "name": "chat-window",
+          "client": 372,
+          "scroll": 372
+        },
+        {
+          "name": "composer",
+          "client": 346,
+          "scroll": 346
+        }
+      ]
+    },
+    {
+      "variant": "c",
+      "view": "library",
+      "width": 320,
+      "document": 320,
+      "body": 320,
+      "containers": [
+        {
+          "name": "library-main",
+          "client": 274,
+          "scroll": 274
+        }
+      ]
+    },
+    {
+      "variant": "c",
+      "view": "reader",
+      "width": 320,
+      "document": 320,
+      "body": 320,
+      "containers": [
+        {
+          "name": "chat-window",
+          "client": 302,
+          "scroll": 302
+        },
+        {
+          "name": "composer",
+          "client": 276,
+          "scroll": 276
+        }
+      ]
+    }
+  ],
+  "passed": true
+}
