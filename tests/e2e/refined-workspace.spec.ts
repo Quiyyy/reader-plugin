@@ -46,7 +46,7 @@ for(const width of [1280,390,320])test(`minimal workspace, model choice and pres
   const updated=await rpc(request,'reader_note_get',{id:note.id});expect(updated.tags).toEqual(['历史标签']);expect(updated.folderId).toBe(folder.id);
   await page.getByLabel('笔记正文').focus();await expect(page.getByLabel('笔记正文')).toHaveCSS('outline-style','none');await expect(page.getByLabel('笔记正文')).toHaveCSS('resize','none');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:`artifacts/refined-note-${width}.png`,animations:'disabled'});
-  await page.getByRole('button',{name:'书库',exact:true}).click();await page.getByRole('button',{name:'添加选项',exact:true}).click();await expect(page.getByRole('button',{name:'新建文件夹',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'关闭',exact:true}).click();
+  await page.getByRole('button',{name:'主导航',exact:true}).click();await page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name:'书库',exact:true}).click();await page.getByRole('button',{name:'添加选项',exact:true}).click();await expect(page.getByRole('button',{name:'新建文件夹',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'关闭',exact:true}).click();
   if(width===1280){await openDiscovery(page);await expect(page.locator('.search-hint')).toHaveCount(0);await expect(page.getByText('输入书名或关键词，从已启用的书源查找。',{exact:true})).toHaveCount(0);}
   expect(errors).toEqual([]);
 });

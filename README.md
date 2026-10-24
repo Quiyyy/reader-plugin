@@ -9,7 +9,7 @@
 
 Reader 支持 TXT、EPUB、PDF 和在线阅读。你可以从原文划选、批注、记笔记，在浮窗里与 Codex 连续讨论，再把思考保存成能回到出处的记录。
 
-> 当前源码为 **0.2.4**。已分发平台包以 manifest 和来源提交为准。版本范围见 [0.2.4 说明](docs/RELEASE_0.2.4.md)。
+> 当前源码为 **0.2.5**。已分发平台包以 manifest 和来源提交为准。版本范围见 [0.2.5 说明](docs/RELEASE_0.2.5.md)。
 
 ![Reader 笔记界面：简洁编辑区与笔记列表](docs/images/notes.png)
 
