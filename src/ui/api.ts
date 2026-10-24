@@ -25,7 +25,7 @@ export function createReaderApi(): ReaderApi {
   let call: Rpc;
   let download:((filename:string,mimeType:string,data:Uint8Array)=>Promise<void>)|undefined;
   let hostClose: (() => Promise<void>) | undefined;
-  let nativeMessage: ((text:string)=>Promise<void>) | undefined;
+  let nativeMessage: ((text:string,images?:Array<{data:string;mimeType:string}>)=>Promise<void>) | undefined;
   const beforeClose = new Set<() => Promise<unknown>>();
   let onBook: ((book: BookDetail) => void) | undefined;
   let onError: ((message: string) => void) | undefined;
@@ -61,7 +61,7 @@ export function createReaderApi(): ReaderApi {
       } finally { window.clearTimeout(timeout); }
     };
   } else {
-    const app = new App({ name: 'Reader', version: '0.2.2' });
+    const app = new App({ name: 'Reader', version: '0.2.3' });
     const extensions = new OpenAIExtensions(app);
     const applyContext = (context: ReturnType<App['getHostContext']>) => {
       if (context?.theme) { applyDocumentTheme(context.theme); document.documentElement.dataset.hostTheme = context.theme; }
@@ -94,7 +94,7 @@ export function createReaderApi(): ReaderApi {
     };
     ready = app.connect(undefined, { timeout: 15000 }).then(() => applyContext(app.getHostContext()));
     download=async(filename,mimeType,data)=>{await ready;const result=await app.downloadFile({contents:[{type:'resource',resource:{uri:'file:///'+encodeURIComponent(filename),mimeType,blob:encodeBase64(data)}}]});if(result.isError)throw Error('宿主未完成导出，可以重试或复制笔记文字');};
-    nativeMessage = async text => { await ready; const result=await app.sendMessage({role:'user',content:[{type:'text',text}]});if(result.isError)throw Error('宿主未接受消息，请复制内容后继续'); };
+    nativeMessage = async (text,images=[]) => { await ready; const result=await app.sendMessage({role:'user',content:[{type:'text',text},...images.map(image=>({type:'image' as const,...image}))]});if(result.isError)throw Error('宿主未接受消息，请复制内容后继续'); };
     hostClose = async () => { await ready; await app.requestTeardown(); };
     call = async (name, args) => { await ready; return unwrap(await app.callServerTool({ name, arguments: args })); };
   }

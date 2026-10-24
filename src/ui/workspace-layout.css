@@ -154,6 +154,29 @@
 .study-model-status { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 10px; font-size: 11px; color: var(--study-muted); overflow-wrap: anywhere; }
 .study-model-status > button { background: none; color: var(--study-accent-ink); padding: 4px 0; }
 .study-editor-head > div { margin-left: auto; }
+.study-notes.list-collapsed > .study-notes-list { display: none; }
+.study-editor-body { position: relative; }
+.study-workspace .study-note-body { min-height: 0; overflow: hidden; flex: none; }
+@media(max-width:719px) { .study-notes-toggle { display: none!important; } }
+.study-chat-input-tools { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
+.study-chat-input-tools .icon-button { width: 28px; height: 28px; flex: none; }
+.study-chat-input-tools .study-model-picker { max-width: calc(100% - 36px); }
+.study-chat-input-tools .study-model-menu { left: -34px; }
+.study-chat-images { display: flex; gap: 8px; flex-wrap: wrap; }
+.study-chat-images:empty { display: none; }
+.study-chat-images > div { position: relative; width: 64px; height: 64px; margin-bottom: 8px; }
+.study-chat-images > div > button:first-child { display: block; padding: 0; height: 64px; width: 64px; overflow: hidden; background: var(--study-soft); border-radius: 7px; }
+.study-chat-images img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.study-chat-images .icon-button { position: absolute; top: 0; right: 0; background: var(--study-paper); width: 22px; height: 22px; }
+.study-chat-image-preview { display: block; max-width: 100%; max-height: 65dvh; object-fit: contain; margin: auto; }
+.note-image-stage { position: relative; width: fit-content; max-width: 100%; }
+.note-image-stage > img { display: block; max-width: 100%; height: auto; }
+.note-image-marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.note-image-label { position: absolute; pointer-events: none; max-width: 80%; font: 12px/1.5 sans-serif; padding: 1px 4px; border-radius: 3px; background: #ffffffe6; overflow-wrap: anywhere; }
+.note-image-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.note-image .note-image-actions .icon-button { position: static; }
+.study-handoff-images { display: flex; gap: 8px; margin-bottom: 12px; }
+.study-handoff-images img { width: 72px; height: 72px; object-fit: contain; }
 
 @media(max-width:1150px) {
   .study-library-workspace .study-library { padding: 25px; }

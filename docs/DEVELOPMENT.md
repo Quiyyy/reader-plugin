@@ -80,7 +80,7 @@ experiments/epub/  原创样本与 EPUB 选型实验
 
 ## 本地插件接入
 
-构建后，`.mcp.json` 声明 `dist/server/index.js` 的 stdio 服务。UI 为内联脚本、样式的 MCP Apps 资源，通过宿主 RPC 访问数据。模型可调用的笔记与授权阅读工具，与 app-only 的导入、设置和权限操作分别声明。
+构建后，`.mcp.json` 声明 `dist/server/index.js` 的 stdio 服务。UI 为内联脚本、样式的 MCP Apps 资源，通过宿主 RPC 访问数据。所有工具均声明为 app-only；笔记与阅读助手通过独立的动态工具调用链操作当前对象。
 
 需要本机绝对路径配置时，运行：
 
@@ -99,7 +99,7 @@ node scripts/local-mcp-config.mjs --data-dir "/absolute/path/to/development-libr
 3. 原生 MCP／模拟 AppBridge 覆盖标准传输、资源与受限 iframe；**不等于实际 Codex 宿主验收**。
 4. 真实模型、宿主与发行安装分别验证，结果不能互相替代。
 
-真实模型探针 `node scripts/check-reader-codex.mjs --run` 会创建测试话题、发送原创内容并使用账户模型额度；仅在需要验证连接链路时主动运行。它不属于默认测试。原型工具启动与验证见 [UI 实验室](../tools/ui-lab/README.md)。
+笔记协作真实探针为 `node scripts/check-note-assistant.mjs --run`；阅读真实模型探针 `node scripts/check-reader-codex.mjs --run` 会创建测试话题、发送原创内容并使用账户模型额度；仅在需要验证连接链路时主动运行。它不属于默认测试。原型工具启动与验证见 [UI 实验室](../tools/ui-lab/README.md)。
 
 界面证据和运行包写入被 Git 忽略的 `artifacts/`。公开报告或截图前检查其中是否包含个人内容。
 

@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { annotationSchema, appearanceSchema, bookIdSchema as id, bookMetadataSchema, entityIdSchema as uuid, noteSchema, sourceInputSchema, type SearchHit, type SourceInput, type SourceRef } from '../shared/workspace.js';
+import { annotationSchema, imageMarkSchema, noteImageAnnotationsSchema, appearanceSchema, bookIdSchema as id, bookMetadataSchema, entityIdSchema as uuid, noteSchema, sourceInputSchema, type SearchHit, type SourceInput, type SourceRef } from '../shared/workspace.js';
 import type { BookDetail, BookSummary } from '../shared/types.js';
 import type { EpubNode } from '../shared/epub.js';
 import type { ReaderService } from './service.js';
 import { WorkspaceStore } from './workspace-store.js';
 
 const revision=z.number().int().positive(),folderId=uuid.nullable(),tags=z.array(z.string().trim().min(1).max(40)).max(30);
-const noteFields={title:z.string().max(240),body:z.string().max(500000),folderId,tags,sourceIds:z.array(uuid).max(300),imageIds:z.array(id).max(100)};
+const noteFields={title:z.string().max(240),body:z.string().max(500000),folderId,tags,sourceIds:z.array(uuid).max(300),imageIds:z.array(id).max(100),imageAnnotations:noteImageAnnotationsSchema.optional()};
 export const workspaceSchemas={
   reader_book_purge:z.object({id,trashedAt:z.string().max(100)}).strict(),
   reader_library_layout:z.object({layout:z.enum(['cards','list'])}).strict(),
@@ -15,6 +15,8 @@ export const workspaceSchemas={
   reader_note_get:z.object({id:uuid}).strict(),
   reader_note_create:z.object({...noteFields,id:uuid.optional(),relatedBookId:id.optional()}).strict(),
   reader_note_update:z.object({id:uuid,revision,patch:z.object({...Object.fromEntries(Object.entries(noteFields).map(([k,v])=>[k,v.optional()]))}).strict()}).strict(),
+  reader_note_image_insert:z.object({id:uuid,revision,imageId:id}).strict(),
+  reader_note_image_annotate:z.object({id:uuid,revision,imageId:id,marks:z.array(imageMarkSchema).max(50)}).strict(),
   reader_note_space_link:z.object({id:uuid,revision,url:z.string().url().max(2048).refine(url=>new URL(url).hostname==='chatgpt.com','需要 ChatGPT Page 链接')}).strict(),
   reader_source_create:z.object({source:sourceInputSchema}).strict(),
   reader_source_get:z.object({id:uuid}).strict(),
@@ -45,8 +47,11 @@ export const workspaceSchemas={
   reader_pdf_save:z.object({id,page:z.number().int().min(1).max(10000),scroll:z.number().min(0).max(1),scale:z.number().min(.3).max(3),rotation:z.number().int().multipleOf(90)}).strict(),
   reader_pdf_font:z.object({kind:z.enum(['cMapUrl','standardFontDataUrl']),filename:z.string().max(128)}).strict(),
 } as const;
-export const agentTools=new Set(['reader_quote_create','reader_books_search','reader_book_toc','reader_read_passage','reader_note_list','reader_note_get','reader_note_create','reader_note_update','reader_note_space_link','reader_source_get','reader_source_open','reader_annotation_list','reader_annotation_save','reader_folder_list','reader_folder_save','reader_book_metadata','reader_study_trash','reader_study_restore','reader_study_undo','reader_study_search']);
+export const agentTools=new Set(['reader_quote_create','reader_books_search','reader_book_toc','reader_read_passage','reader_image_get','reader_note_image_insert','reader_note_image_annotate','reader_note_list','reader_note_get','reader_note_create','reader_note_update','reader_note_space_link','reader_source_get','reader_source_open','reader_annotation_list','reader_annotation_save','reader_folder_list','reader_folder_save','reader_book_metadata','reader_study_trash','reader_study_restore','reader_study_undo','reader_study_search']);
 export const agentDescriptions:Record<string,string>={
+  reader_image_get:'查看当前笔记、用户附图或引用中的截图，输入已有 imageId。',
+  reader_note_image_insert:'把已提供的截图插入当前笔记，先读取笔记 revision，不上传或读取任意文件。',
+  reader_note_image_annotate:'替换当前笔记中一张截图的标注；可用矩形、箭头、高亮和文字，坐标归一化到 0..1，保留其他图片的标注。',
   reader_folder_list:'列出 Reader 文件夹名称、层级、标识和 revision，供整理笔记或书籍前查询。',
   reader_book_toc:'读取已授权书籍的章节目录或 PDF 目录，支持分页；在线目录 loadMore=true 会继续获取下一批章节。',
   reader_books_search:'搜索 Reader 书库，返回书籍标识、格式和是否允许读取正文。',
@@ -95,6 +100,8 @@ export class WorkspaceService {
     case 'reader_note_get':return this.store.note(args.id);
     case 'reader_note_create':{for(const id of args.imageIds)await this.store.image(id);return this.store.createNote(args);}
     case 'reader_note_update':{for(const id of args.patch.imageIds??[])await this.store.image(id);return this.store.updateNote(args.id,args.revision,args.patch);}
+    case 'reader_note_image_insert':{await this.store.image(args.imageId);const note=await this.store.note(args.id);return this.store.updateNote(args.id,args.revision,{imageIds:[...new Set([...note.imageIds,args.imageId])]});}
+    case 'reader_note_image_annotate':{const note=await this.store.note(args.id);if(!note.imageIds.includes(args.imageId))throw Error('请先把这张截图插入笔记');return this.store.updateNote(args.id,args.revision,{imageAnnotations:[...(note.imageAnnotations??[]).filter(item=>item.imageId!==args.imageId),{imageId:args.imageId,marks:args.marks}]});}
     case 'reader_note_space_link':return this.store.updateNote(args.id,args.revision,{space:{url:args.url,revision:args.revision,exportedAt:new Date().toISOString()}});
     case 'reader_source_create':return this.createSource(args.source);
     case 'reader_source_get':return this.store.source(args.id);

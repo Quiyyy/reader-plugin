@@ -51,6 +51,38 @@ async function setup() {
 async function started(transport: Transport, count = 1) { await expect.poll(() => transport.requests.filter(r => r.method === 'turn/start').length).toBe(count); }
 
 describe('documented Codex transport and reading scope', () => {
+  it('binds note collaboration to one note and supplies only the note tool set',async()=>{
+    const {reader,chat,transport}=await setup();
+    const note=(await reader.workspace.store.createNote({title:'当前笔记',body:'保留这段正文。',folderId:null,tags:[],imageIds:[],sourceIds:[]})).value;
+    const other=(await reader.workspace.store.createNote({title:'另一个笔记',body:'不要修改。',folderId:null,tags:[],imageIds:[],sourceIds:[]})).value;
+    const session=await chat.create(undefined,null,note.id);
+    await chat.send({id:session.id,messageId:randomUUID(),text:'补充一句',sourceIds:[]});await started(transport);
+    const tools=transport.requests.find(r=>r.method==='thread/start')!.params.dynamicTools.map((tool:any)=>tool.name);
+    expect(tools).toContain('reader_note_update');expect(tools).toContain('reader_note_image_annotate');expect(tools).not.toContain('reader_books_search');
+    expect(transport.requests.find(r=>r.method==='turn/start')!.params.input[1].text).toContain(note.id);
+    await expect(transport.tool('reader_note_get',{id:other.id})).rejects.toThrow('当前笔记');
+    await expect(transport.tool('reader_note_update',{id:other.id,revision:1,patch:{body:'越界'}})).rejects.toThrow('当前笔记');
+    await expect(transport.tool('reader_folder_save',{name:'越界',parentId:null})).rejects.toThrow('当前阅读会话');
+    const result=await transport.tool('reader_note_update',{id:note.id,revision:1,patch:{body:note.body+'\n补充的解释。'}});expect(result.success).toBe(true);
+    expect((await reader.workspace.store.note(other.id)).body).toBe('不要修改。');
+    expect((await chat.list(undefined,note.id)).map(s=>s.id)).toEqual([session.id]);
+  });
+
+  it('inserts supplied screenshots, returns image pixels and preserves marks through reload without changing the original image',async()=>{
+    const {reader,chat,transport}=await setup();
+    const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5+8S8AAAAASUVORK5CYII=';
+    const image=await reader.workspace.store.putImage(png),note=(await reader.workspace.store.createNote({title:'截图笔记',body:'正文',folderId:null,tags:[],imageIds:[],sourceIds:[]})).value;
+    const session=await chat.create(undefined,null,note.id);await chat.draft(session.id,'标注截图',[],undefined,null,[image.id]);expect((await chat.get(session.id)).draftImageIds).toEqual([image.id]);
+    await chat.send({id:session.id,messageId:randomUUID(),text:'插入并标注',sourceIds:[],imageIds:[image.id]});await started(transport);
+    expect(transport.requests.find(r=>r.method==='turn/start')!.params.input.some((item:any)=>item.type==='image')).toBe(true);
+    const shown=await transport.tool('reader_image_get',{id:image.id});expect(shown.contentItems[1]).toMatchObject({type:'inputImage',imageUrl:'data:image/png;base64,'+png});
+    await expect(transport.tool('reader_image_get',{id:'f'.repeat(64)})).rejects.toThrow('当前对话');
+    await transport.tool('reader_note_image_insert',{id:note.id,revision:1,imageId:image.id});
+    await transport.tool('reader_note_image_annotate',{id:note.id,revision:2,imageId:image.id,marks:[{kind:'rect',x:.1,y:.1,width:.5,height:.4,color:'red'},{kind:'label',x:.1,y:.1,text:'重点',color:'blue'}]});
+    const saved=await reader.workspace.store.note(note.id);expect(saved.imageIds).toEqual([image.id]);expect(saved.imageAnnotations?.[0]?.marks).toHaveLength(2);expect((await reader.workspace.store.image(image.id)).data).toBe(png);
+    await expect(transport.tool('reader_note_image_annotate',{id:note.id,revision:2,imageId:image.id,marks:[]})).rejects.toThrow('另一个窗口');
+    await reader.workspace.store.updateNote(note.id,3,{imageIds:[]});expect((await reader.workspace.store.note(note.id)).imageAnnotations).toEqual([]);
+  });
   it('allows the current book by default, including old restricted drafts, without widening to other books',async()=>{
     const {reader,transport,chat,book}=await setup();
     const session=await chat.create(book.summary.id);expect(session.allowBook).toBe(true);
