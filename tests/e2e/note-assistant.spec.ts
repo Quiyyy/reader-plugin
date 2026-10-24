@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 async function rpc(request:APIRequestContext,name:string,args:object={}){const response=await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name,arguments:args}});expect(response.ok(),await response.text()).toBe(true);const result=await response.json();expect(result.isError).not.toBe(true);return result._meta.reader;}
 
-for(const width of [1280,390,320])test(`note fills the editor, collapses its list and supports screenshot collaboration at ${width}`,async({page,request})=>{
+for(const width of [1280,390,320])test(`note fills the editor, keeps its outline closed and supports screenshot collaboration at ${width}`,async({page,request})=>{
   test.setTimeout(60000);await page.setViewportSize({width,height:1320});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   const note=(await rpc(request,'reader_note_create',{title:'协作笔记 '+width,body:'已有正文。',folderId:null,tags:['保留'],sourceIds:[],imageIds:[]})).value;
   await page.goto('/');await page.getByRole('button',{name:'笔记',exact:true}).click();await page.locator('.study-notes-list').getByRole('button',{name:'协作笔记 '+width+' 已有正文。',exact:true}).click();
@@ -14,7 +14,7 @@ for(const width of [1280,390,320])test(`note fills the editor, collapses its lis
   await editor.fill(Array.from({length:100},(_,i)=>`第 ${i+1} 行：原有笔记内容。`).join('\n'));
   expect(await editor.evaluate(el=>el.scrollHeight-el.clientHeight)).toBeLessThanOrEqual(2);expect(await body.evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
   await editor.fill('已有正文。');await expect(page.locator('.study-note-status')).toContainText('已保存到 Reader');
-  if(width>=720){await page.getByRole('button',{name:'折叠笔记列表',exact:true}).click();await expect(page.locator('.study-notes-list')).toBeHidden();expect((await editor.boundingBox())!.width).toBeGreaterThan(before.width);await page.getByRole('button',{name:'展开笔记列表',exact:true}).click();await expect(page.locator('.study-notes-list')).toBeVisible();}
+  await expect(page.locator('.study-notes-list')).toHaveCount(0);await expect(page.getByRole('dialog',{name:'笔记目录',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'目录（T）',exact:true}).click();await expect(page.getByRole('dialog',{name:'笔记目录',exact:true})).toContainText('暂无目录');await page.getByRole('button',{name:'关闭目录',exact:true}).click();
   await page.screenshot({path:`artifacts/note-full-editor-${width}.png`,animations:'disabled'});
   const png=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=480;canvas.height=260;const ctx=canvas.getContext('2d')!;ctx.fillStyle='#f9faf7';ctx.fillRect(0,0,480,260);ctx.fillStyle='#629778';ctx.fillRect(40,70,150,110);ctx.fillStyle='#5b7eaa';ctx.fillRect(290,70,150,110);ctx.fillStyle='#222';ctx.font='22px sans-serif';ctx.fillText('A',100,40);ctx.fillText('B',350,40);return canvas.toDataURL('image/png').split(',')[1]!;});
   await editor.evaluate((element,png)=>{const bytes=Uint8Array.from(atob(png),c=>c.charCodeAt(0)),clipboard=new DataTransfer();clipboard.items.add(new File([bytes],'截图.png',{type:'image/png'}));element.dispatchEvent(new ClipboardEvent('paste',{clipboardData:clipboard,bubbles:true,cancelable:true}));},png);

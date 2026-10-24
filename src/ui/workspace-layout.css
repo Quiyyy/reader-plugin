@@ -154,10 +154,20 @@
 .study-model-status { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 10px; font-size: 11px; color: var(--study-muted); overflow-wrap: anywhere; }
 .study-model-status > button { background: none; color: var(--study-accent-ink); padding: 4px 0; }
 .study-editor-head > div { margin-left: auto; }
-.study-notes.list-collapsed > .study-notes-list { display: none; }
+.study-notes:not(.has-editor) > .study-notes-list { width: 100%; flex: 1; padding: 28px 32px; }
+.study-notes:not(.has-editor) > .study-notes-list > .study-note-row { max-width: 760px; }
+.study-note-stage { position: relative; display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+.study-note-stage > .study-editor-body { min-width: 0; min-height: 0; }
+.study-note-outline .panel-heading h2 { margin: 0; }
+.study-note-outline .epub-toc button { line-height: 1.7; }
+.study-note-outline .panel-caption { color: var(--study-muted); font-size: 12px; }
+.study-note-stage .epub-scrim { padding: 0; }
+.study-note-stage .study-markdown :is(h4,h5,h6) { font-size: 14px; line-height: 1.8; margin: 20px 0 10px; }
+.study-note-stage .study-markdown h4 { font-size: 16px; }
+.study-note-stage .study-markdown h5 { font-size: 15px; }
 .study-editor-body { position: relative; }
 .study-workspace .study-note-body { min-height: 0; overflow: hidden; flex: none; }
-@media(max-width:719px) { .study-notes-toggle { display: none!important; } }
+@media(max-width:719px) { .study-notes:not(.has-editor) > .study-notes-list { padding: 22px 18px; } }
 .study-chat-input-tools { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
 .study-chat-input-tools .icon-button { width: 28px; height: 28px; flex: none; }
 .study-chat-input-tools .study-model-picker { max-width: calc(100% - 36px); }
