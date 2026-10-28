@@ -1,0 +1,60 @@
+[
+  {
+    "packages": [
+      "@cfworker/json-schema@4.1.1"
+    ],
+    "file": "cfworker-cfworker-LICENSE.md",
+    "source": "https://raw.githubusercontent.com/cfworker/cfworker/53401039978aaacc5961d6fc0f2c64f7927ea260/LICENSE.md",
+    "sha256": "376944252ab78ca6b41aee44ddea8894927ee67891e77e61eb9d59af63e35094"
+  },
+  {
+    "packages": [
+      "@cfworker/json-schema@4.1.1"
+    ],
+    "file": "cfworker-cfworker-THIRD_PARTY_NOTICES.md",
+    "source": "https://raw.githubusercontent.com/cfworker/cfworker/53401039978aaacc5961d6fc0f2c64f7927ea260/THIRD_PARTY_NOTICES.md",
+    "sha256": "4f4a73e1f6978efa0aece85e05471f64ddbefde9378ec14d6a75184af44676fb"
+  },
+  {
+    "packages": [
+      "@nodable/entities@3.1.0"
+    ],
+    "file": "nodable-val-parsers-LICENSE",
+    "source": "https://raw.githubusercontent.com/nodable/val-parsers/ac48e7ea591da372be023a481875c747535812b3/LICENSE",
+    "sha256": "750cb3fb6362804957ef52caaf9b5c824015be44d494637330d7cd8834d31d40"
+  },
+  {
+    "packages": [
+      "format@0.2.2"
+    ],
+    "file": "samsonjs-format-License.md",
+    "source": "https://raw.githubusercontent.com/samsonjs/format/0094c51372790ca342da4b90c519edd3380deee1/License.md",
+    "sha256": "0b2c94863590ca2aed327e89642b7e74b1608ec423bfec1d8f1beba2945fc4ba"
+  },
+  {
+    "packages": [
+      "highlightjs-vue@1.0.0"
+    ],
+    "file": "highlightjs-highlightjs-vue-LICENSE",
+    "source": "https://raw.githubusercontent.com/highlightjs/highlightjs-vue/3bd37d8fc50f5a8f5919e8c7ac1f7ac76088594b/LICENSE",
+    "sha256": "e02de3f1cb136ad72488c7661392e88c5e8c3b7150297cf6fe8eb7851db54fc8",
+    "note": "npm metadata declares CC0-1.0; the upstream LICENSE is BSD-3-Clause. Preserve the upstream terms; do not infer a separate dual-license grant."
+  },
+  {
+    "packages": [
+      "react-remove-scroll-bar@2.3.8"
+    ],
+    "file": "theKashey-react-remove-scroll-bar-LICENSE",
+    "source": "https://raw.githubusercontent.com/theKashey/react-remove-scroll-bar/8ca9ba5ea52de03308fe8ced94f7b159a44d28ff/LICENSE",
+    "sha256": "a79aae0c0f21990d9d963bb3c5a79cdcea9a46f8523ba55c58d7fe776b6ebc84"
+  },
+  {
+    "packages": [
+      "rehype-katex@7.0.1",
+      "remark-math@6.0.0"
+    ],
+    "file": "remarkjs-remark-math-license",
+    "source": "https://raw.githubusercontent.com/remarkjs/remark-math/76c14978ff6805011b8c56727c54104a511b9055/license",
+    "sha256": "b4c9077a6fe03b40387623026f4de8c05ad819f1f86e7e0ad3230976bbf3fd90"
+  }
+]
