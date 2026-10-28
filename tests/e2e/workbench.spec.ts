@@ -52,8 +52,8 @@ test('workbench layout is independent of appearance, responsive and preserves re
   await page.reload();await openShelf();await expect(page.locator('.study-workspace')).toHaveCSS('--study-accent','#8551B2');await expect(page.locator('.study-workspace')).toHaveAttribute('data-layout','workbench');
   await page.getByRole('searchbox',{name:'搜索书名或作者'}).fill('山河');await expect(page.locator('.book-card')).toHaveCount(1);
   await page.getByRole('searchbox',{name:'搜索书名或作者'}).fill('界面验收');
-  await page.getByRole('button',{name:/^正在阅读 4$/}).click();await expect(page.getByRole('region',{name:'正在阅读'}).locator('.book-card')).toHaveCount(0);
-  await page.getByRole('button',{name:/^正在阅读 4$/}).click();await expect(page.locator('.book-card')).toHaveCount(6);
+  await page.getByRole('button',{name:'正在阅读',exact:true}).click();await expect(page.getByRole('region',{name:'正在阅读'}).locator('.book-card')).toHaveCount(0);
+  await page.getByRole('button',{name:'正在阅读',exact:true}).click();await expect(page.locator('.book-card')).toHaveCount(6);
   await page.getByRole('button',{name:'切换卡片',exact:true}).click();await expect(page.locator('.study-book-grid.cards')).toHaveCount(3);
   await page.getByRole('button',{name:'切换列表',exact:true}).click();await expect(page.locator('.study-book-grid.list')).toHaveCount(3);
   for(const width of [390,320]){

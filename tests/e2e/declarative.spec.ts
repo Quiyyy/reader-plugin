@@ -32,7 +32,7 @@ for (const width of [320, 390, 1280]) test(`declarative source shows stage limit
   await expect(panel.getByRole('switch', { name: `启用 ${blockedName}`, exact: true })).toBeDisabled();
   await full.locator('.source-menu > summary').click();
   await full.getByRole('button', { name: '查看详情', exact: true }).click();
-  await expect(full.getByText('untested', { exact: true })).toHaveCount(4);
+  await expect(full.getByRole('cell', { name: '未验证', exact: true })).toHaveCount(4);
   await expect(full).toContainText('整体忽略');
   await page.screenshot({ path: `artifacts/declarative-stages-${width}.png`, fullPage: true });
   await page.keyboard.press('Escape');

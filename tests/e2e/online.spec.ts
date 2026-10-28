@@ -21,7 +21,7 @@ for (const width of [320, 390, 1280]) {
     await expect(dialog.getByRole('region', { name: '导入预览' })).toBeVisible();
     const preview = dialog.getByRole('region', { name: '导入预览' });
     await preview.locator('.source-status > summary').click();
-    await expect(preview.getByText('untested', { exact: true })).toHaveCount(4);
+    await expect(preview.getByRole('cell', { name: '未验证', exact: true })).toHaveCount(4);
     await dialog.getByRole('button', { name: '确认导入' }).click();
     await dialog.getByRole('button', { name: '查看书源', exact: true }).click();
     await expect(dialog.getByRole('switch', { name: `启用 ${name}`, exact: true })).toBeEnabled();
@@ -39,7 +39,8 @@ for (const width of [320, 390, 1280]) {
     await dialog.getByRole('button', { name: '搜索', exact: true }).click();
     await results.getByRole('button', { name: '下一页搜索' }).click();
     await expect(results).toContainText('已到搜索末页');
-    await expect(results).toContainText('第 2 页 · 0 本');
+    await expect(results.locator('.online-result')).toHaveCount(0);
+    await expect(results.getByRole('button', { name: '上一页搜索', exact: true })).toBeEnabled();
     await expect(dialog.getByRole('alert')).toHaveCount(0);
     await page.screenshot({ path: `artifacts/online-search-end-${width}.png`, fullPage: true });
     await results.getByRole('button', { name: '上一页搜索', exact: true }).click();
@@ -67,11 +68,12 @@ for (const width of [320, 390, 1280]) {
     const beforeSearch = onlineCalls.length;
     await page.getByRole('button', { name: '搜索当前章节（F）' }).click();
     const search = page.getByRole('complementary', { name: '搜索当前章节', exact: true });
-    await expect(search).toContainText('仅搜索当前章节「第二章 灯光」');
+    await expect(search.getByRole('searchbox', { name: '搜索当前章节内容' })).toBeFocused();
     await search.getByRole('searchbox', { name: '搜索当前章节内容' }).fill('河水');
-    await expect(search).toContainText('0 处匹配');
+    await expect(search).toContainText('没有找到匹配的文字');
+    await expect(search.locator('.search-results button')).toHaveCount(0);
     await search.getByRole('searchbox', { name: '搜索当前章节内容' }).fill('夜色');
-    await expect(search).toContainText('1 处匹配');
+    await expect(search.locator('.search-results button')).toHaveCount(1);
     await expect(search.locator('.search-results')).toContainText('第二章 灯光');
     expect(onlineCalls).toHaveLength(beforeSearch);
     await page.screenshot({ path: `artifacts/online-current-chapter-search-${width}.png`, fullPage: true });
@@ -92,7 +94,7 @@ for (const width of [320, 390, 1280]) {
     const row = dialog.locator('.managed-source').filter({ hasText: name });
     await row.locator('.source-menu > summary').click();
     await row.getByRole('button', { name: '查看详情', exact: true }).click();
-    await expect(row.getByText('passed', { exact: true })).toHaveCount(4);
+    await expect(row.getByRole('cell', { name: '已通过', exact: true })).toHaveCount(4);
     await dialog.getByRole('switch', { name: `停用 ${name}`, exact: true }).click();
     await page.screenshot({ path: `artifacts/online-sources-${width}.png`, fullPage: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

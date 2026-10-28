@@ -22,11 +22,11 @@ for (const width of [320, 390, 1280]) {
     await page.getByRole('button', { name: '关闭搜索本书', exact: true }).click();
     await page.getByRole('button', { name: '阅读样式', exact: true }).click(); await page.getByRole('button', { name: '键盘快捷键设置', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: '键盘快捷键' });
-    const instructions = dialog.locator('.keyboard-details').filter({ has: page.locator('summary', { hasText: '使用说明' }) });
+    const instructions = dialog.locator('.keyboard-details').filter({ has: page.locator('summary', { hasText: '其他按键' }) });
     await expect(instructions).not.toHaveAttribute('open', '');
     await instructions.locator('summary').focus(); await page.keyboard.press('Enter');
-    await expect(instructions).toContainText('默认 ↑↓ 滚动 80px，←→ 切换章节');
-    await expect(instructions.getByText(/输入框、可编辑区域/)).toBeVisible();
+    await expect(instructions.getByText('快捷键帮助', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('使用说明', { exact: true })).toHaveCount(0);
     await page.keyboard.press('Enter'); await expect(instructions).not.toHaveAttribute('open', '');
     await dialog.getByRole('button', { name: '录制请求关闭宿主面板' }).click();
     await page.keyboard.press('Control+Shift+Period'); await expect(dialog.getByRole('status')).toContainText('已保存');
@@ -83,7 +83,7 @@ test('MCP AppBridge catalog UI and declined teardown keep the actual UI visible'
   const pkg = catalogPackage([{ ...fixtureSource, bookSourceName: '清单原创源', bookSourceUrl: 'https://reader.example.com/catalog' }]);
   await app.getByLabel('选择书源 JSON').setInputFiles({ name: 'fixture.reader-catalog.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(pkg)) });
   await expect(app.locator('.catalog-receipt')).not.toHaveAttribute('open', '');
-  await expect(app.getByText('只检查格式；导入后需启用并试读。', { exact: true })).toBeVisible();
+  await expect(app.getByRole('heading', { name: '确认书源', exact: true })).toBeVisible();
   await app.locator('.catalog-receipt > summary').click();
   await expect(app.getByRole('region', { name: '导入预览' })).toContainText('fixture-only'); await expect(app.getByText('候选清单：未保证可读。', { exact: false })).toBeVisible();
   await page.screenshot({ path: 'artifacts/candidate-catalog-harness.png', fullPage: true });

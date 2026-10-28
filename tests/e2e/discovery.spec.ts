@@ -30,16 +30,17 @@ for (const width of [320, 390, 1280]) {
     await page.screenshot({ path: `artifacts/redesign-empty-${width}.png` });
     await page.getByRole('button', { name: '导入书源', exact: true }).click();
     const wizard = page.getByRole('dialog', { name: '导入书源', exact: true });
-    await expect(wizard.getByRole('heading', { name: '添加你信任的来源' })).toBeFocused();
+    await expect(wizard.getByRole('heading', { name: '选择书源' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(wizard.getByRole('button', { name: '关闭导入' })).toBeFocused();
     await page.keyboard.press('Shift+Tab');
-    await expect(wizard.locator('summary')).toBeFocused();
+    await expect(wizard.getByRole('textbox', { name: '书源 JSON 链接' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(wizard.getByRole('button', { name: '关闭导入' })).toBeFocused();
     await page.screenshot({ path: `artifacts/redesign-import-${width}.png` });
     await upload(page);
-    await expect(wizard).toContainText('只检查格式；导入后需启用并试读。');
+    await expect(wizard.getByRole('heading', { name: '确认书源' })).toBeVisible();
+    await expect(wizard.getByRole('button', { name: '确认导入', exact: true })).toBeEnabled();
     await page.screenshot({ path: `artifacts/redesign-review-${width}.png` });
     await page.keyboard.press('Escape');
     await expect(wizard).toHaveCount(0);
@@ -68,7 +69,7 @@ for (const width of [320, 390, 1280]) {
     await page.getByLabel('在线搜索关键词').fill('原创');
     await page.keyboard.press('Enter');
     const result = page.getByRole('button', { name: /^原创河岸故事 Reader 测试作者/ });
-    await expect(result).toContainText('来自 原创公开文本测试源');
+    await expect(result).not.toContainText('来自 ');
     await result.click();
     await expect(page.getByRole('button', { name: '返回搜索结果' })).toBeFocused();
     await page.screenshot({ path: `artifacts/redesign-detail-${width}.png` });
@@ -102,7 +103,7 @@ for (const width of [320, 390, 1280]) {
     await page.screenshot({ path: `artifacts/redesign-results-${width}.png` });
     expect(await page.locator('.discovery-shell').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     await page.getByRole('button', { name: '书架', exact: true }).click();
-    await expect(page.getByRole('button', { name: '添加选项', exact: true })).toBeFocused();
+    await expect(page.getByRole('button', { name: '添加书籍', exact: true })).toBeFocused();
     await openDiscovery(page);
     await expect(page.getByLabel('在线搜索关键词')).toHaveValue('原创');
   });
@@ -117,7 +118,7 @@ for (const action of ['cancel', 'close']) test(`wizard validates errors and ${ac
   await expect(wizard.getByRole('alert')).toBeVisible();
   await upload(page);
   await wizard.getByRole('button', { name: '重新选择' }).click();
-  await expect(wizard.getByRole('heading', { name: '添加你信任的来源' })).toBeFocused();
+  await expect(wizard.getByRole('heading', { name: '选择书源' })).toBeFocused();
   let release!: () => void, seen!: () => void, released!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
   const started = new Promise<void>(resolve => { seen = resolve; });
@@ -141,7 +142,7 @@ for (const action of ['cancel', 'close']) test(`wizard validates errors and ${ac
   expect(await tool(request, 'reader_online_sources')).toEqual([]);
   await page.getByRole('button', { name: '导入书源', exact: true }).click();
   await expect(wizard.getByRole('region', { name: '导入预览' })).toHaveCount(0);
-  await expect(wizard.getByRole('heading', { name: '添加你信任的来源' })).toBeVisible();
+  await expect(wizard.getByRole('heading', { name: '选择书源' })).toBeVisible();
 });
 
 test('failed sources stay below usable results, retry preserves results, cancel ignores late search', async ({ page, request }) => {

@@ -1,2 +1,2 @@
 import type { Page,FrameLocator } from '@playwright/test';
-export async function openDiscovery(page:Page|FrameLocator){const search=page.getByRole('button',{name:'找书',exact:true});if(await search.count()&&await search.first().isVisible()){await search.first().click();return;}await page.getByRole('button',{name:'添加选项',exact:true}).click();await page.getByRole('button',{name:'在线找书',exact:true}).click();}
+export async function openDiscovery(page:Page|FrameLocator){const search=page.getByRole('button',{name:'找书',exact:true});if(await search.count()&&await search.first().isVisible()){await search.first().click();return;}await page.getByRole('button',{name:'添加书籍',exact:true}).click();await page.getByRole('button',{name:'在线找书',exact:true}).click();}

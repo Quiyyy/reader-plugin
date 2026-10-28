@@ -19,8 +19,8 @@ test('sample source imports through file and URL UI, paginates, restarts and rea
     const preview = dialog.getByRole('region', { name: '导入预览' });
     await expect(preview).toContainText('Reader 原创公开示例');
     await preview.locator('.source-status > summary').click();
-    await expect(preview.getByText('supported', { exact: true })).toHaveCount(4);
-    await expect(preview.getByText('untested', { exact: true })).toHaveCount(4);
+    await expect(preview.getByRole('cell', { name: '支持', exact: true })).toHaveCount(4);
+    await expect(preview.getByRole('cell', { name: '未验证', exact: true })).toHaveCount(4);
     await page.screenshot({ path: `artifacts/online-${suffix}-${entry}-${filename}.png`, fullPage: true });
     await dialog.getByRole('button', { name: '确认导入' }).click();
     await dialog.getByRole('button', { name: '查看书源', exact: true }).click();
