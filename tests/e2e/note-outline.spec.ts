@@ -22,7 +22,8 @@ for(const width of [1280,390,320])test(`note outline is closed by default and na
   await panel.getByRole('button',{name:'重复标题',exact:true}).nth(1).click();await expect(panel).toHaveCount(0);await expect(editor).toBeFocused();
   expect(await editor.evaluate((el:HTMLTextAreaElement)=>el.selectionStart)).toBe(content.lastIndexOf('## 重复标题'));expect(await scroller.evaluate(el=>el.scrollTop)).toBeGreaterThan(500);
   await page.screenshot({path:`artifacts/note-outline-edit-jump-${width}.png`,animations:'disabled'});
-  await editor.press('Control+End');await editor.press('t');await expect(panel).toHaveCount(0);await expect(editor).toHaveValue(content+'t');
+  const insertion=content.lastIndexOf('## 重复标题');
+  await editor.press('t');await expect(panel).toHaveCount(0);await expect(editor).toHaveValue(content.slice(0,insertion)+'t'+content.slice(insertion));
   await toggle.focus();await page.keyboard.press('t');await expect(panel).toBeVisible();await page.keyboard.press('Escape');await expect(panel).toHaveCount(0);await expect(toggle).toBeFocused();
   await page.getByRole('button',{name:'预览笔记',exact:true}).click();await toggle.click();await panel.getByRole('button',{name:'深入机制',exact:true}).click();
   await expect(page.getByRole('heading',{name:'深入机制',exact:true})).toBeInViewport();await expect(panel).toHaveCount(0);

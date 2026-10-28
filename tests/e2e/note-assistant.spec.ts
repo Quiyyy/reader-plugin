@@ -42,11 +42,19 @@ test('a screenshot attached while the previous message is sending remains in the
   await page.goto('/');await page.getByRole('button',{name:'笔记',exact:true}).click();await page.locator('.study-notes-list').getByRole('button',{name:'附图草稿并发 正文',exact:true}).click();await page.getByRole('button',{name:'Codex 辅助编写',exact:true}).click();
   const chat=page.getByRole('dialog',{name:'笔记协作',exact:true}),draftImages=chat.locator('.study-chat-compose .study-chat-images img');await expect(chat).toBeVisible();
   const png=async(color:string)=>page.evaluate(color=>{const canvas=document.createElement('canvas');canvas.width=40;canvas.height=30;const ctx=canvas.getContext('2d')!;ctx.fillStyle=color;ctx.fillRect(0,0,40,30);return canvas.toDataURL('image/png').split(',')[1]!;},color);
-  await page.getByLabel('选择聊天截图').setInputFiles({name:'第一张.png',mimeType:'image/png',buffer:Buffer.from(await png('#ee7766'),'base64')});await expect(draftImages).toHaveCount(1);
+  const attachScreenshot=async(name:string,color:string)=>{
+    const buffer=Buffer.from(await png(color),'base64');
+    const chooser=page.waitForEvent('filechooser');
+    // The visible control waits for the chat session and any prior upload.
+    // Setting the hidden input directly can race session initialization.
+    await chat.getByRole('button',{name:'附加截图',exact:true}).click();
+    await (await chooser).setFiles({name,mimeType:'image/png',buffer});
+  };
+  await attachScreenshot('第一张.png','#ee7766');await expect(draftImages).toHaveCount(1);
   let release!:()=>void;const held=new Promise<void>(resolve=>release=resolve);let sent:any;
   await page.route('**/api/tool',async route=>{const call=route.request().postDataJSON();if(call.name!=='reader_chat_send')return route.continue();sent=call.arguments;await held;const session=await rpc(request,'reader_chat_get',{id:sent.id});await route.fulfill({json:{content:[],_meta:{reader:{...session,draft:'',draftImageIds:[],status:'idle',revision:session.revision+1}}}});});
   await page.getByLabel('阅读问题',{exact:true}).fill('第一条消息');await page.getByRole('button',{name:'发送阅读问题',exact:true}).click();await expect.poll(()=>sent?.id).toBeTruthy();
-  try{await page.getByLabel('选择聊天截图').setInputFiles({name:'下一条.png',mimeType:'image/png',buffer:Buffer.from(await png('#5577bb'),'base64')});await expect(draftImages).toHaveCount(2);}finally{release();}
+  try{await attachScreenshot('下一条.png','#5577bb');await expect(draftImages).toHaveCount(2);}finally{release();}
   await expect(draftImages).toHaveCount(1);await expect(page.getByLabel('阅读问题',{exact:true})).toHaveValue('');
   await expect.poll(async()=>{const saved=await rpc(request,'reader_chat_get',{id:sent.id});return saved.draftImageIds;}).not.toContain(sent.imageIds[0]);
   const saved=await rpc(request,'reader_chat_get',{id:sent.id});expect(saved.noteId).toBe(note.id);expect(saved.draftImageIds).toHaveLength(1);
