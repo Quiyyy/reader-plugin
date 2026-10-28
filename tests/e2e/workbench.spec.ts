@@ -82,8 +82,8 @@ test('workbench layout is independent of appearance, responsive and preserves re
   await page.getByRole('button',{name:'查看提问来源',exact:true}).click();
   await page.getByLabel('阅读问题',{exact:true}).fill('用一个日常例子继续解释。');await page.getByRole('button',{name:'收起对话',exact:true}).click();await page.getByRole('button',{name:'继续阅读对话',exact:true}).click();await expect(page.getByLabel('阅读问题',{exact:true})).toHaveValue('用一个日常例子继续解释。');
   for(const mode of ['light','dark'] as const){
-    await page.getByRole('button',{name:'界面外观',exact:true}).click();await page.getByRole('button',{name:mode==='light'?'浅色':'深色',exact:true}).click();await page.getByRole('button',{name:'白纸',exact:true}).click();await page.getByRole('button',{name:'完成',exact:true}).click();
-    await expect(page.getByRole('dialog',{name:'外观',exact:true})).toHaveCount(0);
+    await page.getByRole('button',{name:'阅读样式',exact:true}).click();await page.getByRole('button',{name:mode==='light'?'明亮':'深色',exact:true}).click();await page.getByRole('button',{name:'关闭阅读样式',exact:true}).click();
+    await expect(page.locator('.study-workspace')).toHaveClass(new RegExp(mode));
     await page.screenshot({animations:'disabled',path:`artifacts/workbench-chat-${mode}-1280.png`});
   }
   // A dragged window must remain inside the viewport after its width changes.

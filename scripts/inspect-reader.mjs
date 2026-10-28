@@ -101,7 +101,9 @@ try{
     const capture=async name=>{const screenshot=join(output,`${name}.png`);await page.screenshot({path:screenshot});report.screenshots.push(screenshot);
       const dom=await app.locator('.epub-document').evaluate(el=>({html:el.shadowRoot?.innerHTML.replace(/data:[^"']+/g,'[embedded resource]').slice(0,100000),text:el.shadowRoot?.textContent?.slice(-12000),scrollTop:el.scrollTop,scrollLeft:el.scrollLeft,width:el.clientWidth,scrollWidth:el.scrollWidth}));
       await writeFile(join(output,`${name}.dom.json`),JSON.stringify(dom,null,2));await writeFile(join(output,`${name}.aria.txt`),await app.locator('.epub-reader').ariaSnapshot());};
-    await capture('reading-wide');report.checks.push('Production EPUB body rendered under existing CSP');
+    await expect(app.getByRole('button',{name:'界面外观',exact:true})).toHaveCount(0);
+    await expect(app.getByRole('button',{name:'阅读外观',exact:true})).toHaveCount(1);
+    await capture('reading-wide');report.checks.push('Production EPUB body rendered under existing CSP with a single appearance entry');
     await app.getByRole('button',{name:'目录（T）',exact:true}).click();
     await capture('contents-wide');
     const tocButtons=app.locator('.epub-toc button');const count=await tocButtons.count();if(count>1)await tocButtons.nth(1).click();else await tocButtons.first().click();

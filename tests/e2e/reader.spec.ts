@@ -61,6 +61,7 @@ for (const [layout, width, height] of [['wide', 1280, 900], ['narrow', 390, 844]
       await (await chooser).setFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`${original}\n\n${title}原创验收`) });
     });
     await expect(page.getByRole('heading', { name: '第一章 雨后的书店', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '界面外观', exact: true })).toHaveCount(0);
     for (const name of ['返回书架', '目录（T）', '搜索本书（F）', '收藏当前段落（B）', '我的书签', '阅读样式']) {
       const button = page.getByRole('button', { name, exact: true });
       await expect(button).toBeVisible();
