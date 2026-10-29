@@ -22,5 +22,5 @@ export function hostInstallAction(receipt) {
   return { method: 'desktop-plugin-install', pluginName: 'reader-win32-x64', marketplaceName: 'reader-marketplace',
     marketplacePath: join(receipt.marketplace, '.agents', 'plugins', 'marketplace.json'),
     expectedVersion: receipt.candidate.version, expectedSourceCommit: receipt.candidate.source.commit,
-    description: 'Use the desktop plugin directory Install/Update action for this exact Reader marketplace, then verify the original chat connection.' };
+    description: 'Use the desktop plugin directory Install/Update action for this exact Reader marketplace, then complete the package and data-integrity checks.' };
 }
