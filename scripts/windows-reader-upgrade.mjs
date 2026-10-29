@@ -9,7 +9,6 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { enqueueHostSync } from './reader-host-sync.mjs';
 import { readerProcessesForRegistration, assertCliDeliverySafe, hostInstallAction } from '../distribution/desktop-delivery.mjs';
 
 const mode=process.argv[2];
@@ -131,10 +130,6 @@ if(mode==='complete'){
   assert.ok(['awaiting-host-install','host-install-verification-failed'].includes(receipt.phase),'Stage the accepted package and install it through the desktop host first');
   try{receipt.verification=await verifyInstalled(receipt.candidate);receipt.phase='installed-and-verified';receipt.installationRoute='host-handoff';delete receipt.verificationFailure;}
   catch(error){receipt.phase='host-install-verification-failed';receipt.verificationFailure=String(error.stack??error);await writeJson(receiptPath,receipt);throw error;}
-  await writeJson(receiptPath,receipt);
-}
-if(['install','complete'].includes(mode)&&receipt.phase==='installed-and-verified'&&process.env.CODEX_THREAD_ID){
-  receipt.hostSync=await enqueueHostSync(receipt,receiptPath,process.env.CODEX_THREAD_ID);
   await writeJson(receiptPath,receipt);
 }
 if(mode==='verify'){receipt.verification=await verifyInstalled(receipt.candidate);await writeJson(receiptPath,receipt);}

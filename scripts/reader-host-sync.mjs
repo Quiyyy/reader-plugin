@@ -1,5 +1,6 @@
-// A delivery handoff for the current Codex thread. Scheduling stays with the
-// official automation tool; this module never connects to private host IPC.
+// Optional host diagnostics, invoked only for an explicit verification request.
+// Normal installation/completion never enqueues this helper or a follow-up.
+// Scheduling stays with the official automation tool; no private host IPC.
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import { isAbsolute, resolve, dirname, join } from 'node:path';
