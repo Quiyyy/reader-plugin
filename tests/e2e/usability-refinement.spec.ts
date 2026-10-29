@@ -32,7 +32,7 @@ test('recursive search respects folder scope, selection exits with Escape and si
 
 test('folder trash preserves contents by default and folders are restorable',async({page,request})=>{
   const folder=(await rpc(request,'reader_folder_save',{name:'回收文件夹',parentId:null})).value,note=await makeNote(request,'文件夹内保留',folder.id);
-  await page.goto('/');await page.getByRole('button',{name:'管理 回收文件夹',exact:true}).click();await page.getByRole('menuitem',{name:'移到回收站'}).click();
+  await page.goto('/');await page.getByLabel('搜索书籍、笔记和文件夹').fill('回收文件夹');await page.getByRole('button',{name:'管理 回收文件夹',exact:true}).click();await page.getByRole('menuitem',{name:'移到回收站'}).click();
   const dialog=page.getByRole('dialog',{name:'移到回收站'});await expect(dialog.getByRole('checkbox')).not.toBeChecked();await dialog.getByRole('button',{name:'移到回收站',exact:true}).click();await expect(dialog).toHaveCount(0);
   expect(await rpc(request,'reader_note_get',{id:note.id})).toMatchObject({folderId:null,body:'原始正文'});
   await page.getByRole('button',{name:'回收站',exact:true}).click();const row=page.locator('.study-trash-row').filter({hasText:'回收文件夹'});await expect(row).toBeVisible();await row.getByRole('button',{name:'恢复',exact:true}).click();await expect(row).toHaveCount(0);
