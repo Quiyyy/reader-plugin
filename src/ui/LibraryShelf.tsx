@@ -1,11 +1,12 @@
 import { useEffect,useLayoutEffect,useMemo,useRef,useState,type ReactNode } from 'react';
-import { Check,ChevronDown,ChevronRight,FolderPlus,LayoutGrid,LayoutList,NotebookPen,Pencil,Plus,Search,Upload,X } from 'lucide-react';
+import { ArrowLeft,BookOpen,Check,CheckSquare2,ChevronDown,ChevronRight,Folder,FolderInput,FolderPlus,LayoutGrid,LayoutList,MoreHorizontal,NotebookPen,Pencil,Plus,Search,Upload,X } from 'lucide-react';
 import type { BookSummary,ReaderApi } from '../shared/types';
-import type { Folder,Mutation,WorkspaceSnapshot } from '../shared/workspace';
+import type { Mutation,WorkspaceSnapshot } from '../shared/workspace';
 import { IconButton } from './IconButton';
 import { errorText,Modal } from './study-ui';
 import { folderPath,libraryAccessLabel,libraryEntries,libraryKey,moveDestinations,sortLibraryEntries,type LibraryEntry } from './library-entries';
 import './library.css';
+import { useLibraryDrag } from './useLibraryDrag';
 
 interface Props {
   api:ReaderApi; books:BookSummary[]; snapshot:WorkspaceSnapshot; title:string; query:string; busy:boolean;
@@ -15,7 +16,7 @@ interface Props {
   onFiles:(files:File[])=>void; onOpen:(id:string)=>void; onManage:(book:BookSummary)=>void;
   onNote:(id:string)=>void; onNewNote:()=>void; onChanged:()=>Promise<unknown>; onNotice:(message:string,undoId?:string)=>void;
 }
-type Menu={kind:'new'|'view'|'item';anchor:HTMLButtonElement;entry?:LibraryEntry};
+type Menu={kind:'new'|'item';anchor:HTMLButtonElement;entry?:LibraryEntry};
 type Edit={kind:'folder'}|{kind:'rename';entry:LibraryEntry}|{kind:'move';entries:LibraryEntry[]};
 
 function LibraryMenu({anchor,onClose,children}:{anchor:HTMLButtonElement;onClose:()=>void;children:ReactNode}) {
@@ -47,19 +48,19 @@ function NoteCover({entry,api,snapshot}:{entry:LibraryEntry;api:ReaderApi;snapsh
     if(ref.current)observer.observe(ref.current);return()=>{cancelled=true;observer.disconnect();};
   },[imageId,api.study]);
   const preview=note.preview.trim();
-  return <span ref={ref} className={'library-art library-notebook '+(!preview&&!imageId?'blank':'')} aria-hidden="true">{image&&image.id===imageId?<img src={image.url} alt=""/>:preview?<><strong>{entry.name}</strong><span className="library-page-preview">{preview}</span></>:<span className="library-blank-label"/>}</span>;
+  return <span ref={ref} className={'library-art library-notebook '+(!preview&&!imageId?'blank':'')} aria-hidden="true">{image&&image.id===imageId?<img src={image.url} alt="" draggable={false}/>:preview?<><strong>{entry.name}</strong><span className="library-page-preview">{preview}</span></>:<span className="library-blank-label"><NotebookPen size={15}/></span>}</span>;
 }
 function EntryCover({entry,api,snapshot}:{entry:LibraryEntry;api:ReaderApi;snapshot:WorkspaceSnapshot}) {
   if(entry.kind==='note')return <NoteCover entry={entry} api={api} snapshot={snapshot}/>;
   const tone=parseInt(entry.id.slice(0,2),16)%2;
-  if(entry.kind==='folder')return <span className={'library-art library-folder tone-'+tone} aria-hidden="true"/>;
-  return <span className={'library-art library-cover tone-'+tone} aria-hidden="true"><strong>{entry.name.split(/[,，]/)[0]}</strong></span>;
+  if(entry.kind==='folder')return <span className={'library-art library-folder tone-'+tone} aria-hidden="true"><Folder size={18}/></span>;
+  return <span className={'library-art library-cover tone-'+tone} aria-hidden="true"><BookOpen size={13}/><strong>{entry.name.split(/[,，]/)[0]}</strong></span>;
 }
 
 export function LibraryShelf(props:Props) {
   const {api,books,snapshot,folderId,query,busy}=props,study=api.study!,layout=snapshot.layout??'cards';
   const [menu,setMenu]=useState<Menu>(),[edit,setEdit]=useState<Edit>(),[name,setName]=useState(''),[destination,setDestination]=useState(''),[working,setWorking]=useState(false),[error,setError]=useState(''),[selecting,setSelecting]=useState(false),[selected,setSelected]=useState<Set<string>>(new Set());
-  const operation=useRef(false);
+  const operation=useRef(false),shelf=useRef<HTMLElement>(null);
   const entries=useMemo(()=>libraryEntries(books,snapshot),[books,snapshot]);
   const path=useMemo(()=>folderPath(folderId,snapshot.folders),[folderId,snapshot.folders]);
   const visible=useMemo(()=>sortLibraryEntries(entries.filter(entry=>entry.parentId===folderId&&(!query.trim()||(entry.name+' '+(entry.book?.author??'')+' '+(entry.book?snapshot.books[entry.id]?.tags.join(' ')??'':entry.note?.tags.join(' ')??'')).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))),props.sort),[entries,folderId,query,props.sort,snapshot.books]);
@@ -82,25 +83,47 @@ export function LibraryShelf(props:Props) {
     if(edit.kind!=='rename')return;const entry=edit.entry;
     return run(()=>entry.kind==='folder'?study.call('reader_folder_save',{id:entry.id,revision:entry.revision,name:title,parentId:entry.folder!.parentId}):entry.kind==='note'?study.call('reader_note_update',{id:entry.id,revision:entry.revision,patch:{title}}):study.call('reader_book_metadata',{id:entry.id,revision:entry.revision,metadata:{title,folderId:entry.parentId,tags:snapshot.books[entry.id]?.tags??[]}}),'已重命名');
   };
-  const activate=(entry:LibraryEntry)=>{if(selecting){setSelected(previous=>{const next=new Set(previous),key=libraryKey(entry);if(next.has(key))next.delete(key);else next.add(key);return next;});return;}if(entry.kind==='folder')props.onFolder(entry.id);else if(entry.kind==='book')props.onOpen(entry.id);else props.onNote(entry.id);};
-  const changeLayout=async(value:'cards'|'list')=>{setMenu(undefined);setWorking(true);try{await props.onLayout(value);}catch(reason){setError(errorText(reason));}finally{setWorking(false);}};
-  return <main className="library-shelf" onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();if(!disabled)props.onFiles([...event.dataTransfer.files]);}}>
-    {!!path.length&&<nav className="library-path" aria-label="文件夹路径"><button type="button" onClick={()=>props.onFolder(null)}>{props.title}</button>{path.slice(0,-1).map(folder=><span key={folder.id}><ChevronRight size={12}/><button type="button" onClick={()=>props.onFolder(folder.id)}>{folder.name}</button></span>)}</nav>}
-    <header className="study-page-head library-heading"><h1>{path.at(-1)?.name??props.title}</h1><button type="button" className="primary-button library-new" aria-label="新建" aria-haspopup="menu" disabled={disabled} onClick={event=>setMenu({kind:'new',anchor:event.currentTarget})}><Plus size={17}/>新建</button></header>
-    <div className="library-toolbar">{selecting?<button type="button" className="text-button" disabled={disabled||!selectedEntries.length} onClick={()=>openEdit({kind:'move',entries:selectedEntries})}>移动</button>:<select aria-label="书架排序" value={props.sort} onChange={event=>props.onSort(event.target.value as 'visited'|'name')}><option value="visited">最近访问</option><option value="name">名称</option></select>}<div className="library-tools"><label className="library-search"><Search size={16}/><input type="search" value={query} onChange={event=>props.onQuery(event.target.value)} placeholder="搜索" aria-label="搜索书籍、笔记和文件夹"/></label><IconButton label="视图选项" aria-haspopup="menu" disabled={disabled} onClick={event=>setMenu({kind:'view',anchor:event.currentTarget})}>{layout==='cards'?<LayoutGrid size={18}/>:<LayoutList size={18}/>}</IconButton><button type="button" className="text-button" disabled={disabled} onClick={()=>{setSelecting(!selecting);setSelected(new Set());}}>{selecting?'完成':'选择'}</button></div></div>
+  const drag=useLibraryDrag({root:shelf,folders:snapshot.folders,disabled,folderId,query,selected:selectedEntries,onMove:(items,target)=>{setMenu(undefined);void run(()=>study.call('reader_library_move',{items:items.map(({kind,id,revision})=>({kind,id,revision})),folderId:target}),'已移动');}});
+  const activate=(entry:LibraryEntry)=>{if(drag.suppressClick())return;if(selecting){setSelected(previous=>{const next=new Set(previous),key=libraryKey(entry);if(next.has(key))next.delete(key);else next.add(key);return next;});return;}if(entry.kind==='folder')props.onFolder(entry.id);else if(entry.kind==='book')props.onOpen(entry.id);else props.onNote(entry.id);};
+  const changeLayout=async(value:'cards'|'list')=>{if(disabled||operation.current||value===layout)return;operation.current=true;setMenu(undefined);setWorking(true);try{await props.onLayout(value);}catch(reason){setError(errorText(reason));}finally{operation.current=false;setWorking(false);}};
+  return <main className={'library-shelf'+(drag.count?' is-dragging':'')} ref={shelf} onPointerDownCapture={drag.resumeClick} onKeyDownCapture={event=>{if(event.key==='Enter'||event.key===' ')drag.resumeClick();}} onDragOver={event=>{if(event.dataTransfer.types.includes('Files')){event.preventDefault();event.dataTransfer.dropEffect='copy';}else drag.surface.onDragOver(event);}} onDragLeave={drag.surface.onDragLeave} onDrop={event=>{event.preventDefault();if(!drag.surface.onDrop(event)&&!disabled&&event.dataTransfer.files.length)props.onFiles([...event.dataTransfer.files]);}}>
+    <div className="library-header">
+      <header className="library-heading">
+        <div className="library-location">{!!path.length&&<IconButton label="返回上一级" className={drag.isOver(path.at(-2)?.id??null)?'drop-over':''} {...drag.target(path.at(-2)?.id??null)} disabled={disabled} onClick={()=>props.onFolder(path.at(-2)?.id??null)}><ArrowLeft size={17}/></IconButton>}
+          <nav className="library-path" aria-label="文件夹路径">
+            {!!path.length&&<><button type="button" className={drag.isOver(null)?'drop-over':''} {...drag.target(null)} onClick={()=>props.onFolder(null)}>{props.title}</button><ChevronRight size={13}/></>}
+            {path.slice(0,-1).map(folder=><span key={folder.id}><button type="button" className={drag.isOver(folder.id)?'drop-over':''} {...drag.target(folder.id)} onClick={()=>props.onFolder(folder.id)}>{folder.name}</button><ChevronRight size={13}/></span>)}
+            <h1 title={path.at(-1)?.name??props.title}>{path.at(-1)?.name??props.title}</h1>
+          </nav>
+        </div>
+        <button type="button" className="primary-button library-new" aria-label="新建" aria-haspopup="menu" disabled={disabled} onClick={event=>setMenu({kind:'new',anchor:event.currentTarget})}><Plus size={16}/>新建</button>
+      </header>
+      <div className={'library-toolbar'+(selecting?' is-selecting':'')}>
+        {selecting?<div className="library-selection-actions"><span role="status">已选 {selectedEntries.length} 项</span><button type="button" className="library-action" disabled={disabled||!selectedEntries.length} onClick={()=>openEdit({kind:'move',entries:selectedEntries})}><FolderInput size={16}/>移动</button></div>:<label className="library-search"><Search size={15}/><input type="search" value={query} onChange={event=>props.onQuery(event.target.value)} placeholder="搜索" aria-label="搜索书籍、笔记和文件夹"/>{query&&<button type="button" aria-label="清除搜索" onClick={()=>props.onQuery('')}><X size={14}/></button>}</label>}
+        <div className="library-tools">
+          {!selecting&&<><label className="library-sort"><select aria-label="书架排序" value={props.sort} onChange={event=>props.onSort(event.target.value as 'visited'|'name')}><option value="visited">最近访问</option><option value="name">名称</option></select><ChevronDown size={13}/></label><div className="library-view-switch" role="group" aria-label="书库视图"><IconButton label="网格视图" active={layout==='cards'} disabled={disabled} onClick={()=>void changeLayout('cards')}><LayoutGrid size={16}/></IconButton><IconButton label="列表视图" active={layout==='list'} disabled={disabled} onClick={()=>void changeLayout('list')}><LayoutList size={16}/></IconButton></div></>}
+          <button type="button" className="library-action library-select" disabled={disabled} aria-pressed={selecting} onClick={()=>{setSelecting(!selecting);setSelected(new Set());}}>{selecting?<X size={15}/>:<CheckSquare2 size={15}/>}<span>{selecting?'完成':'选择'}</span></button>
+        </div>
+      </div>
+    </div>
     {error&&!edit&&<div className="error-notice" role="alert"><span>{error}</span><IconButton label="关闭提示" onClick={()=>setError('')}><X size={15}/></IconButton></div>}
     <div className={'library-grid book-grid '+layout} role="list" aria-label="文件夹、书籍和笔记本">{visible.map(entry=>{
       const checked=selected.has(libraryKey(entry)),label=selecting?`选择${entry.kind==='folder'?'文件夹':entry.kind==='note'?'笔记本':'书籍'} ${entry.name}`:entry.kind==='book'?`打开 ${entry.name}，${entry.book!.author||'佚名'}`:`打开${entry.kind==='folder'?'文件夹':'笔记本'} ${entry.name}`;
-      return <article className={'library-entry '+entry.kind+(checked?' selected':'')} role="listitem" key={libraryKey(entry)} data-entry-id={libraryKey(entry)} data-book-id={entry.book?.id} data-note-id={entry.note?.id} data-folder-id={entry.folder?.id}><button type="button" className={'library-open '+(entry.kind==='book'?'book-card':'')} aria-label={label} aria-pressed={selecting?checked:undefined} disabled={disabled} onClick={()=>activate(entry)}><EntryCover entry={entry} api={api} snapshot={snapshot}/>{selecting&&<span className="library-selection" aria-hidden="true">{checked&&<Check size={16}/>}</span>}</button><button type="button" className="library-caption" aria-label={'管理 '+entry.name} aria-haspopup="menu" title={entry.name} disabled={disabled} onClick={event=>setMenu({kind:'item',anchor:event.currentTarget,entry})}><span>{entry.name}</span><ChevronDown size={12}/></button><time className="library-access" dateTime={entry.accessedAt} title={entry.accessedAt?new Date(entry.accessedAt).toLocaleString('zh-CN'):'尚未记录访问'}>{libraryAccessLabel(entry.accessedAt)}</time></article>;
+      return <article className={'library-entry '+entry.kind+(checked?' selected':'')+(drag.isDragging(entry)?' drag-source':'')+(entry.kind==='folder'&&drag.isOver(entry.id)?' drop-over':'')+(entry.kind==='folder'&&drag.canDrop(entry.id)?' drop-available':'')} {...(entry.kind==='folder'?drag.target(entry.id):{})} role="listitem" key={libraryKey(entry)} data-entry-id={libraryKey(entry)} data-book-id={entry.book?.id} data-note-id={entry.note?.id} data-folder-id={entry.folder?.id}>
+        <button type="button" className={'library-open '+(entry.kind==='book'?'book-card':'')} {...drag.source(entry)} aria-label={label} aria-pressed={selecting?checked:undefined} disabled={disabled} onClick={()=>activate(entry)}><EntryCover entry={entry} api={api} snapshot={snapshot}/>{selecting&&<span className="library-selection" aria-hidden="true">{checked&&<Check size={14}/>}</span>}</button>
+        <div className="library-caption-row"><button type="button" className="library-caption" title={entry.name} disabled={disabled} onClick={()=>activate(entry)}><span>{entry.name}</span></button><IconButton className="library-item-menu" label={'管理 '+entry.name} aria-haspopup="menu" disabled={disabled} onClick={event=>setMenu({kind:'item',anchor:event.currentTarget,entry})}><MoreHorizontal size={17}/></IconButton></div>
+        {entry.accessedAt&&<time className="library-access" dateTime={entry.accessedAt} title={new Date(entry.accessedAt).toLocaleString('zh-CN')}>{libraryAccessLabel(entry.accessedAt)}</time>}
+      </article>;
     })}</div>
-    {!visible.length&&<div className="library-empty">{query?'没有匹配内容':folderId?'空文件夹':'暂无内容'}</div>}
+    {!visible.length&&<div className="library-empty"><span className="library-empty-icon">{query?<Search size={23}/>:<FolderPlus size={25}/>}</span><p>{query?'没有匹配内容':folderId?'文件夹是空的':'书库是空的'}</p><button type="button" className="library-action" disabled={disabled} onClick={event=>query?props.onQuery(''):setMenu({kind:'new',anchor:event.currentTarget})}>{query?'显示全部':<><Plus size={15}/>添加内容</>}</button></div>}
+    {drag.count>0&&<div className="library-drag-status" role="status"><FolderInput size={16}/>{drag.count>1?`移动 ${drag.count} 项`:'拖到文件夹或上方路径'}</div>}
     {menu&&<LibraryMenu anchor={menu.anchor} onClose={()=>setMenu(undefined)}>{menu.kind==='new'?<>
       <button role="menuitem" type="button" onClick={()=>{setMenu(undefined);props.onNewNote();}}><NotebookPen size={16}/>笔记本</button>
       <button role="menuitem" type="button" onClick={()=>openEdit({kind:'folder'})}><FolderPlus size={16}/>文件夹</button>
       <button role="menuitem" type="button" onClick={()=>{setMenu(undefined);props.onImport();}}><Upload size={16}/>导入书籍</button>
       {props.onDiscover&&<button role="menuitem" type="button" onClick={()=>{setMenu(undefined);props.onDiscover!();}}><Search size={16}/>在线找书</button>}
       <button role="menuitem" type="button" onClick={()=>{setMenu(undefined);props.onImportOptions();}}>导入选项</button>
-    </>:menu.kind==='view'?<><button role="menuitemradio" aria-checked={layout==='cards'} type="button" onClick={()=>void changeLayout('cards')}><LayoutGrid size={16}/>网格视图{layout==='cards'&&<Check size={15}/>}</button><button role="menuitemradio" aria-checked={layout==='list'} type="button" onClick={()=>void changeLayout('list')}><LayoutList size={16}/>列表视图{layout==='list'&&<Check size={15}/>}</button></>:<>
+    </>:<>
       <button role="menuitem" type="button" onClick={()=>openEdit({kind:'rename',entry:menu.entry!})}><Pencil size={16}/>重命名</button>
       <button role="menuitem" type="button" onClick={()=>openEdit({kind:'move',entries:[menu.entry!]})}><FolderPlus size={16}/>移动</button>
       {menu.entry?.book&&<button role="menuitem" type="button" onClick={()=>{props.onManage(menu.entry!.book!);setMenu(undefined);}}>书籍信息</button>}

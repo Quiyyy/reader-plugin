@@ -54,6 +54,6 @@ test('cover library mixes entries, persists visits and moves books and notebooks
   const restart=await (await request.post('http://127.0.0.1:4179/restart')).json();expect(restart.previous).not.toBe(restart.current);await page.reload();
   expect((await call(request,'reader_workspace')).visits).toEqual(visited);
   await page.getByRole('button',{name:'打开文件夹 整理验收课程',exact:true}).click();await expect(page.locator('.library-entry')).toHaveCount(4);await expect(page.getByRole('button',{name:'打开文件夹 课后笔记',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'视图选项',exact:true}).click();await page.getByRole('menuitemradio',{name:'列表视图',exact:true}).click();await expect(page.locator('.library-grid.list')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  await page.getByRole('button',{name:'列表视图',exact:true}).click();await expect(page.locator('.library-grid.list')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   expect(errors).toEqual([]);
 });

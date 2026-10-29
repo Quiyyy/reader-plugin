@@ -51,13 +51,13 @@ test('workbench layout is independent of appearance, responsive and preserves re
   await page.reload();await openShelf();await expect(page.locator('.study-workspace')).toHaveCSS('--study-accent','#8551B2');await expect(page.locator('.study-workspace')).toHaveAttribute('data-layout','workbench');
   await page.getByRole('searchbox',{name:'搜索书籍、笔记和文件夹'}).fill('山河');await expect(page.locator('.book-card')).toHaveCount(1);
   await page.getByRole('searchbox',{name:'搜索书籍、笔记和文件夹'}).fill('界面验收');
-  await page.getByRole('button',{name:'视图选项',exact:true}).click();await page.getByRole('menuitemradio',{name:'网格视图',exact:true}).click();await expect(page.locator('.library-grid.cards')).toHaveCount(1);
-  await page.getByRole('button',{name:'视图选项',exact:true}).click();await page.getByRole('menuitemradio',{name:'列表视图',exact:true}).click();await expect(page.locator('.library-grid.list')).toHaveCount(1);
+  await page.getByRole('button',{name:'网格视图',exact:true}).click();await expect(page.locator('.library-grid.cards')).toHaveCount(1);
+  await page.getByRole('button',{name:'列表视图',exact:true}).click();await expect(page.locator('.library-grid.list')).toHaveCount(1);
   for(const width of [390,320]){
     await page.setViewportSize({width,height:844});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     expect(await page.locator('.library-shelf').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
-    await expect(page.getByRole('button',{name:'视图选项',exact:true})).toBeInViewport();
+    await expect(page.getByRole('group',{name:'书库视图',exact:true})).toBeInViewport();
     await page.screenshot({animations:'disabled',path:`artifacts/workbench-library-${width}.png`});
   }
   await page.setViewportSize({width:1280,height:900});

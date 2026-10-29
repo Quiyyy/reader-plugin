@@ -53,9 +53,9 @@ for (const width of [320, 390, 1280]) {
     await page.getByRole('button', { name: '回收站', exact: true }).click(); await expect(page.locator('.study-trash')).toContainText(title);
     await page.screenshot({ path: `artifacts/candidate-trash-${width}.png`, fullPage: true });
     await page.locator('.study-trash-row').filter({ hasText: title }).getByRole('button', { name: '恢复', exact: true }).click(); await page.getByRole('button', { name: '书库', exact: true }).click();
-    await page.getByRole('button', { name: '视图选项' }).click(); await page.getByRole('menuitemradio', { name: '列表视图' }).click(); await expect(card).toBeEnabled(); await card.focus(); await page.keyboard.press('ArrowDown'); await expect(card).toBeFocused();
+    await page.getByRole('button',{name:'列表视图' }).click(); await expect(card).toBeEnabled(); await card.focus(); await page.keyboard.press('ArrowDown'); await expect(card).toBeFocused();
     await page.screenshot({ path: `artifacts/candidate-list-${width}.png`, fullPage: true });
-    await page.getByRole('button', { name: '视图选项' }).click(); await page.getByRole('menuitemradio', { name: '网格视图' }).click(); await page.screenshot({ path: `artifacts/candidate-cards-${width}.png`, fullPage: true });
+    await page.getByRole('button',{name:'网格视图' }).click(); await page.screenshot({ path: `artifacts/candidate-cards-${width}.png`, fullPage: true });
     await page.reload(); await page.getByRole('button', { name: '键盘快捷键', exact: true }).click(); await expect(page.getByRole('button', { name: '录制请求关闭宿主面板' })).toContainText('Ctrl + Shift + .');
     await page.getByRole('button', { name: '恢复默认快捷键' }).click(); await expect(page.getByRole('button', { name: '录制请求关闭宿主面板' })).toContainText('未设置');
   });

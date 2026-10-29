@@ -156,7 +156,7 @@ describe('bounded, resumable long directories and chapters', () => {
     expect(refreshed.document.chapters).toHaveLength(20);
     expect(refreshed.bookmarks[0].label).toBe('original bookmark');
     expect(refreshed.summary.locator).toEqual(locator);
-  });
+  }, 15_000); // Multiple network batches and atomic disk writes can exceed 5s on Windows CI.
 
   it.each(['cycle', 'redirect', 'duplicate'])('rejects %s loops while retaining readable known chapters', async mode => {
     const f = await setup({ mode });
