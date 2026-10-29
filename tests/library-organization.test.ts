@@ -4,11 +4,23 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ReaderService } from '../src/server/service.js';
 import { ReaderStore } from '../src/server/store.js';
-import { libraryEntries,mergeWorkspaceSnapshot,moveDestinations,sortLibraryEntries } from '../src/ui/library-entries';
+import { filterLibraryEntries,libraryEntries,mergeWorkspaceSnapshot,moveDestinations,sortLibraryEntries } from '../src/ui/library-entries';
 const noteInput={title:'整理笔记',body:'正文与引用需要完整保留。',folderId:null,tags:['保留'],sourceIds:[],imageIds:[]};
 async function using(work:(service:ReaderService,dir:string)=>Promise<void>){const dir=await mkdtemp(join(tmpdir(),'Reader library organization '));const service=new ReaderService(new ReaderStore(dir));try{await work(service,dir);}finally{await service.close();await rm(dir,{recursive:true,force:true});}}
 
 describe('library organization',()=>{
+  it('searches descendants without leaking siblings or trashed entries and restores direct children when cleared',()=>using(async(s)=>{
+    const root=(await s.workspace.store.folderSave({name:'课程',parentId:null})).value;
+    const child=(await s.workspace.store.folderSave({name:'资料',parentId:root.id})).value;
+    const inside=(await s.workspace.store.createNote({...noteInput,title:'查询目标',folderId:child.id})).value;
+    const outside=(await s.workspace.store.createNote({...noteInput,title:'查询目标',folderId:null})).value;
+    const removed=(await s.workspace.store.createNote({...noteInput,title:'查询目标',folderId:child.id})).value;
+    await s.workspace.store.trash('notes',removed.id,removed.revision);
+    const snapshot=await s.workspace.store.snapshot(),entries=libraryEntries([],snapshot);
+    expect(filterLibraryEntries(entries,snapshot,root.id,'查询目标').map(e=>e.id)).toEqual([inside.id]);
+    expect(new Set(filterLibraryEntries(entries,snapshot,null,'查询目标').map(e=>e.id))).toEqual(new Set([inside.id,outside.id]));
+    expect(filterLibraryEntries(entries,snapshot,root.id,'  ').map(e=>e.id)).toEqual([child.id]);
+  }));
   it('merges out-of-order content and visit snapshots without losing either version',()=>using(async(s)=>{
     const base=await s.workspace.store.snapshot(),content={...base,revision:2,accessRevision:0},access={...base,revision:1,accessRevision:3,visits:{'note:example':'2026-10-29T00:00:00.000Z'}};
     const combined=mergeWorkspaceSnapshot(content,access);expect(combined.revision).toBe(2);expect(combined.accessRevision).toBe(3);expect(combined.visits).toEqual(access.visits);

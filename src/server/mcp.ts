@@ -6,7 +6,7 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from '@model
 import { OpenAIExtensions, OpenAIFileEntrypointInputSchema, type OpenAIUiToolMetadata, type OpenAIUiResourceMetadata } from '@openai/mcp-extensions/server';
 import { actionSchemas, type ReaderService } from './service.js';
 import { IncompleteLoadError } from '../shared/online.js';
-export const VERSION = '0.2.12';
+export const VERSION = '0.2.13';
 export const UI_URI = `ui://reader/v${VERSION}/bookshelf.html`;
 function isPreviousUiVersion(value: string): boolean {
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value)) return false;

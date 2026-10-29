@@ -33,7 +33,7 @@ for(const width of [1280,390,320])test(`note fills the editor, keeps its outline
   await page.getByRole('button',{name:'关闭对话',exact:true}).click();await expect(editor).toContainText('补充：A 与 B');await expect(page.getByRole('img',{name:'截图标注',exact:true})).toBeVisible();
   await page.locator('.note-image').scrollIntoViewIfNeeded();await page.screenshot({path:`artifacts/note-collaboration-${width}.png`,animations:'disabled'});
   await page.getByRole('button',{name:'笔记操作',exact:true}).click();const downloading=page.waitForEvent('download');await page.getByRole('button',{name:'导出 Markdown',exact:true}).click();const download=await downloading,files=unzipSync(await readFile((await download.path())!));expect(files['images/annotated-'+imageId+'.png']).toBeDefined();expect(new TextDecoder().decode(files['note.md'])).toContain('annotated-'+imageId);
-  await page.reload();await page.getByRole('button',{name:'笔记',exact:true}).click();await page.locator('.study-notes-list').getByRole('button',{name:new RegExp('协作笔记 '+width)}).click();await expect(page.getByRole('img',{name:'截图标注',exact:true})).toBeVisible();expect((await rpc(request,'reader_note_get',{id:note.id})).tags).toEqual(['保留']);
+  await page.reload();await page.getByRole('button',{name:'笔记',exact:true}).click();await page.locator('.study-notes-list').getByRole('button',{name:new RegExp('^协作笔记 '+width)}).click();await expect(page.getByRole('img',{name:'截图标注',exact:true})).toBeVisible();expect((await rpc(request,'reader_note_get',{id:note.id})).tags).toEqual(['保留']);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);expect(errors).toEqual([]);
 });
 

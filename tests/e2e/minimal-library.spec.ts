@@ -9,7 +9,7 @@ test('cover library mixes entries, persists visits and moves books and notebooks
   test.setTimeout(90000);const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await call(request,'reader_appearance',{appearance:{...defaultAppearance,mode:'light'}});await call(request,'reader_library_layout',{layout:'cards'});
   await page.goto('/');await page.getByRole('button',{name:'新建',exact:true}).click();
-  await expect(page.getByRole('menuitem',{name:'笔记本',exact:true})).toBeVisible();await expect(page.getByRole('menuitem',{name:'文件夹',exact:true})).toBeVisible();
+  await expect(page.getByRole('menuitem',{name:'笔记',exact:true})).toBeVisible();await expect(page.getByRole('menuitem',{name:'文件夹',exact:true})).toBeVisible();
   const chooser=page.waitForEvent('filechooser');await page.getByRole('menuitem',{name:'导入书籍',exact:true}).click();
   const title='时间与阅读：一份很长的原创整理验收书名';
   await (await chooser).setFiles({name:title+'.txt',mimeType:'text/plain',buffer:Buffer.from('第一章 晨间\n\n从一页开始。\n\n第二章 午后\n\n读到这里，留下自己的理解。')});
@@ -23,9 +23,9 @@ test('cover library mixes entries, persists visits and moves books and notebooks
   await page.reload();await expect(page.locator('.study-continue,.study-library-notes,.study-book-group,.study-format-filter')).toHaveCount(0);
   const picture=page.locator(`[data-note-id="${illustrated.id}"]`);await picture.scrollIntoViewIfNeeded();await expect(picture.locator('img')).toBeVisible();
   await expect(page.locator(`[data-note-id="${blank.id}"] .library-page-preview`)).toHaveCount(0);
-  await page.getByRole('button',{name:'打开笔记本 空白整理验收',exact:true}).click();await expect(page.getByLabel('笔记正文')).toHaveValue(blank.body);
+  await page.getByRole('button',{name:'打开笔记 空白整理验收',exact:true}).click();await expect(page.getByLabel('笔记正文')).toHaveValue(blank.body);
   await expect.poll(async()=>(await call(request,'reader_workspace')).visits['note:'+blank.id]).toBeTruthy();
-  await page.getByRole('button',{name:'返回笔记列表',exact:true}).click();await expect(page.getByRole('heading',{name:'书库',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'返回书库',exact:true}).click();await expect(page.getByRole('heading',{name:'书库',exact:true})).toBeVisible();
   await expect(page.locator('.library-entry').first()).toHaveAttribute('data-note-id',blank.id);
   expect(await call(request,'reader_note_get',{id:blank.id})).toEqual(blank);
   await page.getByRole('button',{name:'新建',exact:true}).click();await page.getByRole('menuitem',{name:'文件夹',exact:true}).click();
@@ -33,14 +33,14 @@ test('cover library mixes entries, persists visits and moves books and notebooks
   await expect(page.getByRole('button',{name:'打开文件夹 整理验收课程',exact:true})).toBeVisible();
   const folder=(await call(request,'reader_workspace')).folders.find((item:any)=>item.name==='整理验收课程');
   const before=(await call(request,'reader_workspace')).visits;
-  await page.getByRole('button',{name:'选择',exact:true}).click();await page.getByRole('button',{name:'选择书籍 '+title,exact:true}).click();await page.getByRole('button',{name:'选择笔记本 图像整理验收',exact:true}).click();
+  await page.getByRole('button',{name:'选择',exact:true}).click();await page.getByRole('button',{name:'选择书籍 '+title,exact:true}).click();await page.getByRole('button',{name:'选择笔记 图像整理验收',exact:true}).click();
   await page.getByRole('button',{name:'移动',exact:true}).click();const move=page.getByRole('dialog',{name:'移动到',exact:true});await expect(move.getByRole('button',{name:'移动',exact:true})).toBeDisabled();
   await move.getByLabel('目标文件夹').selectOption({label:'整理验收课程'});await move.getByRole('button',{name:'移动',exact:true}).click();await expect(move).toHaveCount(0);
   await expect(page.locator(`[data-book-id="${book.id}"]`)).toHaveCount(0);await expect(picture).toHaveCount(0);
   const after=await call(request,'reader_workspace');expect(after.books[book.id].folderId).toBe(folder.id);expect(after.notes.find((item:any)=>item.id===illustrated.id).folderId).toBe(folder.id);expect(after.visits).toEqual(before);
   await page.getByRole('button',{name:'打开文件夹 整理验收课程',exact:true}).click();await expect(page.getByRole('heading',{name:'整理验收课程',exact:true})).toBeVisible();await expect(page.locator('.library-entry')).toHaveCount(2);
   await page.getByRole('button',{name:new RegExp('^打开 '+title+'，')}).click();await expect(page.getByRole('heading',{name:'第一章 晨间',exact:true})).toBeVisible();await page.getByRole('button',{name:'返回书架',exact:true}).click();await expect(page.getByRole('heading',{name:'整理验收课程',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'新建',exact:true}).click();await page.getByRole('menuitem',{name:'笔记本',exact:true}).click();await page.getByLabel('笔记标题').fill('课堂整理验收');await page.getByLabel('笔记正文').fill('保留一行自己的理解。');await expect(page.locator('.study-note-status')).toContainText('已保存到 Reader');await page.getByRole('button',{name:'返回笔记列表',exact:true}).click();
+  await page.getByRole('button',{name:'新建',exact:true}).click();await page.getByRole('menuitem',{name:'笔记',exact:true}).click();await page.getByLabel('笔记标题').fill('课堂整理验收');await page.getByLabel('笔记正文').fill('保留一行自己的理解。');await expect(page.locator('.study-note-status')).toContainText('已保存到 Reader');await page.getByRole('button',{name:'返回书库',exact:true}).click();
   await expect(page.getByRole('heading',{name:'整理验收课程',exact:true})).toBeVisible();const created=(await call(request,'reader_workspace')).notes.find((item:any)=>item.title==='课堂整理验收');expect(created.folderId).toBe(folder.id);
   await page.getByRole('button',{name:'新建',exact:true}).click();await page.getByRole('menuitem',{name:'文件夹',exact:true}).click();await page.getByLabel('名称',{exact:true}).fill('课后资料');await page.getByRole('dialog',{name:'新建文件夹'}).getByRole('button',{name:'完成',exact:true}).click();
   await expect(page.getByRole('button',{name:'打开文件夹 课后资料',exact:true})).toBeVisible();

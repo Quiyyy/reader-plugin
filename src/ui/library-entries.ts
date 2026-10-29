@@ -24,7 +24,7 @@ export function libraryEntries(books:BookSummary[],snapshot:WorkspaceSnapshot):L
   return [
     ...folders.map(folder=>({kind:'folder' as const,id:folder.id,name:folder.name,parentId:parent(folder.parentId),revision:folder.revision,accessedAt:accessed('folder',folder.id),folder})),
     ...books.map(book=>{const meta=snapshot.books[book.id];return {kind:'book' as const,id:book.id,name:meta?.title||book.title,parentId:parent(meta?.folderId),revision:meta?.revision??0,accessedAt:accessed('book',book.id)??book.lastReadAt,book};}),
-    ...snapshot.notes.filter(note=>!note.trashedAt).map(note=>({kind:'note' as const,id:note.id,name:note.title||'未命名笔记本',parentId:parent(note.folderId),revision:note.revision,accessedAt:accessed('note',note.id),note})),
+    ...snapshot.notes.filter(note=>!note.trashedAt).map(note=>({kind:'note' as const,id:note.id,name:note.title||'未命名笔记',parentId:parent(note.folderId),revision:note.revision,accessedAt:accessed('note',note.id),note})),
   ];
 }
 export function folderPath(id:string|null,folders:Folder[]):Folder[] {
@@ -44,6 +44,14 @@ export function moveDestinations(entries:LibraryEntry[],folders:Folder[]):Array<
 }
 export function sortLibraryEntries(entries:LibraryEntry[],sort:'visited'|'name') {
   return [...entries].sort((a,b)=>(sort==='visited'?(b.accessedAt??'').localeCompare(a.accessedAt??''):0)||a.name.localeCompare(b.name,'zh-CN')||libraryKey(a).localeCompare(libraryKey(b)));
+}
+export function filterLibraryEntries(entries:LibraryEntry[],snapshot:WorkspaceSnapshot,folderId:string|null,query:string) {
+  const text=query.trim().toLocaleLowerCase();
+  return entries.filter(entry=>{
+    const inScope=entry.parentId===folderId||!!text&&(folderId===null||folderPath(entry.parentId,snapshot.folders).some(folder=>folder.id===folderId));
+    const searchable=[entry.name,entry.book?.author,entry.note?.preview,...(entry.note?.tags??snapshot.books[entry.id]?.tags??[])].filter(Boolean).join(' ').toLocaleLowerCase();
+    return inScope&&(!text||searchable.includes(text));
+  });
 }
 export function libraryAccessLabel(value?:string) {
   if(!value)return '—';

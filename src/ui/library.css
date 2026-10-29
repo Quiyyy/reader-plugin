@@ -120,3 +120,22 @@
   .library-menu > button { min-height:44px; }
 }
 @media(prefers-reduced-motion:reduce) { .library-art,.library-entry { transition:none; } }
+
+/* Compact covers share the paper and accent palette. */
+.study-workspace .library-open { background:transparent; }
+.library-entry:hover .library-open { background:var(--study-soft); }
+.library-cover { align-items:center; justify-content:center; gap:16px; background:color-mix(in srgb,var(--study-accent) 25%,var(--study-control)); }
+.library-cover-lines { width:28px; height:12px; border-block:1px solid currentColor; opacity:.3; }
+.library-notebook { background:var(--study-paper); border-top:4px solid color-mix(in srgb,var(--study-accent) 35%,var(--study-paper)); }
+.library-notebook > svg { color:var(--study-accent-ink); margin-bottom:6px; }
+.library-page-preview { font-size:10px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.library-blank-label { color:var(--study-muted); }
+.library-blank-label::after { opacity:.25; }
+.library-caption span { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; white-space:normal; }
+.library-result-path { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:2px 8px; color:var(--study-muted); font-size:11px; }
+.library-grid.list .library-result-path { grid-column:2; grid-row:2; margin:0; }
+.library-grid.list .library-entry:has(.library-result-path) { row-gap:2px; }
+.library-menu-danger { border-top:1px solid var(--study-border); margin-top:4px; }
+.library-trash-option { display:flex!important; align-items:center; gap:8px; }
+.library-trash-option input { width:auto!important; }
+.library-selection-actions { flex-wrap:wrap; }
