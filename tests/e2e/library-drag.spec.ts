@@ -29,6 +29,7 @@ test('drag books and mixed selections into folders, undo, and drag back through 
   const f = await fixture(request, 'move'); await enter(page, f.root.name);
   const book = page.locator(`[data-book-id="${f.book.summary.id}"] .library-open`), note = page.locator(`[data-note-id="${f.note.id}"] .library-open`);
   const target = page.locator(`[data-folder-id="${f.folder.id}"]`);
+  await expect.poll(async()=>(await call(request,'reader_workspace')).visits?.['folder:'+f.root.id]).toBeTruthy();
   const visits = (await call(request, 'reader_workspace')).visits;
   await book.dragTo(target); await expect(book).toHaveCount(0);
   expect((await call(request, 'reader_workspace')).books[f.book.summary.id]).toMatchObject({ folderId: f.folder.id, tags: ['原始标签'] });
@@ -87,7 +88,8 @@ test('refined library toolbar, menus, empty state and drag targets fit light, da
     expect(await page.locator('.library-heading h1').evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(22);
     await page.getByRole('heading', { name: 'Agent', exact: true }).click(); await page.mouse.move(3, 3);
     await page.screenshot({ path: `artifacts/refined-library-${width}.png`, animations: 'disabled' });
-    await page.getByRole('button', { name: '管理 阅读清单', exact: true }).click(); await expect(page.getByRole('menu', { name: '整理菜单' })).toBeInViewport(); await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: '管理 阅读清单', exact: true }).click(); await expect(page.getByRole('menu', { name: '整理菜单' })).toBeInViewport();
+    await page.locator('.library-shelf').dispatchEvent('scroll');await expect(page.getByRole('menu',{name:'整理菜单'})).toBeInViewport();await page.keyboard.press('Escape');
   }
   await page.getByRole('button', { name: '打开文件夹 项目笔记', exact: true }).click();
   await expect(page.getByRole('button', { name: '添加内容', exact: true })).toBeVisible();

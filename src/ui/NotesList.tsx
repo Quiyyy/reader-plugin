@@ -8,7 +8,7 @@ import { folderPath,libraryEntries,type LibraryEntry } from './library-entries';
 import { NoteListItem } from './NoteListItem';
 import { errorText,Modal } from './study-ui';
 
-export function NotesList({api,snapshot,onNew,onOpen,onTrash,onChanged,onNotice}:{api:ReaderApi;snapshot:WorkspaceSnapshot;onNew:()=>void;onOpen:(id:string)=>void;onTrash:(entries:LibraryEntry[])=>void;onChanged:()=>Promise<unknown>;onNotice:(text:string,undoId?:string)=>void}) {
+export function NotesList({onFullSearch,api,snapshot,onNew,onOpen,onTrash,onChanged,onNotice}:{onFullSearch:(query:string)=>void;api:ReaderApi;snapshot:WorkspaceSnapshot;onNew:()=>void;onOpen:(id:string)=>void;onTrash:(entries:LibraryEntry[])=>void;onChanged:()=>Promise<unknown>;onNotice:(text:string,undoId?:string)=>void}) {
   const [query,setQuery]=useState(''),[menu,setMenu]=useState<{anchor:HTMLButtonElement;entry:LibraryEntry}>(),[edit,setEdit]=useState<{kind:'rename'|'move';entry:LibraryEntry}>(),[value,setValue]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const lock=useRef(false),entries=useMemo(()=>libraryEntries([],snapshot).filter(entry=>entry.kind==='note').sort((a,b)=>b.note!.updatedAt.localeCompare(a.note!.updatedAt)),[snapshot]);
   const text=query.trim().toLocaleLowerCase(),visible=entries.filter(entry=>!text||(entry.name+' '+entry.note!.preview).toLocaleLowerCase().includes(text));
@@ -18,7 +18,7 @@ export function NotesList({api,snapshot,onNew,onOpen,onTrash,onChanged,onNotice}
     await onChanged();setEdit(undefined);onNotice(kind==='rename'?'已重命名':'已移动',result.undoId);
   }catch(reason){setError(errorText(reason));}finally{lock.current=false;setBusy(false);}};
   return <aside className="study-notes-list"><header><h1>笔记</h1><IconButton label="新建笔记" onClick={onNew}><Plus size={18}/></IconButton></header>
-    <label className="library-search notes-search"><Search size={15}/><input type="search" aria-label="搜索笔记标题或摘要" placeholder="搜索" value={query} onChange={e=>setQuery(e.target.value)}/></label>
+    <label className="library-search notes-search"><Search size={15}/><input type="search" aria-label="搜索笔记标题或摘要" placeholder="搜索" value={query} onChange={e=>setQuery(e.target.value)} title="按 Enter 搜索笔记全文" onKeyDown={event=>{if(event.key==='Enter'&&!event.nativeEvent.isComposing&&query.trim()){event.preventDefault();onFullSearch(query);}}}/>{!!query.trim()&&<IconButton label="搜索笔记全文" onClick={()=>onFullSearch(query)}><Search size={14}/></IconButton>}</label>
     {error&&!edit&&<p role="alert">{error}</p>}
     {visible.map(entry=><div className="study-note-list-entry" key={entry.id}><NoteListItem note={entry.note!} api={api.study!} sources={snapshot.sources} onOpen={onOpen}/><IconButton label={'管理笔记 '+entry.name} aria-haspopup="menu" onClick={event=>setMenu({anchor:event.currentTarget,entry})}><MoreHorizontal size={17}/></IconButton></div>)}
     {!visible.length&&<p className="panel-empty">{text?'没有匹配内容':'还没有笔记'}</p>}

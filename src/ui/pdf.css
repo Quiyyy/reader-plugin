@@ -10,3 +10,5 @@
 .pdf-search-hit span { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; color:var(--muted); }
 .pdf-search-hit[aria-current=true] { background:var(--accent-tint); }
 @media(max-width:719px) { .pdf-tools { flex-basis:100%; justify-content:flex-end; } .pdf-reader .pdf-title { max-width:none; } }
+
+.textLayer .pdf-search-match { background:transparent; }

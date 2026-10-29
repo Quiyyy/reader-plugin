@@ -4,6 +4,9 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { ArrowLeft, ArrowRight, BookOpen, Bookmark as BookmarkIcon, BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, FileUp, HelpCircle, Keyboard, Library, List, LoaderCircle, Minus, Monitor, Moon, Plus, RotateCcw, Search, Settings2, Sun, Trash2, X } from 'lucide-react';
 import { defaultSettings, type BookDetail, type BookSummary, type Locator, type ReaderApi, type ReaderSettings, type Theme } from '../shared/types';
 import { readingBlocks } from '../shared/reading';
+import { textMatches,searchSnippet } from '../shared/search';
+import { SearchText,SearchNavigation } from './SearchText';
+import { rangeAt,paintSearch } from './reading-selection';
 import { KeyboardEditor } from './KeyboardEditor';
 import { defaultKeyboard, editableTarget, eventShortcut, shortcutActions, type KeyboardSettings } from '../shared/keyboard';
 import type { TrashEntry } from '../shared/types';
@@ -50,7 +53,7 @@ function trapDialogFocus(event: React.KeyboardEvent<HTMLElement>) {
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
 }
 
-export function App({ api,initialBook,initialSettings,onReturn,source,annotations,sources,onSelect,extraTools,returnLabel,registerGuard }: { api: ReaderApi;extraTools?:React.ReactNode;returnLabel?:string;registerGuard?:(guard:(()=>Promise<boolean>)|null)=>void;initialBook?:BookDetail;initialSettings?:ReaderSettings;onReturn?:()=>void;source?:SourceRef;annotations?:Annotation[];sources?:SourceRef[];onSelect?:(source:SourceInput,rect:DOMRect)=>void }) {
+export function App({ searchTarget,beforeReturn,onAnnotation,api,initialBook,initialSettings,onReturn,source,annotations,sources,onSelect,extraTools,returnLabel,registerGuard }: { searchTarget?:{query:string;chapter:number;paragraph:number};beforeReturn?:()=>boolean;onAnnotation?:(id:string)=>void;api: ReaderApi;extraTools?:React.ReactNode;returnLabel?:string;registerGuard?:(guard:(()=>Promise<boolean>)|null)=>void;initialBook?:BookDetail;initialSettings?:ReaderSettings;onReturn?:()=>void;source?:SourceRef;annotations?:Annotation[];sources?:SourceRef[];onSelect?:(source:SourceInput,rect:DOMRect)=>void }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const epubGuard=useRef<(()=>Promise<boolean>)|null>(null);const registerEpubGuard=useCallback((next:(()=>Promise<boolean>)|null)=>{epubGuard.current=next;},[]);
   const [keyboard, setKeyboard] = useState<KeyboardSettings>(defaultKeyboard);
@@ -97,6 +100,8 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
   const onlineRequestRef = useRef<string | null>(null);
   const [libraryQuery, setLibraryQuery] = useState('');
   const [bookQuery, setBookQuery] = useState('');
+  const [activeFind,setActiveFind]=useState(-1);
+  const revealFind=useRef(false),initialFind=useRef(searchTarget);
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState('');
   const readingRef = useRef<HTMLDivElement>(null);
@@ -255,7 +260,7 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
     lastSavedRef.current[next.document.id] = clampLocator(next, next.summary.locator);
     setBook(next); setEpubLegacy(false); setChapterIndex(nextLocator.chapter); setLocator(nextLocator);
     setNavigation({ locator: nextLocator, token: ++navTokenRef.current });
-    setPanel(null); setSaveState(failedProgressRef.current.has(next.document.id) ? 'error' : 'saved'); if (!failedProgressRef.current.size) setSaveError(''); setBookmarkError(''); setBookQuery('');
+    setPanel(null); setSaveState(failedProgressRef.current.has(next.document.id) ? 'error' : 'saved'); if (!failedProgressRef.current.size) setSaveError(''); setBookmarkError(''); setBookQuery(searchTarget?.query??'');
     updateSummary(next.summary);
     requestAnimationFrame(() => readingRef.current?.focus());
   }, [updateSummary]);
@@ -417,7 +422,7 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
   }, [queueProgress]);
 
   const returnToShelf = useCallback(async () => {
-    if (returningRef.current) return;
+    if (returningRef.current||beforeReturn&&!beforeReturn()) return;
     returningRef.current = true; setReturning(true);
     const request = ++openRequestRef.current;
     if (onlineRequestRef.current) void api.online?.cancel(onlineRequestRef.current);
@@ -433,7 +438,7 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
         requestAnimationFrame(() => rootRef.current?.querySelector<HTMLElement>('.book-card')?.focus());
       }
     } finally { returningRef.current = false; if (mountedRef.current) setReturning(false); }
-  }, [flushProgress, flushSettings,onReturn]);
+  }, [flushProgress, flushSettings,onReturn,beforeReturn]);
 
   const changeSettings = useCallback((patch: Partial<ReaderSettings>) => {
     settingsEditVersionRef.current++;
@@ -596,21 +601,25 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
       .sort((a, b) => new Date(b.lastReadAt || b.addedAt).getTime() - new Date(a.lastReadAt || a.addedAt).getTime());
   }, [books, libraryQuery]);
   const searchResults = useMemo(() => {
-    const query = bookQuery.trim().toLocaleLowerCase();
-    if (!book || query.length < 1) return [];
-    const results: { chapter: number; paragraph: number; text: string; title: string }[] = [];
-    book.document.chapters.forEach((chapter, chapterNumber) => {
-      if (book.document.format === 'online' && chapterNumber !== chapterIndex) return;
-      readingBlocks(chapter).forEach(block => {
-        const text = block.text;
-        const index = text.toLocaleLowerCase().indexOf(query);
-        let paragraph = block.start;
-        for (const piece of block.pieces) { if (piece.offset > index) break; paragraph = piece.index; }
-        if (index >= 0 && results.length < 100) results.push({ chapter: chapterNumber, paragraph, text: `${index > 26 ? '…' : ''}${text.slice(Math.max(0, index - 26), Math.max(0, index - 26) + 130)}${text.length > index + 104 ? '…' : ''}`, title: chapter.title });
-      });
-    });
-    return results;
-  }, [book, bookQuery, chapterIndex]);
+    if(!book||!bookQuery.trim())return [];
+    const results:Array<{chapter:number;paragraph:number;block:number;start:number;end:number;text:string;title:string}>=[];
+    book.document.chapters.forEach((chapter,chapterNumber)=>{
+      if(book.document.format==='online'&&chapterNumber!==chapterIndex)return;
+      for(const block of readingBlocks(chapter))for(const match of textMatches(block.text,bookQuery,Math.max(0,100-results.length))){
+        let paragraph=block.start;for(const piece of block.pieces){if(piece.offset>match.start)break;paragraph=piece.index;}
+        results.push({chapter:chapterNumber,paragraph,block:block.start,...match,text:searchSnippet(block.text.slice(Math.max(0,match.start-40),match.end+100),bookQuery),title:chapter.title});
+      }
+    });return results;
+  },[book,bookQuery,chapterIndex]);
+  useEffect(()=>{setActiveFind(-1);revealFind.current=false;},[bookQuery,book?.summary.id,book?.document.format==='online'?chapterIndex:undefined]);
+  useEffect(()=>{const target=initialFind.current;if(!target||!searchResults.length)return;initialFind.current=undefined;const index=searchResults.findIndex(hit=>hit.chapter===target.chapter&&hit.paragraph===target.paragraph);if(index>=0){revealFind.current=true;setActiveFind(index);}},[searchResults]);
+  const findResult=(index:number)=>{const result=searchResults[index];if(!result)return;revealFind.current=true;setActiveFind(index);void navigate(result);};
+  useEffect(()=>{
+    const matches=searchResults.map((match,index)=>{if(match.chapter!==chapterIndex)return null;const start=rootRef.current?.querySelector('[id="reader-paragraph-'+chapterIndex+'-'+match.block+'"]'),element=start?.closest('p')??start;if(!element)return null;const range=rangeAt(element,match.start,match.end);return range?{range,index}:null;}).filter((match):match is {range:Range;index:number}=>!!match);
+    const active=matches.find(match=>match.index===activeFind)?.range;paintSearch('reader-find',matches.map(match=>match.range),active);
+    let frame=0,second=0;if(active&&revealFind.current){frame=requestAnimationFrame(()=>{second=requestAnimationFrame(()=>{if(!readingRef.current)return;const rect=active.getBoundingClientRect(),box=readingRef.current.getBoundingClientRect();readingRef.current.scrollTop+=rect.top-box.top-42;revealFind.current=false;});});}
+    return()=>{cancelAnimationFrame(frame);cancelAnimationFrame(second);paintSearch('reader-find',[]);};
+  },[searchResults,activeFind,chapterIndex,navigation?.token]);
   const activeChapter = book?.document.chapters[chapterIndex];
   const bookmarked = book?.bookmarks.some(item => sameLocator(item.locator, locator));
   const progress = book ? percentAt(book, locator) : 0;
@@ -627,7 +636,7 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
 
     <div className="sr-announcement" role="status" aria-live="polite">{notice}</div>
     {notice && <div className="toast" aria-hidden="true"><Check size={15} />{notice}</div>}
-    {book?.document.format === 'epub' && api.epub && !epubLegacy ? <EpubReader onTheme={theme=>changeSettings({theme})} registerGuard={registerEpubGuard} returnLabel={returnLabel} extraTools={extraTools} source={source} annotations={annotations} sources={sources} onSelect={onSelect} key={book.summary.id} book={book} api={api} settings={settings} keyboard={keyboard} onBack={returnToShelf} onLegacy={() => { setEpubLegacy(true); setNavigation({ locator: book.summary.locator, token: ++navTokenRef.current }); }} onProgress={(progress, lastReadAt) => updateSummary({ ...book.summary, progress, lastReadAt })} /> : !book ? <div hidden={onlineOpen} inert={onlineOpen || helpOpen || trashOpen} className={`shelf-shell ${dragging ? 'is-dragging' : ''}`}
+    {book?.document.format === 'epub' && api.epub && !epubLegacy ? <EpubReader searchTarget={searchTarget} onAnnotation={onAnnotation} onTheme={theme=>changeSettings({theme})} registerGuard={registerEpubGuard} returnLabel={returnLabel} extraTools={extraTools} source={source} annotations={annotations} sources={sources} onSelect={onSelect} key={book.summary.id} book={book} api={api} settings={settings} keyboard={keyboard} onBack={returnToShelf} onLegacy={() => { setEpubLegacy(true); setNavigation({ locator: book.summary.locator, token: ++navTokenRef.current }); }} onProgress={(progress, lastReadAt) => updateSummary({ ...book.summary, progress, lastReadAt })} /> : !book ? <div hidden={onlineOpen} inert={onlineOpen || helpOpen || trashOpen} className={`shelf-shell ${dragging ? 'is-dragging' : ''}`}
       onDragEnter={event => { event.preventDefault(); if (event.dataTransfer.types.includes('Files')) { dragDepthRef.current++; setDragging(true); } }}
       onDragOver={event => event.preventDefault()}
       onDragLeave={event => { event.preventDefault(); dragDepthRef.current = Math.max(0, dragDepthRef.current - 1); if (!dragDepthRef.current) setDragging(false); }}
@@ -656,10 +665,10 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
         {panel && <><button type="button" className="panel-scrim" aria-label="关闭侧栏" onClick={() => setPanel(null)} /><aside className="reader-panel" ref={node => { if (!helpOpen) overlayRef.current = node; }} aria-label={panelTitle}><div className="panel-heading"><h2>{panelTitle}</h2><IconButton label={`关闭${panelTitle}`} onClick={() => setPanel(null)}><X size={18} /></IconButton></div>
           {panel === 'contents' && <>{book.document.format === 'online' && <button type="button" className="text-button" disabled={onlineBusy} onClick={() => void refreshOnline()}>{book.document.tocComplete === false ? '加载更多目录' : '刷新在线目录'}</button>}<nav className="chapter-list" aria-label="章节目录">{book.document.chapters.map((chapter, index) => <button type="button" key={chapter.id || index} className={index === chapterIndex ? 'chapter-item selected' : 'chapter-item'} aria-current={index === chapterIndex ? 'location' : undefined} onClick={() => navigate({ chapter: index, paragraph: 0 })}><span className="chapter-number">{String(index + 1).padStart(2, '0')}</span><span>{chapter.title}</span>{index === chapterIndex && <span className="current-dot" />}</button>)}</nav></>}
           {panel === 'bookmarks' && <><button className="bookmark-current secondary-button" disabled={bookmarkBusy} onClick={() => void toggleBookmark()}>{bookmarkBusy ? <LoaderCircle size={16} className="spin" /> : <BookmarkIcon size={16} fill={bookmarked ? 'currentColor' : 'none'} />}{bookmarked ? '移除当前段落书签' : '收藏当前段落'}</button>{book.bookmarks.length ? <ul className="bookmark-list">{book.bookmarks.map(item => <li key={item.id}><button className="bookmark-jump" onClick={() => navigate(item.locator)}><span>{book.document.chapters[item.locator.chapter]?.title || '章节'}</span><p>{item.label}</p></button><IconButton label={`移除书签：${item.label.slice(0, 20)}`} disabled={bookmarkBusy} onClick={() => void removeBookmark(item.id)}><Trash2 size={15} /></IconButton></li>)}</ul> : <EmptyHint title="暂无书签"/>}</>}
-          {panel === 'search' && <><label className="search-field panel-search"><Search size={16} /><input type="search" aria-label={`${searchLabel}内容`} placeholder="输入想找的文字" value={bookQuery} onChange={event => setBookQuery(event.target.value)} /></label>{bookQuery.trim() ? <>{searchResults.length ? <div className="search-results">{searchResults.map(result => <button key={`${result.chapter}-${result.paragraph}`} onClick={() => navigate(result)}><span>{result.title}</span><p>{result.text}</p></button>)}</div> : <EmptyHint title="没有找到匹配的文字"/>}</> : null}</>}
+          {panel === 'search' && <><label className="search-field panel-search"><Search size={16} /><input type="search" aria-label={`${searchLabel}内容`} placeholder="输入想找的文字" value={bookQuery} onChange={event => setBookQuery(event.target.value)} /></label>{bookQuery.trim() ? <>{searchResults.length ? <div className="search-results">{searchResults.map((result,index) => <button key={`${result.chapter}-${result.block}-${result.start}`} aria-current={index===activeFind?'true':undefined} onClick={() => findResult(index)}><span>{result.title}</span><p><SearchText text={result.text} query={bookQuery}/></p></button>)}</div> : <EmptyHint title="没有找到匹配的文字"/>}</> : null}</>}
           {panel === 'appearance' && <div className="appearance-settings">{error && <ErrorNotice text={error} onClose={() => setError('')}/>}<fieldset><legend>颜色</legend><div className="theme-options">{themes.map(({ value, label, Icon }) => <button type="button" key={value} className={`theme-option theme-swatch-${value} ${settings.theme === value ? 'selected' : ''}`} aria-pressed={settings.theme === value} onClick={() => changeSettings({ theme: value })}><Icon size={18} /><span>{label}</span></button>)}</div></fieldset><fieldset><legend>字体</legend><div className="segmented"><button aria-pressed={settings.fontFamily === 'serif'} className={settings.fontFamily === 'serif' ? 'selected serif-option' : 'serif-option'} onClick={() => changeSettings({ fontFamily: 'serif' })}>宋体 / 衬线</button><button aria-pressed={settings.fontFamily === 'sans'} className={settings.fontFamily === 'sans' ? 'selected' : ''} onClick={() => changeSettings({ fontFamily: 'sans' })}>黑体 / 无衬线</button></div></fieldset><fieldset><legend>字号 <span>{settings.fontSize}px</span></legend><div className="size-control"><IconButton label="缩小字号" disabled={settings.fontSize <= 14} onClick={() => changeSettings({ fontSize: Math.max(14, settings.fontSize - 1) })}><Minus size={16} /></IconButton><span className="size-preview">字</span><IconButton label="增大字号" disabled={settings.fontSize >= 32} onClick={() => changeSettings({ fontSize: Math.min(32, settings.fontSize + 1) })}><Plus size={16} /></IconButton></div></fieldset><fieldset><legend><label htmlFor="reader-line-height">行间距</label><span>{settings.lineHeight.toFixed(1)}</span></legend><input id="reader-line-height" type="range" min="1.4" max="2.4" step="0.1" value={settings.lineHeight} onChange={event => changeSettings({ lineHeight: Number(event.target.value) })} /><div className="range-labels"><span>紧凑</span><span>舒展</span></div></fieldset><fieldset><legend><label htmlFor="reader-line-width">正文宽度</label><span>{settings.lineWidth}px</span></legend><input id="reader-line-width" type="range" min="460" max="960" step="20" value={settings.lineWidth} onChange={event => changeSettings({ lineWidth: Number(event.target.value) })} /><div className="range-labels"><span>窄</span><span>宽</span></div></fieldset><button type="button" className="text-button restore-settings" onClick={() => changeSettings(defaultSettings)}><RotateCcw size={13} />恢复默认样式</button><div className="reading-preferences"><button type="button" className="settings-action" aria-label="键盘快捷键设置" onClick={() => setHelpOpen(true)}><Keyboard size={16} aria-hidden="true" /><span>键盘快捷键</span><ChevronRight size={15} aria-hidden="true" /></button><details className="reading-more"><summary className="settings-action"><BookOpen size={16} aria-hidden="true" /><span>本书操作</span><ChevronDown size={15} aria-hidden="true" /></summary><div className="reading-more-content"><button type="button" className="text-button" disabled={trashBusy || bookmarkBusy} onClick={() => void trashBook(book.document.id)}><Trash2 size={14} />移到回收站</button></div></details></div></div>}
         </aside></>}
-        <div className="reading-column"><div className="reading-scroll" ref={readingRef} onScroll={onReadingScroll} tabIndex={0} aria-label="正文，向下滚动阅读"><article className="reading-content"><div className="chapter-heading"><h1 id={activeChapter?.paragraphs[0]?.trim()===activeChapter?.title.trim()?`reader-paragraph-${chapterIndex}-0`:undefined} data-reader-paragraph={activeChapter?.paragraphs[0]?.trim()===activeChapter?.title.trim()?0:undefined} data-chapter={chapterIndex}>{activeChapter?.title || book.document.title}</h1></div>
+        <div className="reading-column">{!!searchResults.length&&<SearchNavigation query={bookQuery} previous={activeFind>0} next={activeFind<searchResults.length-1} onPrevious={()=>findResult(activeFind-1)} onNext={()=>findResult(activeFind+1)} onClose={()=>setBookQuery('')}/>}<div className="reading-scroll" ref={readingRef} onScroll={onReadingScroll} tabIndex={0} aria-label="正文，向下滚动阅读"><article className="reading-content"><div className="chapter-heading"><h1 id={activeChapter?.paragraphs[0]?.trim()===activeChapter?.title.trim()?`reader-paragraph-${chapterIndex}-0`:undefined} data-reader-paragraph={activeChapter?.paragraphs[0]?.trim()===activeChapter?.title.trim()?0:undefined} data-chapter={chapterIndex}>{activeChapter?.title || book.document.title}</h1></div>
           {book.document.warnings.length > 0 && chapterIndex === 0 && <details className="book-warnings"><summary><CircleAlert size={14} />导入提示（{book.document.warnings.length}）<ChevronDown size={13} /></summary><ul>{book.document.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}
           <div className="reading-paragraphs">{activeChapter && readingBlocks(activeChapter).map(block => block.start===0&&block.end===1&&block.text.trim()===activeChapter.title.trim()?null:<p key={`${chapterIndex}-${block.start}`} className={book.bookmarks.some(item => item.locator.chapter === chapterIndex && item.locator.paragraph >= block.start && item.locator.paragraph < block.end) ? 'has-bookmark' : ''}>{block.pieces.map(piece => <span id={`reader-paragraph-${chapterIndex}-${piece.index}`} data-reader-prefix={piece.text.length-activeChapter!.paragraphs[piece.index]!.length} data-chapter={chapterIndex} data-reader-paragraph={piece.index} key={piece.index}>{piece.text}</span>)}</p>)}</div>
           <nav className="chapter-navigation" aria-label="前后章节"><button type="button" className="chapter-navigation-button" disabled={chapterIndex === 0} onClick={() => navigate({ chapter: chapterIndex - 1, paragraph: 0 })}><ChevronLeft size={17} /><span><small>上一章</small><strong>{book.document.chapters[chapterIndex - 1]?.title || '已是第一章'}</strong></span></button>{chapterIndex < book.document.chapters.length - 1 ? <button type="button" className="chapter-navigation-button next" onClick={() => navigate({ chapter: chapterIndex + 1, paragraph: 0 })}><span><small>下一章</small><strong>{book.document.chapters[chapterIndex + 1]?.title}</strong></span><ChevronRight size={17} /></button> : book.document.tocComplete === false ? <button type="button" className="chapter-navigation-button next" disabled={onlineBusy} onClick={() => void refreshOnline()}><span><small>目录尚未加载完</small><strong>加载更多章节</strong></span><ChevronRight size={17} /></button> : <div className="end-of-book"><span>本书完</span><button type="button" className="text-button" onClick={() => void returnToShelf()} disabled={returning}>{onlineOpen ? '回到找书' : '回到书架'} <ArrowRight size={14} /></button></div>}</nav>

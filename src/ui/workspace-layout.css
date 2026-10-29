@@ -182,3 +182,25 @@
 .epub-appearance .theme-options { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-bottom:18px; }
 .epub-appearance .theme-options button { padding:8px; border:1px solid var(--study-border); border-radius:6px; font-size:12px; }
 .epub-appearance .theme-options button[aria-pressed=true] { background:var(--study-tint); border-color:var(--study-accent-ink); }
+
+/* Contextual annotation editor leaves the reading surface interactive. */
+.study-reader-body { position:relative; }
+.annotation-editor { position:absolute; z-index:24; top:56px; right:12px; width:min(340px,calc(100% - 24px)); max-height:calc(100% - 68px); overflow:auto; padding:16px; border:1px solid var(--study-border); border-radius:10px; background:var(--study-paper); box-shadow:var(--study-shadow); }
+.annotation-editor header { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.annotation-editor h2 { margin:0; font-size:15px; font-weight:600; }
+.annotation-editor blockquote { margin:12px 0; padding:0 0 0 10px; border-left:2px solid var(--study-border); max-height:85px; overflow:auto; font-size:12px; line-height:1.7; color:var(--study-muted); white-space:pre-wrap; }
+.annotation-editor .annotation-colors { justify-content:flex-start; margin:12px 0; }
+.annotation-editor textarea { display:block; width:100%; min-height:100px; height:15vh; max-height:180px; padding:10px; border:1px solid var(--study-border); border-radius:6px; font-size:13px; line-height:1.7; }
+.annotation-actions { display:flex; align-items:center; gap:8px; margin-top:12px; }
+.annotation-actions > div { display:flex; flex:1; gap:2px; }
+.annotation-actions > button { padding:6px 9px; border-radius:6px; font-size:12px; }
+.annotation-error { color:var(--study-ink); background:var(--study-soft); padding:8px; font-size:12px; }
+@media(max-width:900px) { .annotation-editor { top:auto; bottom:10px; right:10px; width:calc(100% - 20px); max-height:46%; padding:12px; } .annotation-editor blockquote { max-height:48px; margin:7px 0; } .annotation-editor textarea { min-height:72px; height:12vh; } .annotation-editor .annotation-colors { margin:8px 0; } }
+.search-term { color:inherit; background:var(--study-tint,var(--accent-tint)); box-shadow:inset 0 -1px 0 var(--study-accent-ink,var(--accent)); }
+.reading-find { display:flex; flex:none; align-items:center; gap:3px; min-height:32px; padding:3px 14px; border-bottom:1px solid var(--study-border,var(--border)); background:var(--study-paper,var(--bg)); color:var(--study-muted,var(--muted)); }
+.reading-find > span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.reading-find .icon-button { width:27px; height:26px; }
+::highlight(reader-find),::highlight(pdf-find) { background-color:#e8d56b77; }
+::highlight(reader-find-active),::highlight(pdf-find-active) { background-color:#e5a84caa; }
+.study-search-scope { margin:12px 0; padding:6px 9px; border:1px solid var(--study-border); border-radius:6px; font-size:12px; }
+.study-search-hit small { color:var(--study-muted); font-size:11px; }
