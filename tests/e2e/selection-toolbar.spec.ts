@@ -32,6 +32,8 @@ async function openBook(page: Page, format: 'txt' | 'epub' | 'pdf') {
     : format === 'epub' ? page.locator('.epub-document #passage')
     : page.locator('.textLayer span').filter({ hasText: 'Recall a concept' }).first();
   await expect(target).toBeVisible();
+  // EPUB content appears before asset/layout restoration and its initial focus.
+  if (format === 'epub') await expect(page.locator('.epub-loading')).toHaveCount(0);
   return target;
 }
 
@@ -64,6 +66,7 @@ for (const format of ['txt', 'epub', 'pdf'] as const) {
     await expect(reading).toHaveCSS('outline-style', 'none');
     const back = page.getByRole('button', { name: '返回书架', exact: true });
     await back.focus();
+    await expect(back).toBeFocused();
     await expect(back).toHaveCSS('outline-style', 'none');
     await expect(back).not.toHaveCSS('box-shadow', 'none');
   });
