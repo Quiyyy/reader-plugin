@@ -9,14 +9,14 @@ import { defaultAppearance } from '../src/shared/workspace.js';
 const using=async(work:(service:ReaderService,dir:string)=>Promise<void>)=>{const dir=await mkdtemp(join(tmpdir(),'Reader workspace '));try{await work(new ReaderService(new ReaderStore(dir)),dir);}finally{await rm(dir,{recursive:true,force:true});}};
 const noteInput={title:'阅读记录',body:'我的理解',folderId:null,tags:[],sourceIds:[],imageIds:[]};
 describe('learning workspace durability and boundaries',()=>{
-  it('defaults new libraries to a list and keeps a saved layout independent of appearance',()=>using(async(s,dir)=>{
-    expect((await s.workspace.store.snapshot()).layout).toBe('list');
-    await s.workspace.store.layout('cards');
+  it('defaults new libraries to a grid and keeps a saved layout independent of appearance',()=>using(async(s,dir)=>{
+    expect((await s.workspace.store.snapshot()).layout).toBe('cards');
+    await s.workspace.store.layout('list');
     await s.workspace.store.appearance({...defaultAppearance,mode:'dark'});
     const restarted=new WorkspaceStore(new ReaderStore(dir));
-    expect((await restarted.snapshot()).layout).toBe('cards');
+    expect((await restarted.snapshot()).layout).toBe('list');
     await restarted.appearance({...defaultAppearance,mode:'light',paper:'cream'});
-    expect((await restarted.snapshot()).layout).toBe('cards');
+    expect((await restarted.snapshot()).layout).toBe('list');
   }));
   it('preserves notes after restart and rejects stale concurrent edits, including after undo',()=>using(async(s,dir)=>{
     const created=await s.workspace.store.createNote(noteInput),id=created.value.id;

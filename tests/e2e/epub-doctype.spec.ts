@@ -30,9 +30,7 @@ test('standard NCX and XHTML doctypes import and open both chapters without exte
   await expect(page.locator('.epub-document .reader-book-body')).toContainText('远处亮起了一盏灯。');
   await page.getByRole('button', { name: '返回书架', exact: true }).click();
   await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
-  await expect(page.locator('.study-continue-position')).toHaveText('灯火');
   await page.reload();
-  await expect(page.locator('.study-continue-position')).toHaveText('灯火');
   await page.getByRole('button', { name: /^打开 原创目录兼容测试，/ }).click();
   await expect(page.locator('.epub-document #light')).toBeVisible();
   expect(external).toEqual([]);

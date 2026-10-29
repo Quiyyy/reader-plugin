@@ -103,7 +103,7 @@ for (const width of [320, 390, 1280]) {
     await page.screenshot({ path: `artifacts/redesign-results-${width}.png` });
     expect(await page.locator('.discovery-shell').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     await page.getByRole('button', { name: '书架', exact: true }).click();
-    await expect(page.getByRole('button', { name: '添加书籍', exact: true })).toBeFocused();
+    await expect(page.getByRole('button', { name: '新建', exact: true })).toBeFocused();
     await openDiscovery(page);
     await expect(page.getByLabel('在线搜索关键词')).toHaveValue('原创');
   });

@@ -32,5 +32,13 @@ export function appearanceVariables(appearance:Appearance,dark:boolean):Record<s
     '--study-accent-ink':readable,
     '--study-tint':mix(appearance.accent,paper,dark?.85:.94),
     '--study-on-accent':contrast(appearance.accent,'#ffffff')>=contrast(appearance.accent,'#111111')?'#ffffff':'#111111',
+    '--library-folder-blue':dark?'#609db3':'#8acbdf',
+    '--library-folder-blue-back':dark?'#407e97':'#6bbad9',
+    '--library-folder-pink':dark?'#ae7d94':'#eab3cb',
+    '--library-folder-pink-back':dark?'#9b6e82':'#dba4bc',
+    '--library-cover-green':dark?'#2e5a52':'#345f59',
+    '--library-cover-brown':dark?'#69523f':'#78604c',
+    '--library-cover-ink':dark?'#edf0df':'#f7f3df',
+    '--library-notebook':dark?'#8b80a9':'#c5bfdf',
   };
 }

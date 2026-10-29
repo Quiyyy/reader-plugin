@@ -40,22 +40,22 @@ for (const width of [320, 390, 1280]) {
     await dialog.getByRole('button', { name: '关闭键盘快捷键' }).click();
     await page.getByText('本书操作', { exact: true }).click(); await page.getByRole('button', { name: '移到回收站', exact: true }).click();
     await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: '撤销', exact: true }).click(); await page.getByRole('searchbox', { name: '搜索书名或作者' }).fill(title);
+    await page.getByRole('button', { name: '撤销', exact: true }).click(); await page.getByRole('searchbox', { name: '搜索书籍、笔记和文件夹' }).fill(title);
     const card = page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) }); await card.focus(); await page.keyboard.press('Enter');
     await expect(page.getByRole('heading', { name: '第二章 回收', exact: true })).toBeVisible();
     await page.getByRole('button', { name: '我的书签', exact: true }).click(); await expect(page.locator('.bookmark-list li')).toHaveCount(1); await page.keyboard.press('Escape');
     await reading.focus(); await page.keyboard.press('Escape'); await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
     let releaseTrash!: () => void; const gate = new Promise<void>(resolve => { releaseTrash = resolve; });
     await page.route('**/api/tool', async route => { if (route.request().postDataJSON()?.name === 'reader_trash') await gate; await route.continue(); });
-    await page.getByLabel(`管理 ${title}`, { exact: true }).click(); await page.getByRole('button', { name: '移到回收站', exact: true }).click();
+    await page.getByLabel(`管理 ${title}`, { exact: true }).click(); await page.getByRole('menuitem', { name: '书籍信息', exact: true }).click(); await page.getByRole('button', { name: '移到回收站', exact: true }).click();
     try { await expect(page.getByRole('button', { name: '移到回收站', exact: true })).toBeDisabled(); } finally { releaseTrash(); }
     await expect(page.getByRole('dialog',{name:'书籍信息'})).toHaveCount(0);if(width<720)await page.getByRole('button',{name:'更多导航',exact:true}).click();
     await page.getByRole('button', { name: '回收站', exact: true }).click(); await expect(page.locator('.study-trash')).toContainText(title);
     await page.screenshot({ path: `artifacts/candidate-trash-${width}.png`, fullPage: true });
     await page.locator('.study-trash-row').filter({ hasText: title }).getByRole('button', { name: '恢复', exact: true }).click(); await page.getByRole('button', { name: '书库', exact: true }).click();
-    await page.getByRole('button', { name: '切换列表' }).click(); await card.focus(); await page.keyboard.press('ArrowDown'); await expect(card).toBeFocused();
+    await page.getByRole('button', { name: '视图选项' }).click(); await page.getByRole('menuitemradio', { name: '列表视图' }).click(); await expect(card).toBeEnabled(); await card.focus(); await page.keyboard.press('ArrowDown'); await expect(card).toBeFocused();
     await page.screenshot({ path: `artifacts/candidate-list-${width}.png`, fullPage: true });
-    await page.getByRole('button', { name: '切换卡片' }).click(); await page.screenshot({ path: `artifacts/candidate-cards-${width}.png`, fullPage: true });
+    await page.getByRole('button', { name: '视图选项' }).click(); await page.getByRole('menuitemradio', { name: '网格视图' }).click(); await page.screenshot({ path: `artifacts/candidate-cards-${width}.png`, fullPage: true });
     await page.reload(); await page.getByRole('button', { name: '键盘快捷键', exact: true }).click(); await expect(page.getByRole('button', { name: '录制请求关闭宿主面板' })).toContainText('Ctrl + Shift + .');
     await page.getByRole('button', { name: '恢复默认快捷键' }).click(); await expect(page.getByRole('button', { name: '录制请求关闭宿主面板' })).toContainText('未设置');
   });
@@ -111,7 +111,7 @@ test('editable content and focus outside Reader never dispatch reading shortcuts
 test('shelf arrows move between cards and Enter opens the focused title', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles(['书架焦点甲', '书架焦点乙'].map(title => ({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`第一章 ${title}\n\n原创焦点测试。`) })));
-  const query = page.getByRole('searchbox', { name: '搜索书名或作者' }); await query.fill('书架焦点');
+  const query = page.getByRole('searchbox', { name: '搜索书籍、笔记和文件夹' }); await query.fill('书架焦点');
   const cards = page.locator('.book-card'); await expect(cards).toHaveCount(2);
   await cards.first().focus(); await page.keyboard.press('ArrowRight'); await expect(cards.nth(1)).toBeFocused();
   const name = await cards.nth(1).getAttribute('aria-label'); await page.keyboard.press('Enter');

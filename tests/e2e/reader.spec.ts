@@ -32,7 +32,7 @@ async function importSettingsBook(page: Page, request: APIRequestContext, title:
   // different settings so a previous successful save cannot mask a lost write.
   await previewTool(request, 'reader_settings', { settings: defaultSettings });
   await page.goto('/');
-  await expect(page.locator('.study-page-head').getByRole('button', { name: '添加书籍', exact: true })).toBeEnabled();
+  await expect(page.locator('.study-page-head').getByRole('button', { name: '新建', exact: true })).toBeEnabled();
   await importFile(page, { name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`第一章 样式保存\n\n${title}：原创时序验收内容。`) });
   await expect(page.getByRole('heading', { name: '第一章 样式保存', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '阅读样式', exact: true }).click();
@@ -49,16 +49,16 @@ for (const [layout, width, height] of [['wide', 1280, 900], ['narrow', 390, 844]
     await previewTool(request, 'reader_settings', { settings: defaultSettings });
     await page.setViewportSize({ width, height });
     await page.goto('/');
-    await expect(page.locator('.study-page-head').getByRole('button', { name: '添加书籍', exact: true })).toBeEnabled();
+    await expect(page.locator('.study-page-head').getByRole('button', { name: '新建', exact: true })).toBeEnabled();
     await expect(page.getByRole('link', { name: 'Reader 书架', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: '键盘快捷键', exact: true }).click();
     await expect(page.getByRole('dialog', { name: '键盘快捷键' })).toBeVisible();
     await page.getByRole('button', { name: '关闭键盘快捷键', exact: true }).click();
     const title = `紧凑布局 ${layout}`;
     await waitForImport(page, async () => {
-      await page.locator('.study-page-head').getByRole('button', { name: '添加书籍', exact: true }).click();
+      await page.locator('.study-page-head').getByRole('button', { name: '新建', exact: true }).click();
       const chooser = page.waitForEvent('filechooser');
-      await page.getByRole('dialog', { name: '添加书籍' }).getByRole('button', { name: '导入文件', exact: true }).click();
+      await page.getByRole('menuitem', { name: '导入书籍', exact: true }).click();
       await (await chooser).setFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`${original}\n\n${title}原创验收`) });
     });
     await expect(page.getByRole('heading', { name: '第一章 雨后的书店', exact: true })).toBeVisible();
@@ -83,9 +83,9 @@ for (const [layout, width, height] of [['wide', 1280, 900], ['narrow', 390, 844]
     await page.screenshot({ path: `artifacts/reader-layout-${layout}-reading.png`, fullPage: true });
     await page.getByRole('button', { name: '返回书架', exact: true }).click();
     await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
-    await page.getByRole('searchbox', { name: '搜索书名或作者' }).fill(title);
+    await page.getByRole('searchbox', { name: '搜索书籍、笔记和文件夹' }).fill(title);
     await expect(page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) })).toBeVisible();
-    expect((await page.locator('.study-continue').boundingBox())!.y).toBeLessThan(180);
+    await expect(page.locator('.study-continue')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.screenshot({ path: `artifacts/reader-layout-${layout}-bookshelf.png`, fullPage: true });
     await page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) }).click();
@@ -98,7 +98,7 @@ test('TXT import, progress, bookmarks, settings and restart', async ({ page, req
   await previewTool(request, 'reader_settings', { settings: defaultSettings });
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
-  await expect(page.locator('.study-page-head').getByRole('button', { name: '添加书籍', exact: true })).toBeEnabled();
+  await expect(page.locator('.study-page-head').getByRole('button', { name: '新建', exact: true })).toBeEnabled();
   await importFile(page, { name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`${original}\n\n验收轮次 ${testInfo.repeatEachIndex}`) });
   await expect(page.getByRole('heading', { name: '第一章 雨后的书店' })).toBeVisible();
   await page.getByRole('button', { name: '目录（T）', exact: true }).click();

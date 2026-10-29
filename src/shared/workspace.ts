@@ -16,6 +16,9 @@ export type SourceRef = z.infer<typeof sourceSchema>;
 export type Anchor = z.infer<typeof anchorSchema>;
 export const folderSchema = z.object({ id: entityIdSchema, name: z.string().trim().min(1).max(80), parentId: entityIdSchema.nullable(), revision: z.number().int().positive(), trashedAt: z.string().optional() });
 export type Folder = z.infer<typeof folderSchema>;
+export type LibraryEntryKind = 'book' | 'note' | 'folder';
+export interface LibraryTarget { kind:LibraryEntryKind; id:string; }
+export interface LibraryMoveItem extends LibraryTarget { revision:number; }
 const unit=z.number().min(0).max(1),markColor=z.enum(['red','blue','green','yellow']).default('red');
 export const imageMarkSchema=z.discriminatedUnion('kind',[
   z.object({kind:z.literal('rect'),x:unit,y:unit,width:unit,height:unit,color:markColor}).strict(),
@@ -36,7 +39,7 @@ export type BookMetadata = z.infer<typeof bookMetadataSchema>;
 export const appearanceSchema = z.object({ mode: z.enum(['system','light','dark']), accent: z.string().regex(/^#[a-fA-F0-9]{6}$/), paper: z.enum(['white','cream']), fontSize: z.number().int().min(14).max(36) }).strict();
 export type Appearance = z.infer<typeof appearanceSchema>;
 export const defaultAppearance: Appearance = { mode:'system',accent:'#526dad',paper:'white',fontSize:20 };
-export interface WorkspaceSnapshot { layout?:'cards'|'list'; revision:number; folders:Folder[]; notes:NoteSummary[]; annotations:Annotation[]; sources:SourceRef[]; books:Record<string,BookMetadata>; appearance:Appearance; aiBooks:string[]; }
+export interface WorkspaceSnapshot { layout?:'cards'|'list'; revision:number; accessRevision?:number; visits?:Record<string,string>; folders:Folder[]; notes:NoteSummary[]; annotations:Annotation[]; sources:SourceRef[]; books:Record<string,BookMetadata>; appearance:Appearance; aiBooks:string[]; }
 export interface Mutation<T> { value:T; undoId?:string; revision:number; }
 export interface SearchHit { kind:'book'|'note'|'annotation'|'passage'; id:string; title:string; text:string; source?:SourceRef; locator?:{chapter:number;paragraph:number;chapterId?:string}; }
 export interface PdfBook { id:string; title:string; author:string; pages:number; addedAt:string; lastReadAt?:string; page:number; scroll:number; scale:number; rotation:number; outline:{title:string;page:number;depth:number}[]; warnings:string[]; locked:boolean; }
