@@ -17,6 +17,11 @@ export function decodeBase64(value: string): Uint8Array {
   return Uint8Array.from(atob(value), char => char.charCodeAt(0));
 }
 function unwrap(result: any): unknown {
+  const serverVersion=result?._meta?.readerVersion;
+  if(typeof document!=='undefined'){
+    if(typeof serverVersion==='string'&&/^\d+\.\d+\.\d+$/.test(serverVersion)){document.documentElement.dataset.readerServerVersion=serverVersion;document.documentElement.dataset.readerServerCheckedAt=new Date().toISOString();}
+    else{delete document.documentElement.dataset.readerServerVersion;delete document.documentElement.dataset.readerServerCheckedAt;}
+  }
   if (result.isError) { const message = result.content?.find((item: any) => item.type === 'text')?.text ?? 'Reader 操作失败'; throw result._meta?.readerIncomplete ? new IncompleteLoadError(message, result._meta.readerIncomplete) : new Error(message); }
   if (!result._meta || !('reader' in result._meta)) throw new Error('Reader 服务返回了无效响应');
   return result._meta.reader;
@@ -61,7 +66,7 @@ export function createReaderApi(): ReaderApi {
       } finally { window.clearTimeout(timeout); }
     };
   } else {
-    const app = new App({ name: 'Reader', version: '0.2.11' });
+    const app = new App({ name: 'Reader', version: '0.2.12' });
     const extensions = new OpenAIExtensions(app);
     const applyContext = (context: ReturnType<App['getHostContext']>) => {
       if (context?.theme) { applyDocumentTheme(context.theme); document.documentElement.dataset.hostTheme = context.theme; }

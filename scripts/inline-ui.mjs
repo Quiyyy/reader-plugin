@@ -1,6 +1,7 @@
 // Reader builds exactly one offline HTML entry. No configurable glob patterns,
 // external scripts/styles, public-directory files, or runtime build dependency.
 import { DOMParser } from 'linkedom';
+import { readFileSync } from 'node:fs';
 
 /** @returns {import('vite').Plugin} */
 export function inlineReaderUi() {
@@ -14,6 +15,9 @@ export function inlineReaderUi() {
       const pages = Object.values(bundle).filter(item => item.type === 'asset' && item.fileName.endsWith('.html'));
       if (pages.length !== 1) throw new Error('Reader expects exactly one HTML build entry');
       const page = pages[0], document = new DOMParser().parseFromString(String(page.source), 'text/html');
+      const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+      if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('Invalid Reader UI version');
+      const versionTag = document.createElement('meta'); versionTag.setAttribute('name', 'reader-version'); versionTag.setAttribute('content', version); document.head.append(versionTag);
       const used = new Set([page.fileName]);
       const asset = (value, kind) => {
         if (!value || /^(?:[a-z]+:|\/\/)|[?#]/i.test(value)) throw new Error('Reader build contains a nonlocal asset');

@@ -92,6 +92,7 @@ describe('real MCP server SDK integration', () => {
       expect((resource.contents[0]._meta?.ui as any).csp.connectDomains).toEqual([]);
       expect('text' in resource.contents[0] && resource.contents[0].text).toContain('Reader test');
       const result = await client.callTool({ name: 'reader_list', arguments: {} });
+      expect(result._meta?.readerVersion).toBe(client.getServerVersion()?.version);
       expect(result.content).toEqual([]); expect((result._meta?.reader as any).books).toEqual([]);
       expect(result.structuredContent).toBeUndefined();
       const folder = await client.callTool({ name:'reader_folder_save', arguments:{name:'协议测试',parentId:null} });

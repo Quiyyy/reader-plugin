@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { createMcpServer } from './mcp.js';
+import { createMcpServer, VERSION } from './mcp.js';
 import type { ReaderService } from './service.js';
 import { IncompleteLoadError } from '../shared/online.js';
 // A <=1 MiB catalog JSON string is escaped once more inside the RPC envelope.
@@ -31,7 +31,7 @@ export function createReaderHttpServer(service: ReaderService, htmlPath: string)
         response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self'; frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(await readFile(htmlPath)); return;
       }
-      if (request.method === 'GET' && pathname === '/health') { json(response, 200, { status: 'ok', mode: 'loopback-preview', version: '0.2.11' }); return; }
+      if (request.method === 'GET' && pathname === '/health') { json(response, 200, { status: 'ok', mode: 'loopback-preview', version: VERSION }); return; }
       if (request.method === 'POST' && (pathname === '/api/tool' || pathname === '/mcp')) {
         if (!request.headers['content-type']?.startsWith('application/json')) { json(response, 415, { error: '需要 application/json' }); return; }
         const body = await readBody(request);
@@ -39,7 +39,7 @@ export function createReaderHttpServer(service: ReaderService, htmlPath: string)
           if (request.headers['x-reader-client'] !== 'preview') { json(response, 403, { error: '缺少 Reader 客户端标识' }); return; }
           if (!body || typeof body !== 'object' || !('name' in body) || typeof body.name !== 'string' || !('arguments' in body)) throw new Error('无效请求');
           const data = await service.call(body.name, body.arguments);
-          json(response, 200, { content: [], _meta: { reader: data } }); return;
+          json(response, 200, { content: [], _meta: { reader: data, readerVersion: VERSION } }); return;
         }
         const mcp = createMcpServer(service, htmlPath);
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });

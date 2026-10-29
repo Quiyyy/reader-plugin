@@ -9,6 +9,7 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { enqueueHostSync } from './reader-host-sync.mjs';
 
 const mode=process.argv[2];
 const {values}=parseArgs({args:process.argv.slice(3),options:{codex:{type:'string'},package:{type:'string'},output:{type:'string'},receipt:{type:'string'},inspection:{type:'string'},'data-dir':{type:'string'},'expected-previous':{type:'string'},'codex-home':{type:'string'}}});
@@ -106,6 +107,10 @@ if(mode==='install'){
   catch(error){receipt.failure=String(error.stack??error);receipt.phase='failed';try{await switchTo(receipt.rollbackMarketplace);receipt.registrationRolledBack=true;}catch(rollbackError){receipt.rollbackError=String(rollbackError);}await writeJson(receiptPath,receipt);throw error;}
   await writeJson(receiptPath,receipt);
 }
+if(mode==='install'&&receipt.phase==='installed-and-verified'&&process.env.CODEX_THREAD_ID){
+  receipt.hostSync=await enqueueHostSync(receipt,receiptPath,process.env.CODEX_THREAD_ID);
+  await writeJson(receiptPath,receipt);
+}
 if(mode==='verify'){receipt.verification=await verifyInstalled(receipt.candidate);await writeJson(receiptPath,receipt);}
 if(mode==='rollback'){
   await verifyPackage(join(receipt.rollbackMarketplace,'plugins','reader-win32-x64'));
@@ -124,4 +129,4 @@ if(mode==='retire-probe'){
   assert.deepEqual(await inventory(receipt.data,true),receipt.dataBefore);
   receipt.probe={retiredAt:new Date().toISOString(),backup,recoverable:true,sourceDirectoryRetained:true,restore:'Re-add the preserved original marketplace path, then plugin add reader-epub-probe@reader-epub-lab'};await writeJson(receiptPath,receipt);
 }
-console.log(JSON.stringify({receipt:receiptPath,phase:receipt.phase,version:receipt.candidate.version,source:receipt.candidate.source,verification:receipt.verification,probe:receipt.probe},null,2));
+console.log(JSON.stringify({receipt:receiptPath,phase:receipt.phase,version:receipt.candidate.version,source:receipt.candidate.source,verification:receipt.verification,hostSync:receipt.hostSync,probe:receipt.probe},null,2));

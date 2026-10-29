@@ -6,7 +6,7 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from '@model
 import { OpenAIExtensions, OpenAIFileEntrypointInputSchema, type OpenAIUiToolMetadata, type OpenAIUiResourceMetadata } from '@openai/mcp-extensions/server';
 import { actionSchemas, type ReaderService } from './service.js';
 import { IncompleteLoadError } from '../shared/online.js';
-const VERSION = '0.2.11';
+export const VERSION = '0.2.12';
 export const UI_URI = `ui://reader/v${VERSION}/bookshelf.html`;
 function isPreviousUiVersion(value: string): boolean {
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value)) return false;
@@ -45,8 +45,8 @@ export function createMcpServer(service: ReaderService, htmlPath: string): McpSe
       annotations: { readOnlyHint: ['reader_list','reader_online_sources','reader_keyboard','reader_trash_list','reader_books_search','reader_book_toc','reader_read_passage','reader_note_list','reader_note_get','reader_source_get','reader_annotation_list','reader_folder_list','reader_study_search','reader_workspace_search','reader_pdf_text','reader_image_get','reader_chat_get','reader_chat_list','reader_chat_models'].includes(name), destructiveHint: ['reader_bookmark_remove','reader_online_remove','reader_trash','reader_study_trash','reader_study_purge','reader_book_purge'].includes(name), openWorldHint: name.startsWith('reader_online_') || name === 'reader_get' || name === 'reader_read_passage' || name === 'reader_book_toc' },
       _meta: { ui: { visibility: ['app'] } },
     }, async (args: unknown): Promise<CallToolResult> => {
-      try { const data=await service.call(name,args);return {content:[],_meta:{reader:data}}; }
-      catch (error) { return { isError: true, content: [{ type: 'text', text: error instanceof Error ? error.message : 'Reader 操作失败' }], ...(error instanceof IncompleteLoadError ? { _meta: { readerIncomplete: error.incomplete } } : {}) }; }
+      try { const data=await service.call(name,args);return {content:[],_meta:{reader:data,readerVersion:VERSION}}; }
+      catch (error) { return { isError: true, content: [{ type: 'text', text: error instanceof Error ? error.message : 'Reader 操作失败' }], _meta: { readerVersion:VERSION, ...(error instanceof IncompleteLoadError ? { readerIncomplete: error.incomplete } : {}) } }; }
     });
   }
   return server;

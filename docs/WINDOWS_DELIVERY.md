@@ -50,3 +50,19 @@ An installed package and a running desktop instance can use different versions. 
 Reader keeps the current versioned UI URI in new entrypoint descriptors. From 0.2.10, a newer server also serves its current, self-contained UI at older same-major-version Reader bookshelf URIs. This prevents a cached old descriptor from failing with `Resource not found` after the host reconnects to the new server. The resource preserves the requested URI and the same restrictive CSP. Future versions, malformed versions and unrelated paths are rejected; only the canonical UI appears in the resource list.
 
 This compatibility does not replace a running old server or refresh an already-rendered iframe. Do not claim restart-free desktop activation from isolated MCP/AppBridge acceptance. Confirm the actual host page after the user reloads the plugin through supported host controls, or report activation as pending. Never force-stop the desktop app, overwrite an installed immutable package in place, or add a private control channel to simulate hot reload.
+
+### Automatic handoff after each approved delivery
+
+The user's selected workflow is one automatic synchronization check after each delivery, not periodic polling. A successful `install` inside Codex uses `CODEX_THREAD_ID` to write `artifacts/reader-host-sync-request.json` and mark `receipt.hostSync.status` as `pending`. Installation alone is not host acceptance.
+
+Before ending the delivery turn:
+
+1. Run `node scripts/reader-host-sync.mjs automation` to obtain a human-readable, one-time heartbeat request. Inspect `$CODEX_HOME/automations/*/automation.toml` for an existing request for the same version and thread; reuse or update that pending automation instead of duplicating it.
+2. Call the official `automation_update` tool with the generated arguments. It targets the current thread and runs once after two minutes. Do not substitute a standalone cron job or an independent app-server process.
+3. Record the actual returned automation ID with `node scripts/reader-host-sync.mjs scheduled --automation-id <id> --expected-version <version>`. Finish the current turn promptly so synchronization runs in a subsequent turn. Do not ask the user to send “continue” or manually update the plugin.
+
+The follow-up checks the installed version and the actual Reader page through supported host tools. The UI build embeds `<meta name="reader-version" content="...">`; read this DOM attribute from the real MCP App, save a screenshot, and record origin `codex-mcpapps`, `threadId`, actual UI `version`, the registered package `registeredVersion` and `sourceCommit`, `serverVersion` and `serverObservedAt` from the page HTML element’s `data-reader-server-version` and `data-reader-server-checked-at` attributes, `observedAt`, and the absolute `screenshot` path in an evidence JSON file. Run `node scripts/reader-host-sync.mjs accept --evidence <path>` only when the real page matches the expected version. The helper rejects preview/native-startup-only evidence, stale screenshots and evidence from another thread.
+
+If the real page or a supported reconnect control is unavailable, use `node scripts/reader-host-sync.mjs defer --expected-version <version> --reason <reason>`. Report the concrete limit without marking synchronization complete or creating an unbounded retry loop. A subsequent delivery supersedes an older request; callbacks must not downgrade or reinstall the older package.
+
+The official `config/mcpServer/reload` app-server request can be used only through an available supported connection to the same desktop host. `codex app-server proxy` is a supported CLI transport where the managed control socket exists. Starting a separate server and reloading it does not synchronize the desktop's existing connections.

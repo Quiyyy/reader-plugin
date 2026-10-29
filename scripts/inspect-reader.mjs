@@ -85,6 +85,10 @@ try{
     });
     const start=async()=>{await page.goto(origin+(values.surface==='bridge'?'/__test_host':'/'));const frame=values.surface==='bridge'?page.frameLocator('#reader'):page;await frame.getByRole('heading',{name:/^书[架库]$/,exact:true}).waitFor();return frame;};
     let app=await start();
+    report.renderedUiVersion=await app.locator('meta[name="reader-version"]').getAttribute('content');
+    assert.equal(report.renderedUiVersion,report.package?.version??JSON.parse(await readFile('package.json','utf8')).version);
+    await expect(app.locator('html')).toHaveAttribute('data-reader-server-version',report.renderedUiVersion);
+    report.renderedServerVersion=await app.locator('html').getAttribute('data-reader-server-version');
     if(textBytes)await inspectTxt({page,app,client,dataDir,output,report,bytes:textBytes,expectedChapters:values['expected-chapters-sha256']});
     await app.locator('input[type=file][accept*=".epub"]').setInputFiles({name:'inspection.epub',mimeType:'application/epub+zip',buffer:Buffer.from(bytes)});
     await app.locator('.epub-reader').waitFor();await app.locator('.epub-loading').waitFor({state:'hidden',timeout:30000});

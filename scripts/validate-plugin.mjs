@@ -1,6 +1,7 @@
 import { readFile, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DOMParser } from 'linkedom';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const manifest = JSON.parse(await readFile(resolve(root,'.codex-plugin/plugin.json'),'utf8'));
 const pkg = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
@@ -13,6 +14,7 @@ if (mcp.mcpServers?.reader?.command !== 'node') throw new Error('Invalid local l
 if (JSON.stringify(mcp.mcpServers.reader.args) !== JSON.stringify(['${PLUGIN_ROOT}/dist/server/index.js'])) throw new Error('Invalid server argument');
 await access(resolve(root,'dist/server/index.js')); await access(resolve(root,'dist/ui/index.html'));
 const html = await readFile(resolve(root,'dist/ui/index.html'),'utf8');
+if (new DOMParser().parseFromString(html, 'text/html').querySelector('meta[name="reader-version"]')?.getAttribute('content') !== pkg.version) throw new Error('Rendered UI version marker does not match package version');
 if (!/<title>Reader<\/title>/.test(html)) throw new Error('The app document title must be Reader');
 if (/<script[^>]+src=|<link[^>]+rel=["']stylesheet/i.test(html)) throw new Error('MCP UI must be self-contained');
 console.log('Plugin manifest, local server entry, and self-contained app resource verified. Host installation is a separate check.');
