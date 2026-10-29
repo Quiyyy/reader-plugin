@@ -10,11 +10,12 @@ import { createHash } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { enqueueHostSync } from './reader-host-sync.mjs';
+import { readerProcessesForRegistration, assertCliDeliverySafe, hostInstallAction } from '../distribution/desktop-delivery.mjs';
 
 const mode=process.argv[2];
 const {values}=parseArgs({args:process.argv.slice(3),options:{codex:{type:'string'},package:{type:'string'},output:{type:'string'},receipt:{type:'string'},inspection:{type:'string'},'data-dir':{type:'string'},'expected-previous':{type:'string'},'codex-home':{type:'string'}}});
 assert.equal(process.platform,'win32','This delivery command is Windows only');
-assert.ok(['prepare','install','verify','rollback','retire-probe'].includes(mode),'Choose prepare|install|verify|rollback|retire-probe');
+assert.ok(['prepare','stage','complete','install','verify','rollback','retire-probe'].includes(mode),'Choose prepare|stage|complete|install|verify|rollback|retire-probe');
 assert.ok(values.codex&&isAbsolute(values.codex),'Pass the installed official Codex CLI absolute path');
 const run=promisify(execFile), hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const readJson=async path=>JSON.parse(await fs.readFile(path,'utf8'));
@@ -71,11 +72,21 @@ if(mode==='prepare'){
   await writeJson(receiptPath,receipt);
 }else receipt=await readJson(receiptPath);
 
-async function switchTo(marketplace){
+async function configureMarketplace(marketplace){
   const list=await cli('plugin','marketplace','list');
   if(list.marketplaces.some(x=>x.name==='reader-marketplace'))await cli('plugin','marketplace','remove','reader-marketplace');
   await cli('plugin','marketplace','add',marketplace);
+}
+async function switchTo(marketplace){
+  await configureMarketplace(marketplace);
   return cli('plugin','add','reader-win32-x64@reader-marketplace');
+}
+async function activeReaderProcesses(){
+  const executable=join(process.env.SystemRoot??'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
+  const query="[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); Get-CimInstance Win32_Process -Filter \"Name='reader-launcher.exe'\" | Select-Object Name,ProcessId,ExecutablePath | ConvertTo-Json -Compress";
+  const result=await run(executable,['-NoProfile','-NonInteractive','-Command',query],{windowsHide:true,timeout:15000});
+  const parsed=JSON.parse(result.stdout.trim()||'[]'),processes=parsed?(Array.isArray(parsed)?parsed:[parsed]):[];
+  return readerProcessesForRegistration(processes,receipt.previous.registration);
 }
 async function verifyInstalled(expected){
   const registration=await cli('mcp','get','reader');const root=dirname(registration.transport.command),installed=await verifyPackage(root);
@@ -96,23 +107,39 @@ async function verifyInstalled(expected){
   result.allPersistentDataByteIdentical=true;result.persistentFiles=Object.keys(receipt.dataBefore).length;
   return result;
 }
-if(mode==='install'){
+if(mode==='stage'||mode==='install'){
+  if(mode==='install')assertCliDeliverySafe(process.env.CODEX_THREAD_ID,await activeReaderProcesses());
   assert.ok(values.inspection,'Pass the final package inspection report');
   const inspection=await readJson(resolve(values.inspection));assert.equal(inspection.passed,true);assert.equal(inspection.package?.manifestSha256,receipt.candidate.manifestSha256);assert.equal(inspection.package?.source.commit,receipt.candidate.source.commit);
   const current=await cli('mcp','get','reader');const currentPackage=await verifyPackage(dirname(current.transport.command));assert.equal(currentPackage.manifestSha256,receipt.previous.manifestSha256,'Registered base changed');
   assert.deepEqual(await inventory(receipt.data,true),receipt.dataBefore,'Library changed since backup; prepare a new coherent backup');
   const candidate=await verifyPackage(join(receipt.marketplace,'plugins','reader-win32-x64'));assert.equal(candidate.manifestSha256,receipt.candidate.manifestSha256);
-  receipt.inspection=resolve(values.inspection);receipt.phase='installing';await writeJson(receiptPath,receipt);
-  try{receipt.install=await switchTo(receipt.marketplace);receipt.verification=await verifyInstalled(receipt.candidate);receipt.phase='installed-and-verified';}
-  catch(error){receipt.failure=String(error.stack??error);receipt.phase='failed';try{await switchTo(receipt.rollbackMarketplace);receipt.registrationRolledBack=true;}catch(rollbackError){receipt.rollbackError=String(rollbackError);}await writeJson(receiptPath,receipt);throw error;}
+  receipt.inspection=resolve(values.inspection);receipt.phase=mode==='stage'?'staging':'installing';await writeJson(receiptPath,receipt);
+  try{
+    if(mode==='stage'){
+      await configureMarketplace(receipt.marketplace);
+      const stillCurrent=await cli('mcp','get','reader');
+      assert.equal(stillCurrent.transport.command,current.transport.command,'Staging unexpectedly changed the installed runtime');
+      assert.deepEqual(await inventory(receipt.data,true),receipt.dataBefore,'Library changed during staging');
+      receipt.phase='awaiting-host-install';receipt.hostInstall=hostInstallAction(receipt);
+    }else{receipt.install=await switchTo(receipt.marketplace);receipt.verification=await verifyInstalled(receipt.candidate);receipt.phase='installed-and-verified';}
+  }
+  catch(error){receipt.failure=String(error.stack??error);receipt.phase='failed';try{if(mode==='stage')await configureMarketplace(receipt.previous.marketplace);else{await switchTo(receipt.rollbackMarketplace);receipt.registrationRolledBack=true;}}catch(rollbackError){receipt.rollbackError=String(rollbackError);}await writeJson(receiptPath,receipt);throw error;}
   await writeJson(receiptPath,receipt);
 }
-if(mode==='install'&&receipt.phase==='installed-and-verified'&&process.env.CODEX_THREAD_ID){
+if(mode==='complete'){
+  assert.ok(['awaiting-host-install','host-install-verification-failed'].includes(receipt.phase),'Stage the accepted package and install it through the desktop host first');
+  try{receipt.verification=await verifyInstalled(receipt.candidate);receipt.phase='installed-and-verified';receipt.installationRoute='host-handoff';delete receipt.verificationFailure;}
+  catch(error){receipt.phase='host-install-verification-failed';receipt.verificationFailure=String(error.stack??error);await writeJson(receiptPath,receipt);throw error;}
+  await writeJson(receiptPath,receipt);
+}
+if(['install','complete'].includes(mode)&&receipt.phase==='installed-and-verified'&&process.env.CODEX_THREAD_ID){
   receipt.hostSync=await enqueueHostSync(receipt,receiptPath,process.env.CODEX_THREAD_ID);
   await writeJson(receiptPath,receipt);
 }
 if(mode==='verify'){receipt.verification=await verifyInstalled(receipt.candidate);await writeJson(receiptPath,receipt);}
 if(mode==='rollback'){
+  assertCliDeliverySafe(process.env.CODEX_THREAD_ID,await activeReaderProcesses());
   await verifyPackage(join(receipt.rollbackMarketplace,'plugins','reader-win32-x64'));
   const before=await inventory(receipt.data,true);await switchTo(receipt.rollbackMarketplace);assert.deepEqual(await inventory(receipt.data,true),before);
   receipt.rollback={at:new Date().toISOString(),version:receipt.previous.version,dataRestored:false,sidecarsRetained:true};receipt.phase='rolled-back';await writeJson(receiptPath,receipt);
@@ -129,4 +156,4 @@ if(mode==='retire-probe'){
   assert.deepEqual(await inventory(receipt.data,true),receipt.dataBefore);
   receipt.probe={retiredAt:new Date().toISOString(),backup,recoverable:true,sourceDirectoryRetained:true,restore:'Re-add the preserved original marketplace path, then plugin add reader-epub-probe@reader-epub-lab'};await writeJson(receiptPath,receipt);
 }
-console.log(JSON.stringify({receipt:receiptPath,phase:receipt.phase,version:receipt.candidate.version,source:receipt.candidate.source,verification:receipt.verification,hostSync:receipt.hostSync,probe:receipt.probe},null,2));
+console.log(JSON.stringify({receipt:receiptPath,phase:receipt.phase,version:receipt.candidate.version,source:receipt.candidate.source,hostInstall:receipt.hostInstall,verification:receipt.verification,hostSync:receipt.hostSync,probe:receipt.probe},null,2));
