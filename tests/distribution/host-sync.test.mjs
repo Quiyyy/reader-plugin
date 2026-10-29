@@ -17,6 +17,11 @@ test('unverified packages or changed data cannot enter the automatic activation 
   }
   assert.throws(() => syncRequest(receipt(), resolve('receipt.json'), ''));
 });
+test('the one-off schedule has a future occurrence across hour and date boundaries', () => {
+  const request = syncRequest(receipt(), resolve('receipt.json'), thread);
+  assert.equal(automationRequest(request, new Date('2026-10-29T07:59:50Z'), 'Asia/Shanghai').rrule, 'FREQ=DAILY;BYHOUR=16;BYMINUTE=1;BYSECOND=50;COUNT=1');
+  assert.equal(automationRequest(request, new Date('2026-10-29T15:59:50Z'), 'Asia/Shanghai').rrule, 'FREQ=DAILY;BYHOUR=0;BYMINUTE=1;BYSECOND=50;COUNT=1');
+});
 test('native standalone startup, stale UI and another thread cannot masquerade as host acceptance', () => {
   const request = syncRequest(receipt(), resolve('receipt.json'), thread);
   const now = new Date(Date.parse(request.requestedAt) + 1).toISOString();
