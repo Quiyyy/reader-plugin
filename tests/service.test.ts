@@ -56,6 +56,28 @@ describe('upload service', () => {
   });
 });
 describe('real MCP server SDK integration', () => {
+  it('serves current UI to cached older entrypoints after a server upgrade', async () => {
+    const { service, dir } = await setup(), html = join(dir, 'ui.html');
+    const currentHtml = '<!doctype html><title>Current Reader UI</title>';
+    await writeFile(html, currentHtml);
+    const server = createMcpServer(service, html), client = new Client({ name: 'cached-entrypoint-host', version: '1.0.0' });
+    const [a, b] = InMemoryTransport.createLinkedPair(); await server.connect(a); await client.connect(b);
+    try {
+      const canonical = await client.readResource({ uri: UI_URI });
+      for (const version of ['0.1.3', '0.2.8', '0.2.9']) {
+        const uri = `ui://reader/v${version}/bookshelf.html`;
+        const result = await client.readResource({ uri });
+        expect(result.contents).toEqual([{ ...canonical.contents[0], uri }]);
+        expect('text' in result.contents[0]! && result.contents[0].text).toBe(currentHtml);
+      }
+      expect((await client.listResources()).resources.map(resource => resource.uri)).toEqual([UI_URI]);
+      const open = (await client.listTools()).tools.find(tool => tool.name === 'reader_open')!;
+      expect((open._meta?.ui as any).resourceUri).toBe(UI_URI);
+      for (const uri of ['ui://reader/v0.99.0/bookshelf.html', 'ui://reader/v1.0.0/bookshelf.html', 'ui://reader/v0.2.8-preview/bookshelf.html', 'ui://reader/v00.2.8/bookshelf.html', 'ui://reader/v0.2.8/other.html', 'ui://other/v0.2.8/bookshelf.html']) {
+        await expect(client.readResource({ uri })).rejects.toThrow(/not found/i);
+      }
+    } finally { await client.close(); await server.close(); }
+  });
   it('publishes native entrypoints, restrictive CSP, app-only tools, and serves HTML', async () => {
     const { service, dir } = await setup(); const html = join(dir, 'ui.html'); await writeFile(html, '<!doctype html><title>Reader test</title>');
     const server = createMcpServer(service, html); const client = new Client({ name: 'reader-test-host', version: '1.0.0' });

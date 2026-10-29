@@ -1,18 +1,34 @@
 import {agentTools,agentDescriptions} from './workspace-service.js';
 import { readFile } from 'node:fs/promises';
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { ErrorCode, McpError, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { OpenAIExtensions, OpenAIFileEntrypointInputSchema, type OpenAIUiToolMetadata, type OpenAIUiResourceMetadata } from '@openai/mcp-extensions/server';
 import { actionSchemas, type ReaderService } from './service.js';
 import { IncompleteLoadError } from '../shared/online.js';
-export const UI_URI = 'ui://reader/v0.2.9/bookshelf.html';
+const VERSION = '0.2.10';
+export const UI_URI = `ui://reader/v${VERSION}/bookshelf.html`;
+function isPreviousUiVersion(value: string): boolean {
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value)) return false;
+  const requested = value.split('.').map(Number), current = VERSION.split('.').map(Number);
+  if (requested.some(part => !Number.isSafeInteger(part)) || requested[0] !== current[0]) return false;
+  for (let i = 0; i < current.length; i++) {
+    if (requested[i] !== current[i]) return requested[i]! < current[i]!;
+  }
+  return false;
+}
 const names: Record<string, string> = { reader_list: '读取书架', reader_get: '打开书籍', reader_import_begin: '开始导入书籍', reader_import_chunk: '传输书籍分块', reader_import_finish: '完成书籍导入', reader_import_cancel: '取消书籍导入', reader_progress: '保存阅读进度', reader_settings: '保存阅读设置', reader_bookmark_add: '添加书签', reader_bookmark_remove: '移除书签' };
 export function createMcpServer(service: ReaderService, htmlPath: string): McpServer {
-  const server = new McpServer({ name: 'reader-plugin', version: '0.2.9' });
+  const server = new McpServer({ name: 'reader-plugin', version: VERSION });
   new OpenAIExtensions(server);
   const meta = { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] }, prefersBorder: false }, 'openai/ui': { preferredDisplayMode: 'fullscreen', availableDisplayModes: ['inline', 'fullscreen'] } satisfies OpenAIUiResourceMetadata };
   registerAppResource(server, 'Reader', UI_URI, { _meta: meta }, async () => ({ contents: [{ uri: UI_URI, mimeType: RESOURCE_MIME_TYPE, text: await readFile(htmlPath, 'utf8'), _meta: meta }] }));
+  // An open host can reconnect to a new server before refreshing its entrypoint
+  // descriptor. Keep those older UI addresses readable without listing stale UIs.
+  server.registerResource('Reader compatible UI', new ResourceTemplate('ui://reader/v{version}/bookshelf.html', { list: undefined }), { mimeType: RESOURCE_MIME_TYPE, _meta: meta }, async (uri, variables) => {
+    if (typeof variables.version !== 'string' || !isPreviousUiVersion(variables.version)) throw new McpError(ErrorCode.InvalidParams, `Resource ${uri.href} not found`);
+    return { contents: [{ uri: uri.href, mimeType: RESOURCE_MIME_TYPE, text: await readFile(htmlPath, 'utf8'), _meta: meta }] };
+  });
   registerAppTool(server, 'reader_open', {
     title: 'Reader', description: 'Open the private Reader bookshelf. Books and notes remain on the Reader server. Model access follows the selected reading scope.', inputSchema: {},
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
