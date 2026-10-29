@@ -1,5 +1,7 @@
 # Windows delivery from one verified package
 
+For a concise Chinese overview of the current workflow, Windows host limitations, and future alternatives, see [Reader 本地更新方案](LOCAL_UPDATES.md).
+
 This workflow uses the existing native launcher, package inventory, official Codex plugin CLI and isolated Reader inspector. It adds no remote control endpoint, debugging permission or CI layer. Keep native Codex UI checks separate from native MCP/AppBridge checks. Missing native UI tooling must remain explicitly unverified; it need not block a user-authorized local upgrade.
 
 1. Read current remote versions and installed Reader before selecting a new version. Preserve the installed source lineage. Coordinate main/dist separately; never race another publication task or reuse a released version for different bytes.
