@@ -1,4 +1,4 @@
-import {openDiscovery} from './navigation';
+import {openDiscovery,closeSettings} from './navigation';
 import { test, expect } from '@playwright/test';
 import { declarativeSource } from '../online/declarative';
 
@@ -38,7 +38,7 @@ for (const width of [320, 390, 1280]) test(`declarative source shows stage limit
   await page.keyboard.press('Escape');
   await page.screenshot({ path: `artifacts/declarative-manager-${width}.png`, fullPage: true });
   await panel.getByRole('switch', { name: `启用 ${name}`, exact: true }).click();
-  await panel.getByRole('button', { name: '找书', exact: true }).click();
+  await closeSettings(page);
   await panel.getByLabel('搜索书源').selectOption({ label: name });
   await panel.getByLabel('在线搜索关键词').fill('纸桥');
   await panel.getByRole('button', { name: '搜索', exact: true }).click();
@@ -61,7 +61,7 @@ for (const width of [320, 390, 1280]) test(`declarative source shows stage limit
   await expect(panel.getByLabel('在线搜索关键词')).toHaveValue('纸桥');
   await panel.getByRole('button', { name: '管理书源' }).click();
   await expect(full).toContainText('最近可用');
-  await panel.getByRole('button', { name: '书架', exact: true }).click();
+  await closeSettings(page);await panel.getByRole('button', { name: '书架', exact: true }).click();
   const restart = await (await request.post('http://127.0.0.1:4179/restart')).json();
   expect(restart.previous).not.toBe(restart.current);
   await request.post('http://127.0.0.1:4179/offline');

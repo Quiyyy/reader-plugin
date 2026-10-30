@@ -9,6 +9,11 @@ import { defaultAppearance } from '../src/shared/workspace.js';
 const using=async(work:(service:ReaderService,dir:string)=>Promise<void>)=>{const dir=await mkdtemp(join(tmpdir(),'Reader workspace '));try{await work(new ReaderService(new ReaderStore(dir)),dir);}finally{await rm(dir,{recursive:true,force:true});}};
 const noteInput={title:'阅读记录',body:'我的理解',folderId:null,tags:[],sourceIds:[],imageIds:[]};
 describe('learning workspace durability and boundaries',()=>{
+  it('persists partial workspace preferences without resetting unrelated choices',()=>using(async(s,dir)=>{
+    await s.workspace.store.preferences({noteMode:'source',noteToolbar:true});await s.workspace.store.preferences({librarySort:'name'});
+    const restarted=new WorkspaceStore(new ReaderStore(dir));expect((await restarted.snapshot()).preferences).toEqual({noteMode:'source',noteToolbar:true,librarySort:'name'});
+    await expect(restarted.preferences({noteMode:'unknown'} as any)).rejects.toThrow();
+  }));
   it('persists note font size without letting older appearance clients reset it',()=>using(async(s,dir)=>{
     expect((await s.workspace.store.snapshot()).appearance.noteFontSize).toBe(14);
     await s.workspace.store.appearance({...defaultAppearance,noteFontSize:18});

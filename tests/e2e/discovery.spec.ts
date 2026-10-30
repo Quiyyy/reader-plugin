@@ -1,4 +1,4 @@
-import {openDiscovery} from './navigation';
+import {openDiscovery,closeSettings} from './navigation';
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { fixtureSource } from '../online/source';
 
@@ -63,7 +63,7 @@ for (const width of [320, 390, 1280]) {
     await expect(page.getByText('还没有启用的书源')).toBeVisible();
     await page.getByRole('button', { name: '去启用书源' }).click();
     await page.getByRole('switch', { name: '启用 原创公开文本测试源', exact: true }).click();
-    await openDiscovery(page);
+    await closeSettings(page);
     }
     await expect(page.getByLabel('在线搜索关键词')).toBeFocused();
     await page.getByLabel('在线搜索关键词').fill('原创');

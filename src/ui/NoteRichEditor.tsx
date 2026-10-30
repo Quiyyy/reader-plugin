@@ -1,4 +1,7 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { ArrowDown,ArrowUp,Copy,ScanText,Trash2 } from 'lucide-react';
+import { LibraryMenu } from './LibraryMenu';
+import type { Node as ProseNode } from '@tiptap/pm/model';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { Extension,Node } from '@tiptap/core';
 import { Plugin,PluginKey } from '@tiptap/pm/state';
@@ -71,10 +74,17 @@ const EditableCode = CodeBlock.extend({
 });
 const contextKey=new PluginKey<DecorationSet>('note-ai-context');
 const ContextHighlight=Extension.create({name:'noteContextHighlight',addProseMirrorPlugins(){return [new Plugin({key:contextKey,state:{init:()=>DecorationSet.empty,apply(transaction,previous){const selection=transaction.getMeta(contextKey) as NoteSelection|null|undefined;if(selection!==undefined)return selection&&selection.from<selection.to?DecorationSet.create(transaction.doc,[Decoration.inline(selection.from,selection.to,{class:'note-context-highlight'})]):DecorationSet.empty;return previous.map(transaction.mapping,transaction.doc);}},props:{decorations:state=>contextKey.getState(state)}})];}});
-export function noteEditorExtensions() {
+interface BlockTarget {anchor:HTMLButtonElement;editor:Editor;node:ProseNode;pos:number;}
+export function noteEditorExtensions(onBlock?:(target:BlockTarget)=>void) {
+  let hovered:{node:ProseNode;editor:Editor}|undefined;
   // Focusing or opening a note must not append a paragraph and rewrite its source.
   return [StarterKit.configure({link:{openOnClick:false,autolink:false,linkOnPaste:false},codeBlock:false,trailingNode:false}),EditableCode,ContextHighlight,
-    DragHandle.configure({render:()=>{const handle=document.createElement('div');handle.className='note-block-handle';handle.title='拖动段落';handle.setAttribute('aria-label','拖动段落');handle.innerText='⠿';return handle;}}),
+    DragHandle.configure({onNodeChange:({node,editor})=>{hovered=node?{node,editor}:undefined;},render:()=>{
+      const handle=document.createElement('button');handle.type='button';handle.className='note-block-handle';handle.title='拖动调整顺序，点击打开块操作';handle.setAttribute('aria-label','块操作');handle.setAttribute('aria-haspopup','menu');
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 14 14');svg.setAttribute('width','14');svg.setAttribute('height','14');svg.setAttribute('aria-hidden','true');
+      for(const x of [4.5,9.5])for(const y of [3,7,11]){const dot=document.createElementNS(svg.namespaceURI,'circle');dot.setAttribute('cx',String(x));dot.setAttribute('cy',String(y));dot.setAttribute('r','1');dot.setAttribute('fill','currentColor');svg.append(dot);}handle.append(svg);
+      handle.onclick=()=>{if(!hovered)return;const {editor,node}=hovered;editor.state.doc.forEach((child,pos)=>{if(child===node)onBlock?.({anchor:handle,editor,node,pos});});};return handle;
+    }}),
     Markdown,TableKit.configure({table:{resizable:false}}),TaskList,TaskItem.configure({nested:true}),SafeImage,LiteralBlock,LiteralTag];
 }
 function capture(editor:Editor,atEnd=false):NoteSelection {
@@ -84,10 +94,12 @@ function capture(editor:Editor,atEnd=false):NoteSelection {
   const level=editor.state.selection.$from.parent.attrs.level;
   return {mode:'visual',from,to,text:editor.state.doc.textBetween(from,to,'\n'),style:editor.isActive('heading')?(level===1?'heading1':level===3?'heading3':'heading'):'paragraph',marks:['bold','italic','underline','strike','code'].filter(mark=>editor.isActive(mark)),rect:{left:rect?.left??box.left,top:rect?.top??start.top,bottom:rect?.bottom??end.bottom,width:rect?.width??box.width}};
 }
-interface Props {value:string;onChange:(value:string)=>void;onSelection:(selection:NoteSelection)=>void;onMention:(mention:NoteMention|undefined)=>void;onKey:(event:KeyboardEvent)=>boolean;}
+interface Props {value:string;onChange:(value:string)=>void;onSelection:(selection:NoteSelection)=>void;onMention:(mention:NoteMention|undefined)=>void;onKey:(event:KeyboardEvent)=>boolean;onRequest?:(selection:NoteSelection)=>void;}
 export const NoteRichEditor=forwardRef<NoteRichHandle,Props>(function NoteRichEditor(props,ref){
   const latest=useRef(props);latest.current=props;const last=useRef(props.value);
-  const extensions=useMemo(noteEditorExtensions,[]);
+  const [block,setBlock]=useState<BlockTarget>();
+  const closeBlock=()=>{if(editor&&!editor.isDestroyed)editor.commands.unlockDragHandle();setBlock(undefined);};
+  const extensions=useMemo(()=>noteEditorExtensions(target=>{target.editor.commands.lockDragHandle();setBlock(target);const selection=capture(target.editor);latest.current.onSelection({...selection,to:selection.from});}),[]);
   const report=(editor:Editor)=>{
     if(editor.view.composing)return;
     latest.current.onSelection(capture(editor));
@@ -109,6 +121,7 @@ export const NoteRichEditor=forwardRef<NoteRichHandle,Props>(function NoteRichEd
     immediatelyRender:true,
   });
   useEffect(()=>{if(editor&&props.value!==last.current){last.current=props.value;editor.commands.setContent(props.value,{contentType:'markdown',emitUpdate:false});}},[editor,props.value]);
+  useEffect(()=>{if(block&&editor?.state.doc.nodeAt(block.pos)!==block.node)closeBlock();},[props.value]);
   useImperativeHandle(ref,()=>({
     capture:atEnd=>editor?capture(editor,atEnd):undefined,
     replace(selection,markdown,insert){if(!editor)return;const at=insert?selection.to:selection.from;editor.chain().focus().insertContentAt({from:at,to:insert?at:selection.to},markdown,{contentType:'markdown'}).run();},
@@ -118,5 +131,22 @@ export const NoteRichEditor=forwardRef<NoteRichHandle,Props>(function NoteRichEd
     heading(index){if(!editor)return;let count=0;editor.state.doc.descendants((node,pos)=>{if(node.type.name==='heading'&&count++===index)editor.chain().focus().setTextSelection(pos+1).scrollIntoView().run();});},
     focus(){editor?.commands.focus();},
   }),[editor]);
-  return <EditorContent editor={editor} className="note-rich-editor"/>;
+  const act=(action:'request'|'up'|'down'|'duplicate'|'delete')=>{
+    if(!block||!editor)return;const {pos,node}=block;if(editor.state.doc.nodeAt(pos)!==node){closeBlock();return;}const end=pos+node.nodeSize;
+    closeBlock();
+    if(action==='request'){editor.chain().focus().setTextSelection({from:pos+1,to:Math.max(pos+1,end-1)}).run();latest.current.onRequest?.(capture(editor));return;}
+    const tr=editor.state.tr;
+    if(action==='duplicate')tr.insert(end,node);
+    else if(action==='delete')tr.delete(pos,end);
+    else if(action==='up'){const previous=editor.state.doc.resolve(pos).nodeBefore;if(!previous)return;tr.delete(pos,end).insert(pos-previous.nodeSize,node);}
+    else{const next=editor.state.doc.nodeAt(end);if(!next)return;tr.delete(pos,end).insert(pos+next.nodeSize,node);}
+    editor.view.dispatch(tr.scrollIntoView());editor.commands.focus();
+  };
+  return <><EditorContent editor={editor} className="note-rich-editor"/>{block&&<LibraryMenu anchor={block.anchor} label="块操作" onClose={closeBlock}>
+    <button type="button" role="menuitem" disabled={!block.node.textContent.trim()} onClick={()=>act('request')}><ScanText size={15}/>提出修改要求</button>
+    <button type="button" role="menuitem" disabled={block.pos===0} onClick={()=>act('up')}><ArrowUp size={15}/>上移</button>
+    <button type="button" role="menuitem" disabled={block.pos+block.node.nodeSize===editor?.state.doc.content.size} onClick={()=>act('down')}><ArrowDown size={15}/>下移</button>
+    <button type="button" role="menuitem" onClick={()=>act('duplicate')}><Copy size={15}/>创建副本</button>
+    <button type="button" role="menuitem" className="library-menu-danger" onClick={()=>act('delete')}><Trash2 size={15}/>删除块</button>
+  </LibraryMenu>}</>;
 });

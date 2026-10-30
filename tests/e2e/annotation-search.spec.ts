@@ -1,8 +1,8 @@
-import { openNotes } from './navigation';
+import { openNotes ,openSettings,closeSettings,setReaderTheme} from './navigation';
 import { expect,test,type APIRequestContext,type Locator,type Page } from '@playwright/test';
 
 // Existing persistence/selection scenarios exercise the source editing mode.
-test.beforeEach(async({page})=>{await page.addInitScript(()=>{try{localStorage.setItem('reader-note-visual','false');}catch{}});});
+test.beforeEach(async({request})=>{await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name:'reader_preferences',arguments:{patch:{noteMode:'source'}}}});});
 import { strToU8,zipSync } from 'fflate';
 import { pdfFixture } from '../pdf-fixture';
 
@@ -31,7 +31,7 @@ for(const format of ['txt','epub','pdf'] as const)test(`${format}: existing high
   await editor.getByRole('button',{name:'蓝色',exact:true}).click();await editor.getByRole('button',{name:'保存批注'}).click();await expect(editor).toHaveCount(0);
   await clickHighlight(page,format,'blue');await expect(editor.getByLabel('我的想法')).toHaveValue('原位编辑的理解');await editor.getByRole('button',{name:'移除批注',exact:true}).click();await expect(editor).toHaveCount(0);await page.getByRole('button',{name:'撤销',exact:true}).click();
   await clickHighlight(page,format,'blue');await expect(editor.getByLabel('我的想法')).toHaveValue('原位编辑的理解');await page.screenshot({path:`artifacts/context-annotation-${format}-390.png`});
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);if(format==='txt'){await page.setViewportSize({width:1280,height:900});await expect(editor).toBeInViewport();await page.getByRole('button',{name:'阅读样式',exact:true}).click();await page.getByRole('button',{name:'深色',exact:true}).click();await expect(page.locator('.study-workspace')).toHaveClass(/dark/);await page.getByRole('button',{name:'关闭阅读样式',exact:true}).click();await page.screenshot({path:'artifacts/context-annotation-wide-dark.png'});}
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);if(format==='txt'){await page.setViewportSize({width:1280,height:900});await expect(editor).toBeInViewport();await setReaderTheme(page,'dark');await expect(page.locator('.study-workspace')).toHaveClass(/dark/);await closeSettings(page);await page.screenshot({path:'artifacts/context-annotation-wide-dark.png'});}
 });
 
 test('annotation version conflicts preserve the draft until explicit cancellation',async({page,request})=>{

@@ -102,7 +102,7 @@ button { border: 0; }
 .reader-title-group { min-width: 0; display: flex; align-items: center; gap: 15px; }
 .reader-title-group .icon-button { flex-shrink: 0; }
 .toolbar-divider { height: 15px; border-left: 1px solid var(--border); }
-.reading-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 500; }
+.reading-title { border:0; padding:3px 0; background:transparent; color:inherit; text-align:left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 500; }
 .reader-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .reading-errors { flex-shrink: 0; max-height: 28%; overflow: auto; padding: 10px 15px 0; }
 .reading-errors .error-notice { margin-bottom: 10px; }

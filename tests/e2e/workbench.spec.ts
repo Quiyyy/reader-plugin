@@ -1,3 +1,4 @@
+import {openSettings,closeSettings,setReaderTheme} from './navigation';
 import { test,expect,type APIRequestContext } from '@playwright/test';
 import { defaultAppearance } from '../../src/shared/workspace';
 import type { BookSummary } from '../../src/shared/types';
@@ -35,18 +36,18 @@ test('workbench layout is independent of appearance, responsive and preserves re
   const geometry=()=>page.locator('.library-shelf,.library-grid').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};}));
   let baseline:Awaited<ReturnType<typeof geometry>>|undefined;
   for(const mode of ['light','dark'] as const){
-    await page.getByRole('button',{name:'外观',exact:true}).click();
+    await openSettings(page,'外观');
     await page.getByRole('button',{name:mode==='light'?'浅色':'深色',exact:true}).click();
-    await page.getByRole('button',{name:'完成',exact:true}).click();
-    await expect(page.getByRole('dialog',{name:'外观',exact:true})).toHaveCount(0);
+    await closeSettings(page);
+    await expect(page.getByRole('region',{name:'设置',exact:true})).toBeHidden();
     await expect(page.locator('.study-workspace')).toHaveClass(new RegExp(mode));
     const current=await geometry();if(baseline)expect(current).toEqual(baseline);else baseline=current;
     await page.screenshot({animations:'disabled',path:`artifacts/workbench-library-${mode}-1280.png`});
   }
-  await page.getByRole('button',{name:'外观',exact:true}).click();
+  await openSettings(page,'外观');
   await page.getByRole('button',{name:'浅色',exact:true}).click();await page.getByRole('button',{name:'暖纸',exact:true}).click();
-  await page.getByLabel('强调色十六进制值').fill('#8551B2');await page.getByRole('button',{name:'完成',exact:true}).click();
-  await expect(page.getByRole('dialog',{name:'外观',exact:true})).toHaveCount(0);
+  await page.getByLabel('强调色十六进制值').fill('#8551B2');await closeSettings(page);
+  await expect(page.getByRole('region',{name:'设置',exact:true})).toBeHidden();
   expect(await geometry()).toEqual(baseline);await page.screenshot({animations:'disabled',path:'artifacts/workbench-library-cream-1280.png'});
   await page.reload();await openShelf();await expect(page.locator('.study-workspace')).toHaveCSS('--study-accent','#8551B2');await expect(page.locator('.study-workspace')).toHaveAttribute('data-layout','workbench');
   await page.getByRole('searchbox',{name:'搜索书籍、笔记和文件夹'}).fill('山河');await expect(page.locator('.book-card')).toHaveCount(1);
@@ -79,7 +80,7 @@ test('workbench layout is independent of appearance, responsive and preserves re
   await page.getByRole('button',{name:'查看提问来源',exact:true}).click();
   await page.getByLabel('阅读问题',{exact:true}).fill('用一个日常例子继续解释。');await page.getByRole('button',{name:'收起对话',exact:true}).click();await page.getByRole('button',{name:'继续阅读对话',exact:true}).click();await expect(page.getByLabel('阅读问题',{exact:true})).toHaveValue('用一个日常例子继续解释。');
   for(const mode of ['light','dark'] as const){
-    await page.getByRole('button',{name:'阅读样式',exact:true}).click();await page.getByRole('button',{name:mode==='light'?'明亮':'深色',exact:true}).click();await page.getByRole('button',{name:'关闭阅读样式',exact:true}).click();
+    await setReaderTheme(page,mode);await closeSettings(page);
     await expect(page.locator('.study-workspace')).toHaveClass(new RegExp(mode));
     await page.screenshot({animations:'disabled',path:`artifacts/workbench-chat-${mode}-1280.png`});
   }

@@ -1,4 +1,4 @@
-import {openDiscovery} from './navigation';
+import {openDiscovery,closeSettings} from './navigation';
 import { test, expect } from '@playwright/test';
 import { fixtureSource } from '../online/source';
 
@@ -26,7 +26,7 @@ for (const width of [320, 390, 1280]) {
     await dialog.getByRole('button', { name: '查看书源', exact: true }).click();
     await expect(dialog.getByRole('switch', { name: `启用 ${name}`, exact: true })).toBeEnabled();
     await dialog.getByRole('switch', { name: `启用 ${name}`, exact: true }).click();
-    await dialog.getByRole('button', { name: '找书', exact: true }).click();
+    await closeSettings(page);
     await dialog.getByLabel('搜索书源').selectOption({ label: name });
     await dialog.getByLabel('在线搜索关键词').fill('不存在的书');
     await dialog.getByRole('button', { name: '搜索', exact: true }).click();
@@ -98,7 +98,7 @@ for (const width of [320, 390, 1280]) {
     await dialog.getByRole('switch', { name: `停用 ${name}`, exact: true }).click();
     await page.screenshot({ path: `artifacts/online-sources-${width}.png`, fullPage: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await dialog.getByRole('button', { name: '书架', exact: true }).click();
+    await closeSettings(page);await dialog.getByRole('button', { name: '书架', exact: true }).click();
     await page.reload();
     await page.locator(`[data-book-id="${bookId}"]`).getByRole('button', { name: /^打开 原创河岸故事/ }).click();
     await expect(page.getByRole('heading', { name: '第二章 灯光', exact: true })).toBeVisible();

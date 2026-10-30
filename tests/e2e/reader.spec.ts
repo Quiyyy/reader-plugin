@@ -1,3 +1,5 @@
+import {defaultAppearance} from '../../src/shared/workspace';
+import {openSettings,closeSettings,setReaderTheme} from './navigation';
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { zipSync, strToU8 } from 'fflate';
@@ -13,6 +15,7 @@ async function previewTool(request: APIRequestContext, name: string, args: objec
   expect(response.ok()).toBe(true);
   return (await response.json())._meta.reader;
 }
+async function seedSettings(request:APIRequestContext,settings:ReaderSettings){await previewTool(request,'reader_settings',{settings});await previewTool(request,'reader_appearance',{appearance:{...defaultAppearance,mode:settings.theme==='dark'?'dark':settings.theme==='system'?'system':'light',paper:settings.theme==='sepia'?'cream':'white'}});}
 async function waitForImport(page: Page, trigger: () => Promise<unknown>) {
   // Import includes durable filesystem writes. Observe its real result within
   // the preview API's 15-second deadline before asserting the rendered chapter.
@@ -30,12 +33,12 @@ async function importFile(page: Page, file: { name: string; mimeType: string; bu
 async function importSettingsBook(page: Page, request: APIRequestContext, title: string) {
   // Only the disposable Playwright service is reset. Repeats must start with
   // different settings so a previous successful save cannot mask a lost write.
-  await previewTool(request, 'reader_settings', { settings: defaultSettings });
+  await seedSettings(request,defaultSettings);
   await page.goto('/');
   await expect(page.getByRole('button', { name: '新建', exact: true })).toBeEnabled();
   await importFile(page, { name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`第一章 样式保存\n\n${title}：原创时序验收内容。`) });
   await expect(page.getByRole('heading', { name: '第一章 样式保存', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '阅读样式', exact: true }).click();
+  await openSettings(page,'阅读');
 }
 async function expectSettingsAfterReload(page: Page, title: string, settings: ReaderSettings) {
   await page.reload();
@@ -46,14 +49,14 @@ async function expectSettingsAfterReload(page: Page, title: string, settings: Re
 const original = `第一章 雨后的书店\n\n${Array.from({length: 35},(_,i)=>`这是第 ${i+1} 段。雨停下来的时候，街角的小书店还亮着灯。林把伞靠在门边，听见纸页翻动的声音。她找到一把靠窗的椅子，把未读完的故事重新打开。`).join('\n\n')}\n\n第二章 河边散步\n\n晚风吹过河面。桥上的灯映在水里，像一行没有写完的句子。\n\n第三章 归途\n\n她把书合上，记住了回家的路。`;
 for (const [layout, width, height] of [['wide', 1280, 900], ['narrow', 390, 844], ['small', 320, 720]] as const) {
   test(`compact reader controls remain usable in ${layout} layout`, async ({ page, request }) => {
-    await previewTool(request, 'reader_settings', { settings: defaultSettings });
+    await seedSettings(request,defaultSettings);
     await page.setViewportSize({ width, height });
     await page.goto('/');
     await expect(page.getByRole('button', { name: '新建', exact: true })).toBeEnabled();
     await expect(page.getByRole('link', { name: 'Reader 书架', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: '键盘快捷键', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: '键盘快捷键' })).toBeVisible();
-    await page.getByRole('button', { name: '关闭键盘快捷键', exact: true }).click();
+    await openSettings(page,'快捷键');
+    await expect(page.getByRole('region', { name: '设置',exact:true })).toBeVisible();
+    await closeSettings(page);
     const title = `紧凑布局 ${layout}`;
     await waitForImport(page, async () => {
       await page.getByRole('button', { name: '新建', exact: true }).click();
@@ -63,7 +66,7 @@ for (const [layout, width, height] of [['wide', 1280, 900], ['narrow', 390, 844]
     });
     await expect(page.getByRole('heading', { name: '第一章 雨后的书店', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '界面外观', exact: true })).toHaveCount(0);
-    for (const name of ['返回书架', '目录（T）', '搜索本书（F）', '收藏当前段落（B）', '我的书签', '阅读样式']) {
+    for (const name of ['返回书架', '目录（T）', '搜索本书（F）', '收藏当前段落（B）', '我的书签', '设置']) {
       const button = page.getByRole('button', { name, exact: true });
       await expect(button).toBeVisible();
       const box = await button.boundingBox();
@@ -76,9 +79,9 @@ for (const [layout, width, height] of [['wide', 1280, 900], ['narrow', 390, 844]
     await page.getByRole('button', { name: '目录（T）', exact: true }).click();
     await page.getByRole('button', { name: /02 第二章 河边散步/ }).click();
     await expect(page.getByRole('heading', { name: '第二章 河边散步', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: '阅读样式', exact: true }).click();
-    await page.getByRole('button', { name: '纸色', exact: true }).click();
-    await page.getByRole('button', { name: '关闭阅读样式', exact: true }).click();
+    await openSettings(page,'阅读');
+    await setReaderTheme(page,'sepia');
+    await closeSettings(page);
     await expect(page.locator('.reader-app')).toHaveClass(/theme-sepia/);
     await page.screenshot({ path: `artifacts/reader-layout-${layout}-reading.png`, fullPage: true });
     await page.getByRole('button', { name: '返回书架', exact: true }).click();
@@ -95,7 +98,7 @@ for (const [layout, width, height] of [['wide', 1280, 900], ['narrow', 390, 844]
 function epub() { return Buffer.from(zipSync({ mimetype: strToU8('application/epub+zip'), 'META-INF/container.xml': strToU8('<container><rootfiles><rootfile full-path="book.opf"/></rootfiles></container>'), 'book.opf': strToU8('<package><metadata><title>纸页之间</title><creator>Reader 测试</creator></metadata><manifest><item id="one" href="one.xhtml" media-type="application/xhtml+xml"/><item id="two" href="two.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="one"/><itemref idref="two"/></spine></package>'), 'one.xhtml': strToU8('<html><body><h1>第一章 纸页</h1><p>这是 EPUB 里的第一段。</p><script>window.PWNED=true;fetch("https://attacker.invalid")</script><img src="https://attacker.invalid/track.png"/><p>文字安静地留在这里。</p></body></html>'), 'two.xhtml': strToU8('<html><body><h1>第二章 日落</h1><p>窗外的光慢慢落下。</p></body></html>') })); }
 test('TXT import, progress, bookmarks, settings and restart', async ({ page, request }, testInfo) => {
   const title = `雨后的书店-${testInfo.repeatEachIndex}`;
-  await previewTool(request, 'reader_settings', { settings: defaultSettings });
+  await seedSettings(request,defaultSettings);
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
   await expect(page.getByRole('button', { name: '新建', exact: true })).toBeEnabled();
@@ -114,10 +117,10 @@ test('TXT import, progress, bookmarks, settings and restart', async ({ page, req
   await expect(page.locator('.bookmark-list li')).toHaveCount(1);
   const bookmarkText = await page.locator('.bookmark-jump p').textContent(); expect(bookmarkText).toContain('这是第');
   await page.getByRole('button', {name:'关闭我的书签'}).click();
-  await page.getByRole('button', {name:'阅读样式',exact:true}).click();
-  await page.getByRole('button', {name:'纸色',exact:true}).click();
+  await openSettings(page,'阅读');
+  await setReaderTheme(page,'sepia');
   await page.getByRole('button', {name:'增大字号'}).click();
-  await page.getByRole('button', {name:'关闭阅读样式'}).click();
+  await closeSettings(page);
   await page.getByRole('button', {name:'返回书架'}).click();
   // click() does not await the async return handler. Reload only after its
   // progress/settings saves finish and the actual bookshelf is rendered.
@@ -140,41 +143,42 @@ test('TXT import, progress, bookmarks, settings and restart', async ({ page, req
 });
 
 for (const inFlight of [false, true]) {
-  test(`settings persistence waits for ${inFlight ? 'an in-flight save and the latest queued edits' : 'the debounced save before returning'}`, async ({ page, request }, testInfo) => {
+  test(`settings persistence waits for ${inFlight ? 'an in-flight save and the latest queued edits' : 'pending saves before returning'}`, async ({ page, request }, testInfo) => {
     const title = `样式时序-${inFlight ? '队列' : '立即返回'}-${testInfo.repeatEachIndex}`;
     await importSettingsBook(page, request, title);
     const observed = signal(), release = signal();
-    const writes: ReaderSettings[] = [];
+    const writes:{name:string;arguments:any}[] = [];
     await page.route('**/api/tool', async route => {
       const payload = route.request().postDataJSON();
-      if (payload.name === 'reader_settings') {
-        writes.push(payload.arguments.settings);
+      if (payload.name === 'reader_settings'||payload.name==='reader_appearance') {
+        writes.push(payload);
         if (writes.length === 1) { observed.resolve(); await release.promise; }
       }
       await route.continue();
     });
     const expected = { ...defaultSettings, theme: inFlight ? 'dark' as const : 'sepia' as const, fontSize: 21 };
     try {
-      await page.getByRole('button', { name: '纸色', exact: true }).click();
+      await setReaderTheme(page,'sepia');
       if (inFlight) {
         await observed.promise;
-        await page.getByRole('button', { name: '深色', exact: true }).click();
+        await setReaderTheme(page,'dark');
       }
       await page.getByRole('button', { name: '增大字号' }).click();
-      await page.getByRole('button', { name: '关闭阅读样式' }).click();
-      await page.getByRole('button', { name: '返回书架', exact: true }).click();
+      await closeSettings(page);
       await observed.promise;
-      await expect(page.locator('.returning-overlay')).toBeVisible();
+      await expect(page.getByRole('region',{name:'设置',exact:true})).toBeVisible();
       await expect(page.getByRole('heading', { name: '书库', exact: true })).toHaveCount(0);
       expect(writes).toHaveLength(1);
       expect((await previewTool(request, 'reader_list')).settings).toEqual(defaultSettings);
       release.resolve();
+      await expect(page.getByRole('region',{name:'设置',exact:true})).toBeHidden();
+      await page.getByRole('button',{name:'返回书架',exact:true}).click();
       await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
       await expect(page.getByRole('alert')).toHaveCount(0);
-      expect(writes.at(-1)).toEqual(expected);
+      expect(writes.at(-1)?.arguments.settings).toEqual(expected);
       if (inFlight) {
         expect(writes.length).toBeGreaterThanOrEqual(2);
-        expect(writes[0]).toEqual({ ...defaultSettings, theme: 'sepia' });
+        expect(writes[0]?.name).toBe('reader_appearance');expect(writes[0]?.arguments.appearance.paper).toBe('cream');
       }
       expect((await previewTool(request, 'reader_list')).settings).toEqual(expected);
       await expectSettingsAfterReload(page, title, expected);
@@ -186,7 +190,7 @@ for (const inFlight of [false, true]) {
 }
 test('a late reader settings response preserves edits and existing typography', async ({ page, request }, testInfo) => {
   const initial = { ...defaultSettings, fontSize: 24 }, title = `延迟设置-${testInfo.repeatEachIndex}`;
-  await previewTool(request, 'reader_settings', { settings: initial });
+  await seedSettings(request,initial);
   const bytes = Buffer.from(original + '\n\n' + title);
   const upload = await previewTool(request, 'reader_import_begin', { filename: `${title}.txt`, size: bytes.length });
   await previewTool(request, 'reader_import_chunk', { uploadId: upload.uploadId, index: 0, data: bytes.toString('base64') });
@@ -204,11 +208,11 @@ test('a late reader settings response preserves edits and existing typography', 
   try {
     await page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) }).click(); await observed.promise;
     await expect(page.locator('.reader-app')).toHaveCSS('--reading-size', '24px');
-    await page.getByRole('button', { name: '阅读样式', exact: true }).click();
-    await page.getByRole('button', { name: '纸色', exact: true }).click();
+    await openSettings(page,'阅读');
+    await setReaderTheme(page,'sepia');
     release.resolve(); await delivered.promise;
     await page.getByRole('button', { name: '增大字号', exact: true }).click();
-    await page.getByRole('button', { name: '关闭阅读样式', exact: true }).click();
+    await closeSettings(page);
     await page.getByRole('button', { name: '返回书架', exact: true }).click();
     await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
     const expected = { ...initial, theme: 'sepia' as const, fontSize: 25 };
@@ -217,27 +221,11 @@ test('a late reader settings response preserves edits and existing typography', 
   } finally { release.resolve(); await page.unrouteAll({ behavior: 'wait' }); }
 });
 
-test('failed settings keep the edited reader open until the save can be retried', async ({ page, request }, testInfo) => {
-  const title = `样式失败-${testInfo.repeatEachIndex}`;
-  await importSettingsBook(page, request, title);
-  let failSave = true;
-  await page.route('**/api/tool', route => {
-    if (failSave && route.request().postDataJSON()?.name === 'reader_settings') return route.abort('failed');
-    return route.continue();
-  });
-  await page.getByRole('button', { name: '纸色', exact: true }).click();
-  await page.getByRole('button', { name: '关闭阅读样式', exact: true }).click();
-  await page.getByRole('button', { name: '返回书架', exact: true }).click();
-  const error = page.getByRole('alert').filter({ hasText: '阅读样式未保存' });
-  await expect(error).toBeVisible();
-  await expect(page.locator('.returning-overlay')).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: '书库', exact: true })).toHaveCount(0);
-  await expect(page.locator('.reader-app')).toHaveClass(/theme-sepia/);
-  failSave = false; await error.getByRole('button', { name: '重试', exact: true }).click();
-  await expect(error).toHaveCount(0);
-  await page.getByRole('button', { name: '返回书架', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
-  expect((await previewTool(request, 'reader_list')).settings.theme).toBe('sepia');
+test('failed settings stay open until a retry succeeds', async ({page,request},testInfo)=>{
+  const title='样式失败-'+testInfo.repeatEachIndex;await importSettingsBook(page,request,title);let failSave=true;
+  await page.route('**/api/tool',route=>failSave&&route.request().postDataJSON()?.name==='reader_appearance'?route.abort('failed'):route.continue());
+  await setReaderTheme(page,'sepia');await closeSettings(page);const settings=page.getByRole('region',{name:'设置',exact:true});await expect(settings.getByRole('alert')).toBeVisible();await expect(settings).toBeVisible();expect((await previewTool(request,'reader_list')).settings.theme).toBe('system');
+  failSave=false;await settings.getByRole('button',{name:'重试',exact:true}).click();await expect(settings.getByRole('alert')).toHaveCount(0);await closeSettings(page);await page.getByRole('button',{name:'返回书架',exact:true}).click();await expect(page.getByRole('heading',{name:'书库',exact:true})).toBeVisible();expect((await previewTool(request,'reader_list')).settings.theme).toBe('sepia');
 });
 
 test('EPUB strips active content and fits narrow panel', async ({ page }) => {

@@ -1,3 +1,4 @@
+import {preferencesSchema,type WorkspacePreferences} from '../shared/preferences.js';
 import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -9,7 +10,7 @@ import { annotationSchema, appearanceSchema, bookMetadataSchema, defaultAppearan
 const hash=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const missing=(e:unknown)=>(e as NodeJS.ErrnoException)?.code==='ENOENT';
 const deltaSchema=z.object({kind:z.enum(['notes','folders','annotations','books']),id:z.string(),before:z.unknown().nullable(),after:z.string()});
-const stateSchema=z.object({version:z.literal(1),layout:z.enum(['cards','list']).default('cards'),revision:z.number().int().nonnegative(),folders:z.array(folderSchema).max(2000),notes:z.array(noteSchema).max(2000),annotations:z.array(annotationSchema).max(20000),sources:z.array(sourceSchema).max(20000),books:z.record(z.string(),bookMetadataSchema),appearance:appearanceSchema,aiBooks:z.array(z.string()).max(10000),undo:z.array(z.object({id:entityIdSchema,changes:z.array(deltaSchema),at:z.string(),libraryBooks:z.array(z.object({id:z.string(),lifecycle:z.string()})).optional()})).max(20)});
+const stateSchema=z.object({version:z.literal(1),preferences:preferencesSchema.optional(),layout:z.enum(['cards','list']).default('cards'),revision:z.number().int().nonnegative(),folders:z.array(folderSchema).max(2000),notes:z.array(noteSchema).max(2000),annotations:z.array(annotationSchema).max(20000),sources:z.array(sourceSchema).max(20000),books:z.record(z.string(),bookMetadataSchema),appearance:appearanceSchema,aiBooks:z.array(z.string()).max(10000),undo:z.array(z.object({id:entityIdSchema,changes:z.array(deltaSchema),at:z.string(),libraryBooks:z.array(z.object({id:z.string(),lifecycle:z.string()})).optional()})).max(20)});
 type State=z.infer<typeof stateSchema>;
 type Kind='notes'|'folders'|'annotations'|'books';
 type Mutable=Note|Folder|Annotation|BookMetadata;
@@ -57,7 +58,7 @@ export class WorkspaceStore {
       return {moved:items.length};
     });
   }
-  async snapshot():Promise<WorkspaceSnapshot>{const [{layout,revision,folders,notes,annotations,sources,books,appearance,aiBooks},access]=await Promise.all([this.read(),this.readAccess()]);return {layout,revision,accessRevision:access.revision,visits:access.visits,folders,notes:notes.map(({body,...note})=>({...note,preview:body.slice(0,180)})),annotations,sources,books,appearance,aiBooks};}
+  async snapshot():Promise<WorkspaceSnapshot>{const [{preferences,layout,revision,folders,notes,annotations,sources,books,appearance,aiBooks},access]=await Promise.all([this.read(),this.readAccess()]);return {preferences,layout,revision,accessRevision:access.revision,visits:access.visits,folders,notes:notes.map(({body,...note})=>({...note,preview:body.slice(0,180)})),annotations,sources,books,appearance,aiBooks};}
   async note(id:string):Promise<Note>{entityIdSchema.parse(id);const note=(await this.read()).notes.find(x=>x.id===id);if(!note)throw Error('笔记不存在');return note;}
   async source(id:string):Promise<SourceRef>{entityIdSchema.parse(id);const source=(await this.read()).sources.find(x=>x.id===id);if(!source)throw Error('引用不存在');return source;}
   async addSource(value:Omit<SourceRef,'id'|'createdAt'>):Promise<SourceRef>{return (await this.mutate(state=>{const same=state.sources.find(s=>s.bookId===value.bookId&&hash(s.anchor)===hash(value.anchor)&&s.quote===value.quote&&s.imageId===value.imageId);if(same)return same;const source=sourceSchema.parse({...value,id:randomUUID(),createdAt:new Date().toISOString()});state.sources.push(source);return source;},false)).value;}
@@ -73,6 +74,7 @@ export class WorkspaceStore {
   async attachBookUndo(id:string,books:{id:string;lifecycle:string}[]){return this.mutate(state=>{const entry=state.undo.find(x=>x.id===id);if(entry)entry.libraryBooks=books;return {saved:true};},false);}
   async undoBookList(id:string){return (await this.read()).undo.find(x=>x.id===id)?.libraryBooks??[];}
   async undo(id:string){return this.mutate(state=>{const entry=state.undo.find(x=>x.id===id);if(!entry)throw Error('这项修改已无法撤销');for(const change of entry.changes){const current=change.kind==='books'?state.books[change.id]:state[change.kind].find(x=>x.id===change.id);if(hash(current??null)!==change.after)throw new ConflictError();}for(const change of entry.changes){if(change.kind==='books'){if(change.before===null)delete state.books[change.id];else state.books[change.id]={...bookMetadataSchema.parse(change.before),revision:(state.books[change.id]?.revision??0)+1};}else{const rows=state[change.kind] as Mutable[];const next=rows.filter(x=>'id' in x&&x.id!==change.id);if(change.before)next.push({...change.before as Mutable,revision:(rows.find(x=>'id' in x&&x.id===change.id)?.revision??0)+1});(state[change.kind] as Mutable[])=next;}}state.undo=state.undo.filter(x=>x.id!==id);return {restored:true};},false);}
+  async preferences(patch:WorkspacePreferences){return this.mutate(state=>state.preferences={...state.preferences,...preferencesSchema.parse(patch)},false);}
   async layout(layout:'cards'|'list'){return this.mutate(state=>state.layout=layout,false);}
   async appearance(value:Appearance){return this.mutate(state=>state.appearance=appearanceSchema.parse({...value,noteFontSize:value.noteFontSize??state.appearance.noteFontSize??14}),false);}
   async allowBook(id:string,allowed:boolean){return this.mutate(state=>{state.aiBooks=state.aiBooks.filter(x=>x!==id);if(allowed)state.aiBooks.push(id);return {allowed};},false);}

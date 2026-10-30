@@ -295,7 +295,7 @@ export class ReaderStore {
     let settings = { ...defaultSettings };
     try { settings = settingsSchema.parse(JSON.parse(await fs.readFile(join(this.dataDir, 'settings.json'), 'utf8'))); }
     catch (error) { if (!isMissing(error)) throw new Error('Saved reading settings are damaged. The book files are unaffected.'); }
-    return { books, settings, storage: { mode: 'server', description: 'Saved on the Reader server, including original files, reading positions and bookmarks. Available again after restart on this server.' } };
+    return { books, settings, storage: { mode: 'server', path:this.dataDir, description: 'Saved on the Reader server, including original files, reading positions and bookmarks. Available again after restart on this server.' } };
   }
 
   async importBook(filename: string, bytes: Uint8Array, encoding?: string): Promise<BookDetail> {

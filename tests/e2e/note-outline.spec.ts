@@ -2,7 +2,7 @@ import { openNotes } from './navigation';
 import { test,expect,type APIRequestContext } from '@playwright/test';
 
 // Existing persistence/selection scenarios exercise the source editing mode.
-test.beforeEach(async({page})=>{await page.addInitScript(()=>{try{localStorage.setItem('reader-note-visual','false');}catch{}});});
+test.beforeEach(async({request})=>{await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name:'reader_preferences',arguments:{patch:{noteMode:'source'}}}});});
 
 async function rpc(request:APIRequestContext,name:string,args:object={}) {
   const response=await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name,arguments:args}});

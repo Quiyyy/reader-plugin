@@ -1,3 +1,4 @@
+import {preferencesSchema} from '../shared/preferences.js';
 import { searchSnippet } from '../shared/search.js';
 import { z } from 'zod';
 import { annotationSchema, noteCommentSchema, imageMarkSchema, noteImageAnnotationsSchema, appearanceSchema, bookIdSchema as id, bookMetadataSchema, entityIdSchema as uuid, noteSchema, sourceInputSchema, type SearchHit, type SourceInput, type SourceRef } from '../shared/workspace.js';
@@ -12,6 +13,7 @@ const noteFields={title:z.string().max(240),body:z.string().max(500000),folderId
 const libraryFields={kind:z.enum(['book','note','folder']),id:z.string().min(1).max(64)};
 const validLibraryTarget=(value:{kind:string;id:string})=>(value.kind==='book'?id:uuid).safeParse(value.id).success;
 export const workspaceSchemas={
+  reader_preferences:z.object({patch:preferencesSchema}).strict(),
   reader_note_bots:z.object({}).strict(),
   reader_note_bot_save:z.object({revision:z.number().int().nonnegative(),bot:noteBotSchema,makeDefault:z.boolean().optional()}).strict(),
   reader_note_bot_delete:z.object({revision:z.number().int().nonnegative(),id:uuid}).strict(),
@@ -106,6 +108,7 @@ export class WorkspaceService {
     case 'reader_library_layout':return this.store.layout(args.layout);
     case 'reader_library_visit':{if(args.kind==='book'&&!(await this.books()).some(book=>book.id===args.id))throw Error('书籍不存在或已在回收站');return this.store.visit(args);}
     case 'reader_library_move':{const books=new Set((await this.books()).map(book=>book.id));if(args.items.some((item:{kind:string;id:string})=>item.kind==='book'&&!books.has(item.id)))throw Error('书籍不存在或已在回收站');return this.store.move(args.items,args.folderId);}
+    case 'reader_preferences':return this.store.preferences(args.patch);
     case 'reader_workspace': return {...await this.store.snapshot(),navigation:this.navigation};
     case 'reader_note_bots':return this.store.bots.list();
     case 'reader_note_bot_save':return this.store.bots.save(args.revision,args.bot,args.makeDefault);

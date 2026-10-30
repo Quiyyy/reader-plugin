@@ -1,4 +1,4 @@
-import {openDiscovery} from './navigation';
+import {openDiscovery,closeSettings} from './navigation';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
@@ -30,7 +30,7 @@ test('sample source imports through file and URL UI, paginates, restarts and rea
   await dialog.getByRole('switch', { name: `启用 ${name}`, exact: true }).click();
   await dialog.getByRole('switch', { name: `停用 ${name}`, exact: true }).click();
   await dialog.getByRole('switch', { name: `启用 ${name}`, exact: true }).click();
-  await dialog.getByRole('button', { name: '找书', exact: true }).click();
+  await closeSettings(page);
     await dialog.getByLabel('搜索书源').selectOption({ label: name });
   await dialog.getByLabel('在线搜索关键词').fill('河岸');
   await dialog.getByRole('button', { name: '搜索', exact: true }).click();

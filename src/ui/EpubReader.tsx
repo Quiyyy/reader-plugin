@@ -1,3 +1,4 @@
+import type {EpubSettingsController} from './settings-types';
 import type { Annotation,SourceInput,SourceRef } from '../shared/workspace';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, CircleAlert, List, LoaderCircle, Minus, MoreHorizontal, Plus, Search, Settings2, Trash2, X } from 'lucide-react';
@@ -11,13 +12,13 @@ import './epub.css';
 
 const message=(e:unknown)=>e instanceof Error?e.message:'暂时无法读取，请重试';
 type Panel='toc'|'appearance'|'bookmarks'|'menu'|'search'|null;
-interface Props { searchTarget?:{query:string;chapter:number;paragraph:number}; onAnnotation?:(id:string)=>void; onTheme:(theme:ReaderSettings['theme'])=>void; registerGuard?:(guard:(()=>Promise<boolean>)|null)=>void;extraTools?:React.ReactNode;returnLabel?:string;source?:SourceRef; annotations?:Annotation[]; sources?:SourceRef[]; onSelect?:(source:SourceInput,rect:DOMRect)=>void; book:BookDetail; api:ReaderApi; settings:ReaderSettings; keyboard:KeyboardSettings; onBack:()=>Promise<void>; onLegacy:()=>void; onProgress:(progress:number,lastReadAt:string)=>void; }
+interface Props {onOpenSettings?:()=>void;registerSettings?:(value:EpubSettingsController|null)=>void; searchTarget?:{query:string;chapter:number;paragraph:number}; onAnnotation?:(id:string)=>void; onTheme:(theme:ReaderSettings['theme'])=>void; registerGuard?:(guard:(()=>Promise<boolean>)|null)=>void;extraTools?:React.ReactNode;returnLabel?:string;source?:SourceRef; annotations?:Annotation[]; sources?:SourceRef[]; onSelect?:(source:SourceInput,rect:DOMRect)=>void; book:BookDetail; api:ReaderApi; settings:ReaderSettings; keyboard:KeyboardSettings; onBack:()=>Promise<void>; onLegacy:()=>void; onProgress:(progress:number,lastReadAt:string)=>void; }
 function Toc({items,resource,fragment,select}: {items:EpubToc[];resource:string;fragment?:string;select:(target:EpubTarget)=>void}){
   return <ul className="epub-toc">{items.map((item,index)=><li key={`${item.target.resource}#${item.target.fragment??''}-${index}`}>
     {item.children.length?<details open><summary><button type="button" className={item.target.resource===resource&&item.target.fragment===fragment?'current':''} onClick={e=>{e.preventDefault();select(item.target);}}>{item.label}</button></summary><Toc items={item.children} resource={resource} fragment={fragment} select={select}/></details>:<button type="button" className={item.target.resource===resource&&item.target.fragment===fragment?'current':''} onClick={()=>select(item.target)}>{item.label}</button>}
   </li>)}</ul>;
 }
-export function EpubReader({searchTarget,onAnnotation,onTheme,book,api,settings,keyboard,onBack,onLegacy,onProgress,source,annotations=[],sources=[],onSelect,extraTools,returnLabel,registerGuard}:Props){
+export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnotation,onTheme,book,api,settings,keyboard,onBack,onLegacy,onProgress,source,annotations=[],sources=[],onSelect,extraTools,returnLabel,registerGuard}:Props){
   const epub=api.epub!;
   const [opened,setOpened]=useState<EpubOpen>();const openRef=useRef<EpubOpen|undefined>(undefined);
   const [panel,setPanel]=useState<Panel>(null);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [saving,setSaving]=useState(false);
@@ -29,6 +30,7 @@ export function EpubReader({searchTarget,onAnnotation,onTheme,book,api,settings,
   const [unmatched,setUnmatched]=useState(false);const [resourceErrors,setResourceErrors]=useState<string[]>([]);
   const host=useRef<HTMLDivElement>(null),dom=useRef<EpubDom|undefined>(undefined),dialog=useRef<HTMLDialogElement>(null),popover=useRef<HTMLElement>(null);
   const location=useRef<EpubLocation|undefined>(undefined),pending=useRef<EpubLocation|undefined>(undefined),appearanceRef=useRef(appearance),notes=useRef<EpubLocation[]>([]),active=useRef(true),restoring=useRef(true),request=useRef(0),chain=useRef<Promise<unknown>>(Promise.resolve()),timer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),intent=useRef(false),navigateRef=useRef<((target:EpubTarget,restore?:EpubLocation,note?:boolean)=>Promise<void>)|undefined>(undefined);
+  const viewport=useRef({width:0,height:0});
   const progressCallback=useRef(onProgress);progressCallback.current=onProgress;
   const flush=useCallback(async()=>{
     clearTimeout(timer.current);const value=pending.current;if(!value)return chain.current;
@@ -41,6 +43,7 @@ export function EpubReader({searchTarget,onAnnotation,onTheme,book,api,settings,
   },[epub,book.summary.id]);
   const capture=useCallback(()=>{
     if(restoring.current)return;
+    if(host.current&&(host.current.clientWidth!==viewport.current.width||host.current.clientHeight!==viewport.current.height))return;
     const value=dom.current?.location();if(!value)return;location.current=value;
     if(intent.current&&!notes.current.length){pending.current=value;clearTimeout(timer.current);timer.current=setTimeout(()=>{void flush().catch(()=>{});},400);}
   },[flush]);
@@ -52,6 +55,7 @@ export function EpubReader({searchTarget,onAnnotation,onTheme,book,api,settings,
       restoring.current=true;setLoading(true);setPanel(null);setError('');
       const chapter=await epub.chapter(book.summary.id,target.resource);if(!active.current||token!==request.current)return;
       await dom.current!.show(chapter,appearanceRef.current);if(!active.current||token!==request.current)return;
+      dom.current!.setAppearance(appearanceRef.current);viewport.current={width:host.current!.clientWidth,height:host.current!.clientHeight};
       let matched=true;if(restore)matched=dom.current!.restore(restore);else if(target.fragment)matched=dom.current!.anchor(target.fragment);
       if(!matched)setError('未找到准确位置，原进度已保留');
       location.current=matched?(restore??dom.current!.location()):undefined;
@@ -72,11 +76,18 @@ export function EpubReader({searchTarget,onAnnotation,onTheme,book,api,settings,
       await navigateRef.current?.({resource:target},source||searchTarget?undefined:value.state.location);if(source&&active.current)dom.current?.restoreSource(source);
       if(!value.state.location&&value.legacyLocation&&active.current)setUnmatched(true);
     }).catch(e=>{if(active.current){setError(message(e));setLoading(false);}});
+    let frame=0,settle=0;viewport.current={width:host.current!.clientWidth,height:host.current!.clientHeight};
     const resize=new ResizeObserver(()=>{
-      if(restoring.current)return;const prior=location.current??view.location();restoring.current=true;
-      view.setAppearance(appearanceRef.current);requestAnimationFrame(()=>{if(prior)view.restore(prior);restoring.current=false;});
+      const next={width:host.current!.clientWidth,height:host.current!.clientHeight},previous=viewport.current;
+      if(!next.width||!next.height||next.width===previous.width&&next.height===previous.height)return;
+      viewport.current=next;if(restoring.current&&!frame&&!settle)return;
+      const prior=location.current;restoring.current=true;cancelAnimationFrame(frame);cancelAnimationFrame(settle);
+      view.setAppearance(appearanceRef.current);if(prior)view.restore(prior);
+      // Paged restoration snaps to the start of the containing page. Capturing
+      // that programmatic scroll would move the anchor backwards on each resize.
+      frame=requestAnimationFrame(()=>{frame=0;settle=requestAnimationFrame(()=>{settle=0;restoring.current=false;});});
     });resize.observe(host.current!);
-    return ()=>{active.current=false;request.current++;clearTimeout(timer.current);resize.disconnect();view.dispose();};
+    return ()=>{active.current=false;request.current++;clearTimeout(timer.current);cancelAnimationFrame(frame);cancelAnimationFrame(settle);resize.disconnect();view.dispose();};
   },[book.summary.id,epub]);
   useEffect(()=>{dom.current?.highlights(annotations,sources);},[annotations,sources,resource,loading]);
   useEffect(()=>{const el=host.current;const select=()=>{try{const result=dom.current?.selection();if(result)onSelect?.(result.source,result.rect);}catch(e){setError(message(e));}};el?.addEventListener('mouseup',select);el?.addEventListener('keyup',select);return()=>{el?.removeEventListener('mouseup',select);el?.removeEventListener('keyup',select);};},[onSelect,resource]);
@@ -84,6 +95,8 @@ export function EpubReader({searchTarget,onAnnotation,onTheme,book,api,settings,
   useEffect(()=>api.onBeforeClose?.(flush),[api,flush]);
   useEffect(()=>{if(image)dialog.current?.showModal();else dialog.current?.close();},[image]);
   useEffect(()=>{if(panel)popover.current?.querySelector<HTMLElement>('input,button')?.focus();},[panel]);
+  const adoptAppearance=useCallback((value:EpubAppearance)=>{const prior=location.current??dom.current?.location();appearanceRef.current=value;setAppearance(value);restoring.current=true;dom.current?.setAppearance(value);requestAnimationFrame(()=>{if(prior)dom.current?.restore(prior);restoring.current=false;});},[]);
+  useEffect(()=>{registerSettings?.({id:book.summary.id,title:book.document.title,get:()=>appearanceRef.current,apply:adoptAppearance});return()=>registerSettings?.(null);},[registerSettings,book.summary.id,book.document.title,adoptAppearance]);
   const changeAppearance=async(next:Partial<EpubAppearance>)=>{
     const value={...appearanceRef.current,...next},prior=location.current??dom.current?.location();appearanceRef.current=value;setAppearance(value);restoring.current=true;
     dom.current?.setAppearance(value);requestAnimationFrame(()=>{if(prior)dom.current?.restore(prior);restoring.current=false;});
@@ -117,7 +130,7 @@ export function EpubReader({searchTarget,onAnnotation,onTheme,book,api,settings,
   const find=(index:number)=>{if(!dom.current?.revealMatch(index))return;intent.current=true;setFindIndex(index);setPanel(null);capture();};
   const search=()=>{if(findCount)find(0);};
   return <section className="epub-reader" onKeyDown={key} aria-label="EPUB 阅读器">
-    <header className="reader-toolbar"><div className="reader-title-group"><IconButton label={returnLabel??"返回书架"} onClick={()=>void back()}><ArrowLeft size={19}/></IconButton><div className="reading-title" title={book.document.title}>{book.document.title}</div></div><nav className="reader-actions" aria-label="阅读工具">{extraTools}<IconButton label="目录（T）" active={panel==='toc'} aria-expanded={panel==='toc'} onClick={()=>setPanel(panel==='toc'?null:'toc')}><List size={19}/></IconButton><IconButton label="阅读外观" active={panel==='appearance'} onClick={()=>setPanel(panel==='appearance'?null:'appearance')}><Settings2 size={19}/></IconButton><IconButton label="收藏当前位置（B）" onClick={()=>void addBookmark()}><Bookmark size={18}/></IconButton><IconButton label="更多" active={panel==='menu'} onClick={()=>setPanel(panel==='menu'?null:'menu')}><MoreHorizontal size={19}/></IconButton></nav></header>
+    <header className="reader-toolbar"><div className="reader-title-group"><IconButton label={returnLabel??"返回书架"} onClick={()=>void back()}><ArrowLeft size={19}/></IconButton><div className="reading-title" title={book.document.title}>{book.document.title}</div></div><nav className="reader-actions" aria-label="阅读工具">{extraTools}<IconButton label="目录（T）" active={panel==='toc'} aria-expanded={panel==='toc'} onClick={()=>setPanel(panel==='toc'?null:'toc')}><List size={19}/></IconButton><IconButton label={onOpenSettings?'设置':'阅读外观'} disabled={loading} active={panel==='appearance'} onClick={()=>onOpenSettings?onOpenSettings():setPanel(panel==='appearance'?null:'appearance')}><Settings2 size={19}/></IconButton><IconButton label="收藏当前位置（B）" onClick={()=>void addBookmark()}><Bookmark size={18}/></IconButton><IconButton label="更多" active={panel==='menu'} onClick={()=>setPanel(panel==='menu'?null:'menu')}><MoreHorizontal size={19}/></IconButton></nav></header>
     {error&&<div className="error-notice" role="alert"><CircleAlert size={16}/><span>{error}</span><button className="text-button" onClick={()=>void flush().catch(()=>{})}>重试保存</button><IconButton label="关闭提示" onClick={()=>setError('')}><X size={15}/></IconButton></div>}
     {!!findCount&&<SearchNavigation query={query} previous={findIndex>0} next={findIndex<findCount-1} onPrevious={()=>find(findIndex-1)} onNext={()=>find(findIndex+1)} onClose={()=>setQuery('')}/>}
     <div className="epub-stage"><div ref={host} className="epub-document" aria-label="EPUB 正文" onClick={event=>{if(event.nativeEvent.composedPath().some(node=>node instanceof Element&&node.matches('a[role=link],img'))||dom.current?.hasSelection())return;const id=dom.current?.annotationAt(event.clientX,event.clientY);if(id){setPanel(null);onAnnotation?.(id);}}} tabIndex={0} onScroll={capture} onWheel={()=>{intent.current=true;}} onTouchStart={()=>{intent.current=true;}} onPointerDown={()=>{intent.current=true;}} />

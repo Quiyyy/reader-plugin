@@ -106,7 +106,7 @@ try{
       const dom=await app.locator('.epub-document').evaluate(el=>({html:el.shadowRoot?.innerHTML.replace(/data:[^"']+/g,'[embedded resource]').slice(0,100000),text:el.shadowRoot?.textContent?.slice(-12000),scrollTop:el.scrollTop,scrollLeft:el.scrollLeft,width:el.clientWidth,scrollWidth:el.scrollWidth}));
       await writeFile(join(output,`${name}.dom.json`),JSON.stringify(dom,null,2));await writeFile(join(output,`${name}.aria.txt`),await app.locator('.epub-reader').ariaSnapshot());};
     await expect(app.getByRole('button',{name:'界面外观',exact:true})).toHaveCount(0);
-    await expect(app.getByRole('button',{name:'阅读外观',exact:true})).toHaveCount(1);
+    await expect(app.getByRole('button',{name:'设置',exact:true})).toHaveCount(1);
     await capture('reading-wide');report.checks.push('Production EPUB body rendered under existing CSP with a single appearance entry');
     await app.getByRole('button',{name:'目录（T）',exact:true}).click();
     await capture('contents-wide');
@@ -116,8 +116,8 @@ try{
     if(sampleEpub){await expect.poll(async()=>{report.tocAnchorTop=await app.locator('.epub-document').evaluate(el=>el.shadowRoot.querySelector('#bridge').getBoundingClientRect().top-el.getBoundingClientRect().top);return report.tocAnchorTop>=0&&report.tocAnchorTop<=60;}).toBe(true);}
     report.checks.push('Table of contents navigation completed');
     if(sampleEpub){await app.getByRole('button',{name:'目录（T）',exact:true}).click();await expect(app.locator('.epub-toc button.current')).toHaveCount(1);await capture('contents-current');await app.getByRole('button',{name:'关闭目录',exact:true}).click();}
-    await app.getByRole('button',{name:'阅读外观',exact:true}).click();await app.getByRole('button',{name:'放大字号',exact:true}).click();await app.getByRole('button',{name:'舒适',exact:true}).click();await capture('appearance-wide');
-    await app.getByRole('button',{name:'关闭阅读外观',exact:true}).click();
+    await app.getByRole('button',{name:'设置',exact:true}).click();await app.getByRole('button',{name:'放大字号',exact:true}).click();await app.getByRole('button',{name:'舒适',exact:true}).click();await capture('appearance-wide');
+    await app.getByRole('button',{name:'返回 Reader',exact:true}).click();
     await app.locator('.epub-document').hover();await page.mouse.wheel(0,430);await page.waitForTimeout(600);
     await app.getByRole('button',{name:'收藏当前位置（B）',exact:true}).click();
     await app.getByRole('button',{name:'返回书架',exact:true}).click();
@@ -128,7 +128,7 @@ try{
     if(JSON.stringify(JSON.parse(await readFile(join(dataDir,'books',id,'epub-v2.json'),'utf8')).bookmarks)!==JSON.stringify(report.positionBeforeReopen.bookmarks))throw Error('Bookmarks changed during reopen');
     await capture('reopened');report.checks.push('Sidecar and bookmarks survive page close/reopen');
     for(const width of [390,320]){await page.setViewportSize({width,height:900});await page.waitForTimeout(150);await capture(`reading-${width}`);await expect(app.locator('.epub-reader')).toBeVisible();const overflow=await app.locator('.epub-reader').evaluate(el=>el.scrollWidth>el.clientWidth);if(overflow)throw Error(`Reader controls overflow at ${width}px`);}
-    await app.getByRole('button',{name:'阅读外观',exact:true}).click();await app.getByRole('button',{name:'翻页',exact:true}).click();await app.getByRole('button',{name:'关闭阅读外观',exact:true}).click();await app.getByRole('button',{name:'下一页',exact:true}).click();await capture('pages-320');
+    await app.getByRole('button',{name:'设置',exact:true}).click();await app.getByRole('button',{name:'翻页',exact:true}).click();await app.getByRole('button',{name:'返回 Reader',exact:true}).click();await app.getByRole('button',{name:'下一页',exact:true}).click();await capture('pages-320');
     report.csp=await (values.surface==='bridge'?page.frames().find(frame=>frame!==page.mainFrame()):page).evaluate(()=>window.__readerInspectionCsp??[]);
     await app.getByRole('button',{name:'返回书架',exact:true}).click();report.positionAfter=JSON.parse(await readFile(join(dataDir,'books',id,'epub-v2.json'),'utf8'));
     if(report.pageErrors.length)throw Error('Uncaught page errors were recorded');

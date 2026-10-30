@@ -1,5 +1,7 @@
-import { openNotes } from './navigation';
+import { openNotes ,openSettings,closeSettings} from './navigation';
 import { expect,test,type APIRequestContext,type Page } from '@playwright/test';
+
+test.beforeEach(async({request})=>{await rpc(request,'reader_preferences',{patch:{noteMode:'visual',noteToolbar:false}});});
 
 async function rpc(request:APIRequestContext,name:string,args:object={}) {
   const response=await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name,arguments:args}}),value=await response.json();
@@ -21,14 +23,14 @@ test('visual and source modes share Markdown, render editable structure and keep
   await expect(page.getByRole('toolbar',{name:'笔记格式'})).toHaveCount(0);
   if(await page.getByRole('button',{name:'切换到源码',exact:true}).count())await page.getByRole('button',{name:'切换到源码',exact:true}).click();await expect(page.getByLabel('笔记正文')).toHaveValue(markdown);expect((await rpc(request,'reader_note_get',{id:note.id})).body).toBe(markdown);
   if(await page.getByRole('button',{name:'返回排版编辑',exact:true}).count())await page.getByRole('button',{name:'返回排版编辑',exact:true}).click();await editor.getByRole('checkbox').check();await expect.poll(async()=>(await rpc(request,'reader_note_get',{id:note.id})).body).toContain('[x]');
-  await page.getByRole('button',{name:'笔记操作',exact:true}).click();await page.getByLabel('显示格式工具栏').check();await page.getByRole('dialog',{name:'笔记操作'}).getByRole('button',{name:'关闭',exact:true}).click();await expect(page.getByRole('toolbar',{name:'笔记格式'})).toBeVisible();
+  await openSettings(page,'笔记');await page.getByRole('switch',{name:'显示格式工具栏'}).click();await closeSettings(page);await expect(page.getByRole('toolbar',{name:'笔记格式'})).toBeVisible();
   if(await page.getByRole('button',{name:'切换到源码',exact:true}).count())await page.getByRole('button',{name:'切换到源码',exact:true}).click();await expect(page.getByLabel('笔记正文')).toHaveValue(/<script>alert\(1\)<\/script>/);
   await page.getByLabel('笔记正文').fill('## 源码标题');await page.getByLabel('笔记正文').press('ControlOrMeta+A');await page.getByRole('toolbar',{name:'笔记选区操作'}).getByLabel('段落样式').selectOption('paragraph');await expect(page.getByLabel('笔记正文')).toHaveValue('源码标题');
 });
 test('custom Note Bots persist and @ assignment works in both editor modes without auto-sending',async({page,request})=>{
   await open(page,request,'指派助手','');await page.getByRole('button',{name:'笔记操作',exact:true}).click();await page.getByRole('button',{name:'管理 Note Bots',exact:true}).click();
   const manager=page.getByRole('region',{name:'Note Bot 配置',exact:true});await manager.getByRole('button',{name:'新建 Bot',exact:true}).click();await manager.getByLabel('Bot 名称').fill('学习搭档');await manager.getByLabel('Bot 用途').fill('把概念讲明白');await manager.getByLabel('Bot 指令').fill('用例子解释概念，不编造依据。');await manager.getByLabel('默认 Bot').check();await manager.getByRole('button',{name:'保存 Bot',exact:true}).click();
-  await expect.poll(async()=>(await rpc(request,'reader_note_bots')).bots.some((bot:any)=>bot.name==='学习搭档')).toBe(true);await manager.getByRole('button',{name:'返回笔记',exact:true}).click();
+  await expect.poll(async()=>(await rpc(request,'reader_note_bots')).bots.some((bot:any)=>bot.name==='学习搭档')).toBe(true);await closeSettings(page);
   for(const mode of ['visual','source']){
     const toggle=page.getByRole('button',{name:mode==='visual'?'返回排版编辑':'切换到源码',exact:true});if(await toggle.count())await toggle.click();const editor=page.getByLabel('笔记正文');await editor.fill('');await editor.pressSequentially('@');const chooser=page.getByRole('listbox',{name:'选择 Note Bot'});await expect(chooser).toBeVisible();await chooser.getByRole('option',{name:/学习搭档/}).click();
     const panel=page.getByRole('region',{name:'笔记对话',exact:true});await expect(panel).toBeVisible();const config=await rpc(request,'reader_note_bots');await expect(panel.getByLabel('指派 Note Bot')).toHaveValue(config.defaultId);await expect(panel.getByRole('button',{name:'发送',exact:true})).toBeDisabled();await page.getByLabel('笔记正文').click();
@@ -65,10 +67,18 @@ test('document block handles reorder paragraphs and keep the chat composer outsi
   await expect.poll(async()=>(await rpc(request,'reader_note_get',{id:note.id})).body).toMatch(/^第二段/);await expect(page.getByRole('region',{name:'笔记对话'})).toBeInViewport();
 });
 
+test('compact block handle opens useful actions without changing a note until an action is chosen',async({page,request})=>{
+  const original='第一段想法。\n\n第二段结论。',note=await open(page,request,'块菜单',original),editor=page.locator('.note-rich-content'),handle=page.getByRole('button',{name:'块操作',exact:true});
+  await editor.locator('p').first().hover();await expect(handle.locator('svg')).toHaveAttribute('width','14');await handle.click();const menu=page.getByRole('menu',{name:'块操作',exact:true});await expect(menu).toBeVisible();await expect(menu.getByRole('menuitem',{name:'上移',exact:true})).toBeDisabled();expect((await rpc(request,'reader_note_get',{id:note.id})).body).toBe(original);
+  await menu.getByRole('menuitem',{name:'下移',exact:true}).click();await expect(editor.locator('p').first()).toHaveText('第二段结论。');await editor.press('ControlOrMeta+z');await expect(editor.locator('p').first()).toHaveText('第一段想法。');
+  await editor.locator('p').first().hover();await handle.click();await menu.getByRole('menuitem',{name:'创建副本'}).click();await expect(editor.locator('p')).toHaveCount(3);await editor.locator('p').first().hover();await handle.click();await menu.getByRole('menuitem',{name:'删除块'}).click();await expect(editor.locator('p')).toHaveCount(2);
+  await editor.locator('p').first().hover();await handle.click();await menu.press('Escape');await expect(menu).toHaveCount(0);await handle.click();await menu.getByRole('menuitem',{name:'提出修改要求'}).click();await expect(page.getByLabel('给 Note Bot 的要求')).toBeFocused();await expect(page.getByRole('region',{name:'笔记对话'})).toContainText('第一段想法');
+});
+
 for(const width of [1280,390])test(`note typography, aligned status and anchored outside-dismiss menu at ${width}`,async({page,request})=>{
   const state=await rpc(request,'reader_workspace');await rpc(request,'reader_appearance',{appearance:{...state.appearance,noteFontSize:14}});await page.setViewportSize({width,height:850});const note=await open(page,request,'字号与对话操作 '+width,'统一字号的正文。');
   const dock=page.getByRole('region',{name:'笔记对话'});await expect(page.locator('.note-rich-content')).toHaveCSS('font-size','14px');await page.getByRole('button',{name:'切换到源码',exact:true}).click();await expect(page.getByLabel('笔记正文')).toHaveCSS('font-size','14px');
-  await page.getByRole('button',{name:'笔记操作',exact:true}).click();await page.getByLabel('笔记默认字号').selectOption('18');await expect.poll(async()=>(await rpc(request,'reader_workspace')).appearance.noteFontSize).toBe(18);await page.getByRole('dialog',{name:'笔记操作'}).getByRole('button',{name:'关闭',exact:true}).click();await expect(page.getByLabel('笔记正文')).toHaveCSS('font-size','18px');await page.getByRole('button',{name:'返回排版编辑',exact:true}).click();await expect(page.locator('.note-rich-content')).toHaveCSS('font-size','18px');
+  await openSettings(page,'笔记');await page.getByLabel('笔记默认字号').selectOption('18');await expect.poll(async()=>(await rpc(request,'reader_workspace')).appearance.noteFontSize).toBe(18);await closeSettings(page);await expect(page.getByLabel('笔记正文')).toHaveCSS('font-size','18px');await page.getByRole('button',{name:'返回排版编辑',exact:true}).click();await expect(page.locator('.note-rich-content')).toHaveCSS('font-size','18px');
   await page.route('**/api/tool',async route=>{const call=route.request().postDataJSON();if(call.name!=='reader_chat_send')return route.continue();const session=await rpc(request,'reader_chat_get',{id:call.arguments.id});await route.fulfill({json:{content:[],_meta:{reader:{...session,noteTask:true,status:'idle',messages:[{id:'user',role:'user',text:call.arguments.text,sourceIds:[],createdAt:new Date().toISOString()},{id:'question',role:'assistant',text:'希望侧重概念理解还是实践？',sourceIds:[],createdAt:new Date().toISOString()}]}}}});});
   await dock.getByLabel('给 Note Bot 的要求').fill('完善这篇笔记');await dock.getByRole('button',{name:'发送',exact:true}).click();await expect(dock.getByRole('log')).toContainText('希望侧重');const status=await page.locator('.study-note-status').boundingBox(),toggle=await dock.getByRole('button',{name:'收起对话'}).boundingBox();expect(Math.abs(status!.y+status!.height/2-toggle!.y-toggle!.height/2)).toBeLessThan(1);
   const plus=dock.getByRole('button',{name:'对话附件与操作'});await plus.click();const menu=page.getByRole('menu',{name:'对话操作'});await expect(menu).toBeInViewport();const menuBox=await menu.boundingBox(),plusBox=await plus.boundingBox();expect(Math.abs(menuBox!.y+menuBox!.height-plusBox!.y)).toBeLessThanOrEqual(8);const title=await page.getByLabel('笔记标题').boundingBox();await page.mouse.click(title!.x+20,title!.y+10);await expect(menu).toHaveCount(0);await page.screenshot({path:`artifacts/note-task-composer-${width}.png`});
