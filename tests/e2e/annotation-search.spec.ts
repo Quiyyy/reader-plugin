@@ -32,7 +32,8 @@ for(const format of ['txt','epub','pdf'] as const)test(`${format}: existing high
 
 test('annotation version conflicts preserve the draft until explicit cancellation',async({page,request})=>{
   const target=await open(page,'txt');await select(target);await page.getByRole('toolbar',{name:'选区操作'}).getByRole('button',{name:'批注',exact:true}).click();const editor=page.getByRole('dialog',{name:'批注',exact:true});await editor.getByLabel('我的想法').fill('初始想法');await editor.getByRole('button',{name:'保存批注'}).click();
-  const state=await rpc(request,'reader_workspace'),annotation=state.annotations.find((a:any)=>a.comment==='初始想法');await clickHighlight(page,'txt');await editor.getByLabel('我的想法').fill('保留我的草稿');await rpc(request,'reader_annotation_save',{id:annotation.id,revision:annotation.revision,sourceId:annotation.sourceId,color:'yellow',comment:'另一个窗口的修改'});
+  await expect(editor).toHaveCount(0);
+  const state=await rpc(request,'reader_workspace'),annotation=state.annotations.find((a:any)=>a.comment==='初始想法');expect(annotation).toBeDefined();await clickHighlight(page,'txt');await editor.getByLabel('我的想法').fill('保留我的草稿');await rpc(request,'reader_annotation_save',{id:annotation.id,revision:annotation.revision,sourceId:annotation.sourceId,color:'yellow',comment:'另一个窗口的修改'});
   await editor.getByRole('button',{name:'保存批注'}).click();await expect(editor.getByRole('alert')).toContainText('另一个窗口');await expect(editor.getByLabel('我的想法')).toHaveValue('保留我的草稿');await page.keyboard.press('Escape');await expect(editor).toBeVisible();await editor.getByRole('button',{name:'取消',exact:true}).click();await expect(editor).toHaveCount(0);
   expect((await rpc(request,'reader_workspace')).annotations.find((a:any)=>a.id===annotation.id).comment).toBe('另一个窗口的修改');
 });

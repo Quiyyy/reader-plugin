@@ -28,7 +28,16 @@ export async function atomicWrite(filename: string, contents: string | Uint8Arra
     await handle.writeFile(contents);
     await handle.sync();
     await handle.close();
-    await fs.rename(temporary, filename);
+    // Windows readers or scanners can briefly deny replacement. Retry the same
+    // fully written file; never unlink the destination or expose partial data.
+    for (let attempt = 0; ; attempt++) {
+      try { await fs.rename(temporary, filename); break; }
+      catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (attempt >= 5 || !['EPERM', 'EACCES', 'EBUSY'].includes(code ?? '')) throw error;
+        await delay(Math.min(50 * 2 ** attempt, 400));
+      }
+    }
   } catch (error) {
     await handle.close().catch(() => undefined);
     await fs.unlink(temporary).catch(() => undefined);
