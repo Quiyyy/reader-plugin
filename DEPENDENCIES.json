@@ -733,11 +733,344 @@
     "supplemental": []
   },
   {
+    "name": "@tiptap/core",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-80-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-blockquote",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-81-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-bold",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-82-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-bubble-menu",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-83-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-bullet-list",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-84-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-code",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-85-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-code-block",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-86-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-collaboration",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-87-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-document",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-88-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-drag-handle",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-89-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-dropcursor",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-90-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-floating-menu",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-91-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-gapcursor",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-92-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-hard-break",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-93-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-heading",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-94-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-horizontal-rule",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-95-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-image",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-96-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-italic",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-97-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-link",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-98-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-list",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-99-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-list-item",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-100-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-list-keymap",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-101-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-node-range",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-102-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-ordered-list",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-103-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-paragraph",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-104-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-strike",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-105-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-table",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-106-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-task-item",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-107-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-task-list",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-108-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-text",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-109-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extension-underline",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-110-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/extensions",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-111-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/markdown",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-112-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/pm",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-113-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/react",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-114-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/starter-kit",
+    "version": "3.32.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-115-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@tiptap/y-tiptap",
+    "version": "3.0.11",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-116-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
     "name": "@types/debug",
     "version": "4.1.13",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-80-0.txt"
+      "licenses/dependency-117-0.txt"
     ],
     "supplemental": []
   },
@@ -746,7 +1079,7 @@
     "version": "1.0.9",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-81-0.txt"
+      "licenses/dependency-118-0.txt"
     ],
     "supplemental": []
   },
@@ -755,7 +1088,7 @@
     "version": "1.0.5",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-82-0.txt"
+      "licenses/dependency-119-0.txt"
     ],
     "supplemental": []
   },
@@ -764,7 +1097,7 @@
     "version": "3.0.5",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-83-0.txt"
+      "licenses/dependency-120-0.txt"
     ],
     "supplemental": []
   },
@@ -773,7 +1106,7 @@
     "version": "0.16.8",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-84-0.txt"
+      "licenses/dependency-121-0.txt"
     ],
     "supplemental": []
   },
@@ -782,7 +1115,7 @@
     "version": "4.0.4",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-85-0.txt"
+      "licenses/dependency-122-0.txt"
     ],
     "supplemental": []
   },
@@ -791,7 +1124,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-86-0.txt"
+      "licenses/dependency-123-0.txt"
     ],
     "supplemental": []
   },
@@ -800,7 +1133,7 @@
     "version": "1.26.6",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-87-0.txt"
+      "licenses/dependency-124-0.txt"
     ],
     "supplemental": []
   },
@@ -809,7 +1142,7 @@
     "version": "19.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-88-0.txt"
+      "licenses/dependency-125-0.txt"
     ],
     "supplemental": []
   },
@@ -818,7 +1151,7 @@
     "version": "19.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-89-0.txt"
+      "licenses/dependency-126-0.txt"
     ],
     "supplemental": []
   },
@@ -827,7 +1160,16 @@
     "version": "3.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-90-0.txt"
+      "licenses/dependency-127-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "@types/use-sync-external-store",
+    "version": "0.0.6",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-128-0.txt"
     ],
     "supplemental": []
   },
@@ -836,7 +1178,7 @@
     "version": "1.4.0",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-91-0.txt"
+      "licenses/dependency-129-0.txt"
     ],
     "supplemental": []
   },
@@ -845,7 +1187,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-92-0.txt"
+      "licenses/dependency-130-0.txt"
     ],
     "supplemental": []
   },
@@ -854,7 +1196,7 @@
     "version": "8.15.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-93-0.txt"
+      "licenses/dependency-131-0.txt"
     ],
     "supplemental": []
   },
@@ -863,7 +1205,7 @@
     "version": "8.20.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-94-0.txt"
+      "licenses/dependency-132-0.txt"
     ],
     "supplemental": []
   },
@@ -872,7 +1214,7 @@
     "version": "3.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-95-0.txt"
+      "licenses/dependency-133-0.txt"
     ],
     "supplemental": []
   },
@@ -881,7 +1223,7 @@
     "version": "1.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-96-0.txt"
+      "licenses/dependency-134-0.txt"
     ],
     "supplemental": []
   },
@@ -890,7 +1232,7 @@
     "version": "1.2.6",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-97-0.txt"
+      "licenses/dependency-135-0.txt"
     ],
     "supplemental": []
   },
@@ -899,7 +1241,7 @@
     "version": "2.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-98-0.txt"
+      "licenses/dependency-136-0.txt"
     ],
     "supplemental": []
   },
@@ -908,7 +1250,7 @@
     "version": "2.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-99-0.txt"
+      "licenses/dependency-137-0.txt"
     ],
     "supplemental": []
   },
@@ -917,7 +1259,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-100-0.txt"
+      "licenses/dependency-138-0.txt"
     ],
     "supplemental": []
   },
@@ -926,7 +1268,7 @@
     "version": "2.0.0",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-101-0.txt"
+      "licenses/dependency-139-0.txt"
     ],
     "supplemental": []
   },
@@ -935,7 +1277,7 @@
     "version": "3.1.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-102-0.txt"
+      "licenses/dependency-140-0.txt"
     ],
     "supplemental": []
   },
@@ -944,7 +1286,7 @@
     "version": "1.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-103-0.txt"
+      "licenses/dependency-141-0.txt"
     ],
     "supplemental": []
   },
@@ -953,7 +1295,7 @@
     "version": "1.0.4",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-104-0.txt"
+      "licenses/dependency-142-0.txt"
     ],
     "supplemental": []
   },
@@ -962,7 +1304,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-105-0.txt"
+      "licenses/dependency-143-0.txt"
     ],
     "supplemental": []
   },
@@ -971,7 +1313,7 @@
     "version": "2.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-106-0.txt"
+      "licenses/dependency-144-0.txt"
     ],
     "supplemental": []
   },
@@ -980,7 +1322,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-107-0.txt"
+      "licenses/dependency-145-0.txt"
     ],
     "supplemental": []
   },
@@ -989,7 +1331,7 @@
     "version": "3.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-108-0.txt"
+      "licenses/dependency-146-0.txt"
     ],
     "supplemental": []
   },
@@ -998,7 +1340,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-109-0.txt"
+      "licenses/dependency-147-0.txt"
     ],
     "supplemental": []
   },
@@ -1007,7 +1349,7 @@
     "version": "2.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-110-0.txt"
+      "licenses/dependency-148-0.txt"
     ],
     "supplemental": []
   },
@@ -1016,7 +1358,7 @@
     "version": "2.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-111-0.txt"
+      "licenses/dependency-149-0.txt"
     ],
     "supplemental": []
   },
@@ -1025,7 +1367,7 @@
     "version": "8.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-112-0.txt"
+      "licenses/dependency-150-0.txt"
     ],
     "supplemental": []
   },
@@ -1034,7 +1376,7 @@
     "version": "1.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-113-0.txt"
+      "licenses/dependency-151-0.txt"
     ],
     "supplemental": []
   },
@@ -1043,7 +1385,7 @@
     "version": "1.0.5",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-114-0.txt"
+      "licenses/dependency-152-0.txt"
     ],
     "supplemental": []
   },
@@ -1052,7 +1394,7 @@
     "version": "0.7.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-115-0.txt"
+      "licenses/dependency-153-0.txt"
     ],
     "supplemental": []
   },
@@ -1061,7 +1403,7 @@
     "version": "1.2.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-116-0.txt"
+      "licenses/dependency-154-0.txt"
     ],
     "supplemental": []
   },
@@ -1070,7 +1412,7 @@
     "version": "2.8.6",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-117-0.txt"
+      "licenses/dependency-155-0.txt"
     ],
     "supplemental": []
   },
@@ -1079,7 +1421,7 @@
     "version": "7.0.6",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-118-0.txt"
+      "licenses/dependency-156-0.txt"
     ],
     "supplemental": []
   },
@@ -1088,7 +1430,7 @@
     "version": "7.0.0",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-119-0.txt"
+      "licenses/dependency-157-0.txt"
     ],
     "supplemental": []
   },
@@ -1097,7 +1439,7 @@
     "version": "8.0.0",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-120-0.txt"
+      "licenses/dependency-158-0.txt"
     ],
     "supplemental": []
   },
@@ -1106,7 +1448,7 @@
     "version": "0.5.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-121-0.txt"
+      "licenses/dependency-159-0.txt"
     ],
     "supplemental": []
   },
@@ -1115,7 +1457,7 @@
     "version": "3.2.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-122-0.txt"
+      "licenses/dependency-160-0.txt"
     ],
     "supplemental": []
   },
@@ -1124,7 +1466,7 @@
     "version": "4.4.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-123-0.txt"
+      "licenses/dependency-161-0.txt"
     ],
     "supplemental": []
   },
@@ -1133,7 +1475,7 @@
     "version": "1.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-124-0.txt"
+      "licenses/dependency-162-0.txt"
     ],
     "supplemental": []
   },
@@ -1142,7 +1484,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-125-0.txt"
+      "licenses/dependency-163-0.txt"
     ],
     "supplemental": []
   },
@@ -1151,7 +1493,7 @@
     "version": "2.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-126-0.txt"
+      "licenses/dependency-164-0.txt"
     ],
     "supplemental": []
   },
@@ -1160,7 +1502,7 @@
     "version": "1.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-127-0.txt"
+      "licenses/dependency-165-0.txt"
     ],
     "supplemental": []
   },
@@ -1169,7 +1511,7 @@
     "version": "1.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-128-0.txt"
+      "licenses/dependency-166-0.txt"
     ],
     "supplemental": []
   },
@@ -1178,7 +1520,7 @@
     "version": "3.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-129-0.txt"
+      "licenses/dependency-167-0.txt"
     ],
     "supplemental": []
   },
@@ -1187,7 +1529,7 @@
     "version": "3.0.0",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-130-0.txt"
+      "licenses/dependency-168-0.txt"
     ],
     "supplemental": []
   },
@@ -1196,7 +1538,7 @@
     "version": "6.0.1",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-131-0.txt"
+      "licenses/dependency-169-0.txt"
     ],
     "supplemental": []
   },
@@ -1205,7 +1547,7 @@
     "version": "4.0.2",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-132-0.txt"
+      "licenses/dependency-170-0.txt"
     ],
     "supplemental": []
   },
@@ -1214,7 +1556,7 @@
     "version": "1.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-133-0.txt"
+      "licenses/dependency-171-0.txt"
     ],
     "supplemental": []
   },
@@ -1223,7 +1565,7 @@
     "version": "1.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-134-0.txt"
+      "licenses/dependency-172-0.txt"
     ],
     "supplemental": []
   },
@@ -1232,7 +1574,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-135-0.txt"
+      "licenses/dependency-173-0.txt"
     ],
     "supplemental": []
   },
@@ -1241,7 +1583,7 @@
     "version": "8.1.0",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-136-0.txt"
+      "licenses/dependency-174-0.txt"
     ],
     "supplemental": []
   },
@@ -1250,7 +1592,7 @@
     "version": "1.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-137-0.txt"
+      "licenses/dependency-175-0.txt"
     ],
     "supplemental": []
   },
@@ -1259,7 +1601,7 @@
     "version": "1.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-138-0.txt"
+      "licenses/dependency-176-0.txt"
     ],
     "supplemental": []
   },
@@ -1268,7 +1610,7 @@
     "version": "1.1.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-139-0.txt"
+      "licenses/dependency-177-0.txt"
     ],
     "supplemental": []
   },
@@ -1277,7 +1619,7 @@
     "version": "1.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-140-0.txt"
+      "licenses/dependency-178-0.txt"
     ],
     "supplemental": []
   },
@@ -1286,7 +1628,7 @@
     "version": "5.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-141-0.txt"
+      "licenses/dependency-179-0.txt"
     ],
     "supplemental": []
   },
@@ -1295,7 +1637,7 @@
     "version": "3.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-142-0.txt"
+      "licenses/dependency-180-0.txt"
     ],
     "supplemental": []
   },
@@ -1304,7 +1646,7 @@
     "version": "1.8.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-143-0.txt"
+      "licenses/dependency-181-0.txt"
     ],
     "supplemental": []
   },
@@ -1313,7 +1655,7 @@
     "version": "3.0.7",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-144-0.txt"
+      "licenses/dependency-182-0.txt"
     ],
     "supplemental": []
   },
@@ -1322,7 +1664,7 @@
     "version": "3.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-145-0.txt"
+      "licenses/dependency-183-0.txt"
     ],
     "supplemental": []
   },
@@ -1331,7 +1673,7 @@
     "version": "5.2.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-146-0.txt"
+      "licenses/dependency-184-0.txt"
     ],
     "supplemental": []
   },
@@ -1340,7 +1682,7 @@
     "version": "8.7.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-147-0.txt"
+      "licenses/dependency-185-0.txt"
     ],
     "supplemental": []
   },
@@ -1349,7 +1691,7 @@
     "version": "3.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-148-0.txt"
+      "licenses/dependency-186-0.txt"
     ],
     "supplemental": []
   },
@@ -1358,7 +1700,16 @@
     "version": "3.1.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-149-0.txt"
+      "licenses/dependency-187-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "fast-equals",
+    "version": "5.4.5",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-188-0.txt"
     ],
     "supplemental": []
   },
@@ -1367,7 +1718,7 @@
     "version": "3.1.8",
     "license": "BSD-3-Clause",
     "notices": [
-      "licenses/dependency-150-0.txt"
+      "licenses/dependency-189-0.txt"
     ],
     "supplemental": []
   },
@@ -1376,7 +1727,7 @@
     "version": "1.3.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-151-0.txt"
+      "licenses/dependency-190-0.txt"
     ],
     "supplemental": []
   },
@@ -1385,7 +1736,7 @@
     "version": "5.11.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-152-0.txt"
+      "licenses/dependency-191-0.txt"
     ],
     "supplemental": []
   },
@@ -1394,7 +1745,7 @@
     "version": "1.0.4",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-153-0.txt"
+      "licenses/dependency-192-0.txt"
     ],
     "supplemental": []
   },
@@ -1403,7 +1754,7 @@
     "version": "0.8.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-154-0.txt"
+      "licenses/dependency-193-0.txt"
     ],
     "supplemental": []
   },
@@ -1412,7 +1763,7 @@
     "version": "2.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-155-0.txt"
+      "licenses/dependency-194-0.txt"
     ],
     "supplemental": []
   },
@@ -1433,7 +1784,7 @@
     "version": "0.2.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-157-0.txt"
+      "licenses/dependency-196-0.txt"
     ],
     "supplemental": []
   },
@@ -1442,7 +1793,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-158-0.txt"
+      "licenses/dependency-197-0.txt"
     ],
     "supplemental": []
   },
@@ -1451,7 +1802,7 @@
     "version": "1.1.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-159-0.txt"
+      "licenses/dependency-198-0.txt"
     ],
     "supplemental": []
   },
@@ -1460,7 +1811,7 @@
     "version": "1.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-160-0.txt"
+      "licenses/dependency-199-0.txt"
     ],
     "supplemental": []
   },
@@ -1469,7 +1820,7 @@
     "version": "1.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-161-0.txt"
+      "licenses/dependency-200-0.txt"
     ],
     "supplemental": []
   },
@@ -1478,7 +1829,7 @@
     "version": "1.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-162-0.txt"
+      "licenses/dependency-201-0.txt"
     ],
     "supplemental": []
   },
@@ -1487,7 +1838,7 @@
     "version": "1.2.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-163-0.txt"
+      "licenses/dependency-202-0.txt"
     ],
     "supplemental": []
   },
@@ -1496,7 +1847,7 @@
     "version": "1.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-164-0.txt"
+      "licenses/dependency-203-0.txt"
     ],
     "supplemental": []
   },
@@ -1505,7 +1856,7 @@
     "version": "2.0.4",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-165-0.txt"
+      "licenses/dependency-204-0.txt"
     ],
     "supplemental": []
   },
@@ -1514,7 +1865,7 @@
     "version": "5.0.1",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-166-0.txt"
+      "licenses/dependency-205-0.txt"
     ],
     "supplemental": []
   },
@@ -1523,7 +1874,7 @@
     "version": "2.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-167-0.txt"
+      "licenses/dependency-206-0.txt"
     ],
     "supplemental": []
   },
@@ -1532,7 +1883,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-168-0.txt"
+      "licenses/dependency-207-0.txt"
     ],
     "supplemental": []
   },
@@ -1541,7 +1892,7 @@
     "version": "8.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-169-0.txt"
+      "licenses/dependency-208-0.txt"
     ],
     "supplemental": []
   },
@@ -1550,7 +1901,7 @@
     "version": "3.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-170-0.txt"
+      "licenses/dependency-209-0.txt"
     ],
     "supplemental": []
   },
@@ -1559,7 +1910,7 @@
     "version": "4.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-171-0.txt"
+      "licenses/dependency-210-0.txt"
     ],
     "supplemental": []
   },
@@ -1568,7 +1919,7 @@
     "version": "2.3.6",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-172-0.txt"
+      "licenses/dependency-211-0.txt"
     ],
     "supplemental": []
   },
@@ -1577,7 +1928,7 @@
     "version": "4.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-173-0.txt"
+      "licenses/dependency-212-0.txt"
     ],
     "supplemental": []
   },
@@ -1586,7 +1937,7 @@
     "version": "3.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-174-0.txt"
+      "licenses/dependency-213-0.txt"
     ],
     "supplemental": []
   },
@@ -1595,7 +1946,7 @@
     "version": "9.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-175-0.txt"
+      "licenses/dependency-214-0.txt"
     ],
     "supplemental": []
   },
@@ -1604,7 +1955,7 @@
     "version": "10.7.3",
     "license": "BSD-3-Clause",
     "notices": [
-      "licenses/dependency-176-0.txt"
+      "licenses/dependency-215-0.txt"
     ],
     "supplemental": []
   },
@@ -1627,7 +1978,7 @@
     "version": "4.13.12",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-178-0.txt"
+      "licenses/dependency-217-0.txt"
     ],
     "supplemental": []
   },
@@ -1636,7 +1987,7 @@
     "version": "3.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-179-0.txt"
+      "licenses/dependency-218-0.txt"
     ],
     "supplemental": []
   },
@@ -1645,7 +1996,7 @@
     "version": "3.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-180-0.txt"
+      "licenses/dependency-219-0.txt"
     ],
     "supplemental": []
   },
@@ -1654,7 +2005,7 @@
     "version": "10.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-181-0.txt"
+      "licenses/dependency-220-0.txt"
     ],
     "supplemental": []
   },
@@ -1663,7 +2014,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-182-0.txt"
+      "licenses/dependency-221-0.txt"
     ],
     "supplemental": []
   },
@@ -1672,7 +2023,7 @@
     "version": "4.5.0",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-183-0.txt"
+      "licenses/dependency-222-0.txt"
     ],
     "supplemental": []
   },
@@ -1681,7 +2032,7 @@
     "version": "2.3.0",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-184-0.txt"
+      "licenses/dependency-223-0.txt"
     ],
     "supplemental": []
   },
@@ -1690,7 +2041,7 @@
     "version": "5.0.3",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-185-0.txt"
+      "licenses/dependency-224-0.txt"
     ],
     "supplemental": []
   },
@@ -1699,7 +2050,7 @@
     "version": "3.2.2",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-186-0.txt"
+      "licenses/dependency-225-0.txt"
     ],
     "supplemental": []
   },
@@ -1708,7 +2059,7 @@
     "version": "7.0.1",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-187-0.txt"
+      "licenses/dependency-226-0.txt"
     ],
     "supplemental": []
   },
@@ -1717,7 +2068,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-188-0.txt"
+      "licenses/dependency-227-0.txt"
     ],
     "supplemental": []
   },
@@ -1726,7 +2077,7 @@
     "version": "0.7.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-189-0.txt"
+      "licenses/dependency-228-0.txt"
     ],
     "supplemental": []
   },
@@ -1735,7 +2086,7 @@
     "version": "2.0.4",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-190-0.txt"
+      "licenses/dependency-229-0.txt"
     ],
     "supplemental": []
   },
@@ -1744,7 +2095,7 @@
     "version": "0.2.7",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-191-0.txt"
+      "licenses/dependency-230-0.txt"
     ],
     "supplemental": []
   },
@@ -1753,7 +2104,7 @@
     "version": "10.7.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-192-0.txt"
+      "licenses/dependency-231-0.txt"
     ],
     "supplemental": []
   },
@@ -1762,7 +2113,7 @@
     "version": "1.9.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-193-0.txt"
+      "licenses/dependency-232-0.txt"
     ],
     "supplemental": []
   },
@@ -1771,7 +2122,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-194-0.txt"
+      "licenses/dependency-233-0.txt"
     ],
     "supplemental": []
   },
@@ -1780,7 +2131,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-195-0.txt"
+      "licenses/dependency-234-0.txt"
     ],
     "supplemental": []
   },
@@ -1789,7 +2140,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-196-0.txt"
+      "licenses/dependency-235-0.txt"
     ],
     "supplemental": []
   },
@@ -1798,7 +2149,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-197-0.txt"
+      "licenses/dependency-236-0.txt"
     ],
     "supplemental": []
   },
@@ -1807,7 +2158,7 @@
     "version": "4.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-198-0.txt"
+      "licenses/dependency-237-0.txt"
     ],
     "supplemental": []
   },
@@ -1816,7 +2167,7 @@
     "version": "4.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-199-0.txt"
+      "licenses/dependency-238-0.txt"
     ],
     "supplemental": []
   },
@@ -1825,7 +2176,7 @@
     "version": "2.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-200-0.txt"
+      "licenses/dependency-239-0.txt"
     ],
     "supplemental": []
   },
@@ -1834,7 +2185,16 @@
     "version": "2.0.0",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-201-0.txt"
+      "licenses/dependency-240-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "isomorphic.js",
+    "version": "0.2.5",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-241-0.txt"
     ],
     "supplemental": []
   },
@@ -1843,7 +2203,7 @@
     "version": "6.2.12",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-202-0.txt"
+      "licenses/dependency-242-0.txt"
     ],
     "supplemental": []
   },
@@ -1852,7 +2212,7 @@
     "version": "1.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-203-0.txt"
+      "licenses/dependency-243-0.txt"
     ],
     "supplemental": []
   },
@@ -1861,7 +2221,7 @@
     "version": "8.0.2",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-204-0.txt"
+      "licenses/dependency-244-0.txt"
     ],
     "supplemental": []
   },
@@ -1870,7 +2230,16 @@
     "version": "0.16.47",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-205-0.txt"
+      "licenses/dependency-245-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "lib0",
+    "version": "0.2.119",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-246-0.txt"
     ],
     "supplemental": []
   },
@@ -1879,7 +2248,16 @@
     "version": "0.18.13",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-206-0.txt"
+      "licenses/dependency-247-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "linkifyjs",
+    "version": "4.4.0",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-248-0.txt"
     ],
     "supplemental": []
   },
@@ -1888,7 +2266,7 @@
     "version": "4.18.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-207-0.txt"
+      "licenses/dependency-249-0.txt"
     ],
     "supplemental": []
   },
@@ -1897,7 +2275,7 @@
     "version": "4.0.8",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-208-0.txt"
+      "licenses/dependency-250-0.txt"
     ],
     "supplemental": []
   },
@@ -1906,7 +2284,7 @@
     "version": "3.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-209-0.txt"
+      "licenses/dependency-251-0.txt"
     ],
     "supplemental": []
   },
@@ -1915,7 +2293,7 @@
     "version": "1.20.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-210-0.txt"
+      "licenses/dependency-252-0.txt"
     ],
     "supplemental": []
   },
@@ -1924,7 +2302,7 @@
     "version": "1.49.0",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-211-0.txt"
+      "licenses/dependency-253-0.txt"
     ],
     "supplemental": []
   },
@@ -1933,7 +2311,7 @@
     "version": "3.7.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-212-0.txt"
+      "licenses/dependency-254-0.txt"
     ],
     "supplemental": []
   },
@@ -1942,7 +2320,16 @@
     "version": "3.0.4",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-213-0.txt"
+      "licenses/dependency-255-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "marked",
+    "version": "17.0.6",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-256-0.txt"
     ],
     "supplemental": []
   },
@@ -1951,7 +2338,7 @@
     "version": "1.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-214-0.txt"
+      "licenses/dependency-257-0.txt"
     ],
     "supplemental": []
   },
@@ -1960,7 +2347,7 @@
     "version": "3.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-215-0.txt"
+      "licenses/dependency-258-0.txt"
     ],
     "supplemental": []
   },
@@ -1969,7 +2356,7 @@
     "version": "3.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-216-0.txt"
+      "licenses/dependency-259-0.txt"
     ],
     "supplemental": []
   },
@@ -1978,7 +2365,7 @@
     "version": "2.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-217-0.txt"
+      "licenses/dependency-260-0.txt"
     ],
     "supplemental": []
   },
@@ -1987,7 +2374,7 @@
     "version": "3.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-218-0.txt"
+      "licenses/dependency-261-0.txt"
     ],
     "supplemental": []
   },
@@ -1996,7 +2383,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-219-0.txt"
+      "licenses/dependency-262-0.txt"
     ],
     "supplemental": []
   },
@@ -2005,7 +2392,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-220-0.txt"
+      "licenses/dependency-263-0.txt"
     ],
     "supplemental": []
   },
@@ -2014,7 +2401,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-221-0.txt"
+      "licenses/dependency-264-0.txt"
     ],
     "supplemental": []
   },
@@ -2023,7 +2410,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-222-0.txt"
+      "licenses/dependency-265-0.txt"
     ],
     "supplemental": []
   },
@@ -2032,7 +2419,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-223-0.txt"
+      "licenses/dependency-266-0.txt"
     ],
     "supplemental": []
   },
@@ -2041,7 +2428,7 @@
     "version": "3.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-224-0.txt"
+      "licenses/dependency-267-0.txt"
     ],
     "supplemental": []
   },
@@ -2050,7 +2437,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-225-0.txt"
+      "licenses/dependency-268-0.txt"
     ],
     "supplemental": []
   },
@@ -2059,7 +2446,7 @@
     "version": "3.2.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-226-0.txt"
+      "licenses/dependency-269-0.txt"
     ],
     "supplemental": []
   },
@@ -2068,7 +2455,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-227-0.txt"
+      "licenses/dependency-270-0.txt"
     ],
     "supplemental": []
   },
@@ -2077,7 +2464,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-228-0.txt"
+      "licenses/dependency-271-0.txt"
     ],
     "supplemental": []
   },
@@ -2086,7 +2473,7 @@
     "version": "4.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-229-0.txt"
+      "licenses/dependency-272-0.txt"
     ],
     "supplemental": []
   },
@@ -2095,7 +2482,7 @@
     "version": "13.2.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-230-0.txt"
+      "licenses/dependency-273-0.txt"
     ],
     "supplemental": []
   },
@@ -2104,7 +2491,7 @@
     "version": "2.1.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-231-0.txt"
+      "licenses/dependency-274-0.txt"
     ],
     "supplemental": []
   },
@@ -2113,7 +2500,7 @@
     "version": "4.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-232-0.txt"
+      "licenses/dependency-275-0.txt"
     ],
     "supplemental": []
   },
@@ -2122,7 +2509,7 @@
     "version": "1.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-233-0.txt"
+      "licenses/dependency-276-0.txt"
     ],
     "supplemental": []
   },
@@ -2131,7 +2518,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-234-0.txt"
+      "licenses/dependency-277-0.txt"
     ],
     "supplemental": []
   },
@@ -2140,7 +2527,7 @@
     "version": "4.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-235-0.txt"
+      "licenses/dependency-278-0.txt"
     ],
     "supplemental": []
   },
@@ -2149,7 +2536,7 @@
     "version": "2.0.4",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-236-0.txt"
+      "licenses/dependency-279-0.txt"
     ],
     "supplemental": []
   },
@@ -2158,7 +2545,7 @@
     "version": "3.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-237-0.txt"
+      "licenses/dependency-280-0.txt"
     ],
     "supplemental": []
   },
@@ -2167,7 +2554,7 @@
     "version": "3.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-238-0.txt"
+      "licenses/dependency-281-0.txt"
     ],
     "supplemental": []
   },
@@ -2176,7 +2563,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-239-0.txt"
+      "licenses/dependency-282-0.txt"
     ],
     "supplemental": []
   },
@@ -2185,7 +2572,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-240-0.txt"
+      "licenses/dependency-283-0.txt"
     ],
     "supplemental": []
   },
@@ -2194,7 +2581,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-241-0.txt"
+      "licenses/dependency-284-0.txt"
     ],
     "supplemental": []
   },
@@ -2203,7 +2590,7 @@
     "version": "2.1.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-242-0.txt"
+      "licenses/dependency-285-0.txt"
     ],
     "supplemental": []
   },
@@ -2212,7 +2599,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-243-0.txt"
+      "licenses/dependency-286-0.txt"
     ],
     "supplemental": []
   },
@@ -2221,7 +2608,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-244-0.txt"
+      "licenses/dependency-287-0.txt"
     ],
     "supplemental": []
   },
@@ -2230,7 +2617,7 @@
     "version": "3.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-245-0.txt"
+      "licenses/dependency-288-0.txt"
     ],
     "supplemental": []
   },
@@ -2239,7 +2626,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-246-0.txt"
+      "licenses/dependency-289-0.txt"
     ],
     "supplemental": []
   },
@@ -2248,7 +2635,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-247-0.txt"
+      "licenses/dependency-290-0.txt"
     ],
     "supplemental": []
   },
@@ -2257,7 +2644,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-248-0.txt"
+      "licenses/dependency-291-0.txt"
     ],
     "supplemental": []
   },
@@ -2266,7 +2653,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-249-0.txt"
+      "licenses/dependency-292-0.txt"
     ],
     "supplemental": []
   },
@@ -2275,7 +2662,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-250-0.txt"
+      "licenses/dependency-293-0.txt"
     ],
     "supplemental": []
   },
@@ -2284,7 +2671,7 @@
     "version": "2.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-251-0.txt"
+      "licenses/dependency-294-0.txt"
     ],
     "supplemental": []
   },
@@ -2293,7 +2680,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-252-0.txt"
+      "licenses/dependency-295-0.txt"
     ],
     "supplemental": []
   },
@@ -2302,7 +2689,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-253-0.txt"
+      "licenses/dependency-296-0.txt"
     ],
     "supplemental": []
   },
@@ -2311,7 +2698,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-254-0.txt"
+      "licenses/dependency-297-0.txt"
     ],
     "supplemental": []
   },
@@ -2320,7 +2707,7 @@
     "version": "2.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-255-0.txt"
+      "licenses/dependency-298-0.txt"
     ],
     "supplemental": []
   },
@@ -2329,7 +2716,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-256-0.txt"
+      "licenses/dependency-299-0.txt"
     ],
     "supplemental": []
   },
@@ -2338,7 +2725,7 @@
     "version": "1.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-257-0.txt"
+      "licenses/dependency-300-0.txt"
     ],
     "supplemental": []
   },
@@ -2347,7 +2734,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-258-0.txt"
+      "licenses/dependency-301-0.txt"
     ],
     "supplemental": []
   },
@@ -2356,7 +2743,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-259-0.txt"
+      "licenses/dependency-302-0.txt"
     ],
     "supplemental": []
   },
@@ -2365,7 +2752,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-260-0.txt"
+      "licenses/dependency-303-0.txt"
     ],
     "supplemental": []
   },
@@ -2374,7 +2761,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-261-0.txt"
+      "licenses/dependency-304-0.txt"
     ],
     "supplemental": []
   },
@@ -2383,7 +2770,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-262-0.txt"
+      "licenses/dependency-305-0.txt"
     ],
     "supplemental": []
   },
@@ -2392,7 +2779,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-263-0.txt"
+      "licenses/dependency-306-0.txt"
     ],
     "supplemental": []
   },
@@ -2401,7 +2788,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-264-0.txt"
+      "licenses/dependency-307-0.txt"
     ],
     "supplemental": []
   },
@@ -2410,7 +2797,7 @@
     "version": "2.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-265-0.txt"
+      "licenses/dependency-308-0.txt"
     ],
     "supplemental": []
   },
@@ -2419,7 +2806,7 @@
     "version": "1.54.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-266-0.txt"
+      "licenses/dependency-309-0.txt"
     ],
     "supplemental": []
   },
@@ -2428,7 +2815,7 @@
     "version": "3.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-267-0.txt"
+      "licenses/dependency-310-0.txt"
     ],
     "supplemental": []
   },
@@ -2437,7 +2824,7 @@
     "version": "2.1.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-268-0.txt"
+      "licenses/dependency-311-0.txt"
     ],
     "supplemental": []
   },
@@ -2446,7 +2833,7 @@
     "version": "1.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-269-0.txt"
+      "licenses/dependency-312-0.txt"
     ],
     "supplemental": []
   },
@@ -2455,7 +2842,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-270-0.txt"
+      "licenses/dependency-313-0.txt"
     ],
     "supplemental": []
   },
@@ -2464,7 +2851,7 @@
     "version": "3.0.1",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-271-0.txt"
+      "licenses/dependency-314-0.txt"
     ],
     "supplemental": []
   },
@@ -2473,7 +2860,7 @@
     "version": "4.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-272-0.txt"
+      "licenses/dependency-315-0.txt"
     ],
     "supplemental": []
   },
@@ -2482,7 +2869,7 @@
     "version": "1.13.4",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-273-0.txt"
+      "licenses/dependency-316-0.txt"
     ],
     "supplemental": []
   },
@@ -2491,7 +2878,7 @@
     "version": "2.4.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-274-0.txt"
+      "licenses/dependency-317-0.txt"
     ],
     "supplemental": []
   },
@@ -2500,7 +2887,16 @@
     "version": "1.4.0",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-275-0.txt"
+      "licenses/dependency-318-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "orderedmap",
+    "version": "2.1.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-319-0.txt"
     ],
     "supplemental": []
   },
@@ -2509,7 +2905,7 @@
     "version": "4.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-276-0.txt"
+      "licenses/dependency-320-0.txt"
     ],
     "supplemental": []
   },
@@ -2518,7 +2914,7 @@
     "version": "2.0.11",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-277-0.txt"
+      "licenses/dependency-321-0.txt"
     ],
     "supplemental": []
   },
@@ -2527,7 +2923,7 @@
     "version": "7.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-278-0.txt"
+      "licenses/dependency-322-0.txt"
     ],
     "supplemental": []
   },
@@ -2536,7 +2932,7 @@
     "version": "6.0.1",
     "license": "BSD-2-Clause",
     "notices": [
-      "licenses/dependency-279-0.txt"
+      "licenses/dependency-323-0.txt"
     ],
     "supplemental": []
   },
@@ -2545,7 +2941,7 @@
     "version": "1.3.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-280-0.txt"
+      "licenses/dependency-324-0.txt"
     ],
     "supplemental": []
   },
@@ -2554,7 +2950,7 @@
     "version": "1.6.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-281-0.txt"
+      "licenses/dependency-325-0.txt"
     ],
     "supplemental": []
   },
@@ -2563,7 +2959,7 @@
     "version": "3.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-282-0.txt"
+      "licenses/dependency-326-0.txt"
     ],
     "supplemental": []
   },
@@ -2572,7 +2968,7 @@
     "version": "8.4.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-283-0.txt"
+      "licenses/dependency-327-0.txt"
     ],
     "supplemental": []
   },
@@ -2581,7 +2977,7 @@
     "version": "6.4.299",
     "license": "Apache-2.0",
     "notices": [
-      "licenses/dependency-284-0.txt"
+      "licenses/dependency-328-0.txt"
     ],
     "supplemental": []
   },
@@ -2590,7 +2986,7 @@
     "version": "5.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-285-0.txt"
+      "licenses/dependency-329-0.txt"
     ],
     "supplemental": []
   },
@@ -2599,7 +2995,7 @@
     "version": "1.30.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-286-0.txt"
+      "licenses/dependency-330-0.txt"
     ],
     "supplemental": []
   },
@@ -2608,7 +3004,124 @@
     "version": "7.2.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-287-0.txt"
+      "licenses/dependency-331-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-changeset",
+    "version": "2.4.4",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-332-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-commands",
+    "version": "1.7.2",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-333-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-dropcursor",
+    "version": "1.8.4",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-334-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-gapcursor",
+    "version": "1.4.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-335-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-history",
+    "version": "1.5.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-336-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-inputrules",
+    "version": "1.5.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-337-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-keymap",
+    "version": "1.2.3",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-338-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-model",
+    "version": "1.25.12",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-339-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-schema-list",
+    "version": "1.5.1",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-340-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-state",
+    "version": "1.4.4",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-341-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-tables",
+    "version": "1.8.5",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-342-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-transform",
+    "version": "1.12.4",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-343-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "prosemirror-view",
+    "version": "1.42.8",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-344-0.txt"
     ],
     "supplemental": []
   },
@@ -2617,7 +3130,7 @@
     "version": "2.0.8",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-288-0.txt"
+      "licenses/dependency-345-0.txt"
     ],
     "supplemental": []
   },
@@ -2626,7 +3139,7 @@
     "version": "6.16.0",
     "license": "BSD-3-Clause",
     "notices": [
-      "licenses/dependency-289-0.txt"
+      "licenses/dependency-346-0.txt"
     ],
     "supplemental": []
   },
@@ -2635,7 +3148,7 @@
     "version": "0.32.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-290-0.txt"
+      "licenses/dependency-347-0.txt"
     ],
     "supplemental": []
   },
@@ -2644,7 +3157,7 @@
     "version": "0.32.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-291-0.txt"
+      "licenses/dependency-348-0.txt"
     ],
     "supplemental": []
   },
@@ -2653,7 +3166,7 @@
     "version": "1.6.7",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-292-0.txt"
+      "licenses/dependency-349-0.txt"
     ],
     "supplemental": []
   },
@@ -2662,7 +3175,7 @@
     "version": "1.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-293-0.txt"
+      "licenses/dependency-350-0.txt"
     ],
     "supplemental": []
   },
@@ -2671,7 +3184,7 @@
     "version": "3.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-294-0.txt"
+      "licenses/dependency-351-0.txt"
     ],
     "supplemental": []
   },
@@ -2680,7 +3193,7 @@
     "version": "2.8.6",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-295-0.txt"
+      "licenses/dependency-352-0.txt"
     ],
     "supplemental": []
   },
@@ -2689,7 +3202,7 @@
     "version": "19.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-296-0.txt"
+      "licenses/dependency-353-0.txt"
     ],
     "supplemental": []
   },
@@ -2698,7 +3211,7 @@
     "version": "19.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-297-0.txt"
+      "licenses/dependency-354-0.txt"
     ],
     "supplemental": []
   },
@@ -2707,7 +3220,7 @@
     "version": "9.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-298-0.txt"
+      "licenses/dependency-355-0.txt"
     ],
     "supplemental": []
   },
@@ -2716,7 +3229,7 @@
     "version": "2.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-299-0.txt"
+      "licenses/dependency-356-0.txt"
     ],
     "supplemental": []
   },
@@ -2725,7 +3238,7 @@
     "version": "2.7.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-300-0.txt"
+      "licenses/dependency-357-0.txt"
     ],
     "supplemental": []
   },
@@ -2747,7 +3260,7 @@
     "version": "2.2.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-302-0.txt"
+      "licenses/dependency-359-0.txt"
     ],
     "supplemental": []
   },
@@ -2756,7 +3269,7 @@
     "version": "16.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-303-0.txt"
+      "licenses/dependency-360-0.txt"
     ],
     "supplemental": []
   },
@@ -2765,7 +3278,7 @@
     "version": "5.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-304-0.txt"
+      "licenses/dependency-361-0.txt"
     ],
     "supplemental": []
   },
@@ -2787,7 +3300,7 @@
     "version": "4.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-306-0.txt"
+      "licenses/dependency-363-0.txt"
     ],
     "supplemental": []
   },
@@ -2796,7 +3309,7 @@
     "version": "3.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-307-0.txt"
+      "licenses/dependency-364-0.txt"
     ],
     "supplemental": []
   },
@@ -2805,7 +3318,7 @@
     "version": "4.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-308-0.txt"
+      "licenses/dependency-365-0.txt"
     ],
     "supplemental": []
   },
@@ -2827,7 +3340,7 @@
     "version": "11.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-310-0.txt"
+      "licenses/dependency-367-0.txt"
     ],
     "supplemental": []
   },
@@ -2836,7 +3349,7 @@
     "version": "11.1.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-311-0.txt"
+      "licenses/dependency-368-0.txt"
     ],
     "supplemental": []
   },
@@ -2845,7 +3358,7 @@
     "version": "11.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-312-0.txt"
+      "licenses/dependency-369-0.txt"
     ],
     "supplemental": []
   },
@@ -2854,7 +3367,16 @@
     "version": "2.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-313-0.txt"
+      "licenses/dependency-370-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "rope-sequence",
+    "version": "1.3.4",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-371-0.txt"
     ],
     "supplemental": []
   },
@@ -2863,7 +3385,7 @@
     "version": "2.2.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-314-0.txt"
+      "licenses/dependency-372-0.txt"
     ],
     "supplemental": []
   },
@@ -2872,7 +3394,7 @@
     "version": "2.1.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-315-0.txt"
+      "licenses/dependency-373-0.txt"
     ],
     "supplemental": []
   },
@@ -2881,7 +3403,7 @@
     "version": "0.28.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-316-0.txt"
+      "licenses/dependency-374-0.txt"
     ],
     "supplemental": []
   },
@@ -2890,7 +3412,7 @@
     "version": "1.2.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-317-0.txt"
+      "licenses/dependency-375-0.txt"
     ],
     "supplemental": []
   },
@@ -2899,7 +3421,7 @@
     "version": "2.2.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-318-0.txt"
+      "licenses/dependency-376-0.txt"
     ],
     "supplemental": []
   },
@@ -2908,7 +3430,7 @@
     "version": "1.2.0",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-319-0.txt"
+      "licenses/dependency-377-0.txt"
     ],
     "supplemental": []
   },
@@ -2917,7 +3439,7 @@
     "version": "2.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-320-0.txt"
+      "licenses/dependency-378-0.txt"
     ],
     "supplemental": []
   },
@@ -2926,7 +3448,7 @@
     "version": "3.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-321-0.txt"
+      "licenses/dependency-379-0.txt"
     ],
     "supplemental": []
   },
@@ -2935,7 +3457,7 @@
     "version": "1.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-322-0.txt"
+      "licenses/dependency-380-0.txt"
     ],
     "supplemental": []
   },
@@ -2944,7 +3466,7 @@
     "version": "1.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-323-0.txt"
+      "licenses/dependency-381-0.txt"
     ],
     "supplemental": []
   },
@@ -2953,7 +3475,7 @@
     "version": "1.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-324-0.txt"
+      "licenses/dependency-382-0.txt"
     ],
     "supplemental": []
   },
@@ -2962,7 +3484,7 @@
     "version": "1.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-325-0.txt"
+      "licenses/dependency-383-0.txt"
     ],
     "supplemental": []
   },
@@ -2971,7 +3493,7 @@
     "version": "2.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-326-0.txt"
+      "licenses/dependency-384-0.txt"
     ],
     "supplemental": []
   },
@@ -2980,7 +3502,7 @@
     "version": "2.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-327-0.txt"
+      "licenses/dependency-385-0.txt"
     ],
     "supplemental": []
   },
@@ -2989,7 +3511,7 @@
     "version": "4.0.4",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-328-0.txt"
+      "licenses/dependency-386-0.txt"
     ],
     "supplemental": []
   },
@@ -2998,7 +3520,7 @@
     "version": "2.4.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-329-0.txt"
+      "licenses/dependency-387-0.txt"
     ],
     "supplemental": []
   },
@@ -3007,7 +3529,7 @@
     "version": "1.1.21",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-330-0.txt"
+      "licenses/dependency-388-0.txt"
     ],
     "supplemental": []
   },
@@ -3016,7 +3538,7 @@
     "version": "1.0.14",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-331-0.txt"
+      "licenses/dependency-389-0.txt"
     ],
     "supplemental": []
   },
@@ -3025,7 +3547,7 @@
     "version": "4.3.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-332-0.txt"
+      "licenses/dependency-390-0.txt"
     ],
     "supplemental": []
   },
@@ -3034,7 +3556,7 @@
     "version": "1.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-333-0.txt"
+      "licenses/dependency-391-0.txt"
     ],
     "supplemental": []
   },
@@ -3043,7 +3565,7 @@
     "version": "3.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-334-0.txt"
+      "licenses/dependency-392-0.txt"
     ],
     "supplemental": []
   },
@@ -3052,7 +3574,7 @@
     "version": "2.2.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-335-0.txt"
+      "licenses/dependency-393-0.txt"
     ],
     "supplemental": []
   },
@@ -3061,7 +3583,7 @@
     "version": "2.8.1",
     "license": "0BSD",
     "notices": [
-      "licenses/dependency-336-0.txt"
+      "licenses/dependency-394-0.txt"
     ],
     "supplemental": []
   },
@@ -3070,7 +3592,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-337-0.txt"
+      "licenses/dependency-395-0.txt"
     ],
     "supplemental": []
   },
@@ -3079,7 +3601,7 @@
     "version": "2.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-338-0.txt"
+      "licenses/dependency-396-0.txt"
     ],
     "supplemental": []
   },
@@ -3088,7 +3610,7 @@
     "version": "0.2.0",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-339-0.txt"
+      "licenses/dependency-397-0.txt"
     ],
     "supplemental": []
   },
@@ -3097,7 +3619,7 @@
     "version": "11.0.5",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-340-0.txt"
+      "licenses/dependency-398-0.txt"
     ],
     "supplemental": []
   },
@@ -3106,7 +3628,7 @@
     "version": "5.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-341-0.txt"
+      "licenses/dependency-399-0.txt"
     ],
     "supplemental": []
   },
@@ -3115,7 +3637,7 @@
     "version": "6.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-342-0.txt"
+      "licenses/dependency-400-0.txt"
     ],
     "supplemental": []
   },
@@ -3124,7 +3646,7 @@
     "version": "5.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-343-0.txt"
+      "licenses/dependency-401-0.txt"
     ],
     "supplemental": []
   },
@@ -3133,7 +3655,7 @@
     "version": "5.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-344-0.txt"
+      "licenses/dependency-402-0.txt"
     ],
     "supplemental": []
   },
@@ -3142,7 +3664,7 @@
     "version": "4.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-345-0.txt"
+      "licenses/dependency-403-0.txt"
     ],
     "supplemental": []
   },
@@ -3151,7 +3673,7 @@
     "version": "5.1.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-346-0.txt"
+      "licenses/dependency-404-0.txt"
     ],
     "supplemental": []
   },
@@ -3160,7 +3682,7 @@
     "version": "6.0.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-347-0.txt"
+      "licenses/dependency-405-0.txt"
     ],
     "supplemental": []
   },
@@ -3169,7 +3691,7 @@
     "version": "1.0.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-348-0.txt"
+      "licenses/dependency-406-0.txt"
     ],
     "supplemental": []
   },
@@ -3178,7 +3700,7 @@
     "version": "1.3.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-349-0.txt"
+      "licenses/dependency-407-0.txt"
     ],
     "supplemental": []
   },
@@ -3187,7 +3709,16 @@
     "version": "1.1.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-350-0.txt"
+      "licenses/dependency-408-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "use-sync-external-store",
+    "version": "1.7.0",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-409-0.txt"
     ],
     "supplemental": []
   },
@@ -3196,7 +3727,7 @@
     "version": "3.1.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-351-0.txt"
+      "licenses/dependency-410-0.txt"
     ],
     "supplemental": []
   },
@@ -3205,7 +3736,7 @@
     "version": "1.1.2",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-352-0.txt"
+      "licenses/dependency-411-0.txt"
     ],
     "supplemental": []
   },
@@ -3214,7 +3745,7 @@
     "version": "6.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-353-0.txt"
+      "licenses/dependency-412-0.txt"
     ],
     "supplemental": []
   },
@@ -3223,7 +3754,7 @@
     "version": "5.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-354-0.txt"
+      "licenses/dependency-413-0.txt"
     ],
     "supplemental": []
   },
@@ -3232,7 +3763,16 @@
     "version": "4.0.3",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-355-0.txt"
+      "licenses/dependency-414-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "w3c-keyname",
+    "version": "2.2.8",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-415-0.txt"
     ],
     "supplemental": []
   },
@@ -3241,7 +3781,7 @@
     "version": "2.0.1",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-356-0.txt"
+      "licenses/dependency-416-0.txt"
     ],
     "supplemental": []
   },
@@ -3250,7 +3790,7 @@
     "version": "2.0.2",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-357-0.txt"
+      "licenses/dependency-417-0.txt"
     ],
     "supplemental": []
   },
@@ -3259,7 +3799,7 @@
     "version": "1.0.2",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-358-0.txt"
+      "licenses/dependency-418-0.txt"
     ],
     "supplemental": []
   },
@@ -3268,7 +3808,25 @@
     "version": "0.3.0",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-359-0.txt"
+      "licenses/dependency-419-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "y-protocols",
+    "version": "1.0.7",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-420-0.txt"
+    ],
+    "supplemental": []
+  },
+  {
+    "name": "yjs",
+    "version": "13.6.33",
+    "license": "MIT",
+    "notices": [
+      "licenses/dependency-421-0.txt"
     ],
     "supplemental": []
   },
@@ -3277,7 +3835,7 @@
     "version": "4.6.5",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-360-0.txt"
+      "licenses/dependency-422-0.txt"
     ],
     "supplemental": []
   },
@@ -3286,7 +3844,7 @@
     "version": "3.25.2",
     "license": "ISC",
     "notices": [
-      "licenses/dependency-361-0.txt"
+      "licenses/dependency-423-0.txt"
     ],
     "supplemental": []
   },
@@ -3295,7 +3853,7 @@
     "version": "2.0.4",
     "license": "MIT",
     "notices": [
-      "licenses/dependency-362-0.txt"
+      "licenses/dependency-424-0.txt"
     ],
     "supplemental": []
   }
