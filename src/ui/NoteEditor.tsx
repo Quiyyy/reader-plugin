@@ -69,7 +69,12 @@ export function NoteEditor({botConfigurationVersion=0,onOpenSettings,returnLabel
       current.current={...current.current!,revision:saved.revision,folderId:saved.folderId,trashedAt:undefined};dirty.current=true;cache();removedRef.current=false;setRemoteRemoved(false);setNote(current.current);if(await flushRef.current()){await onChanged();onNotice('已恢复并保存草稿');}
     }catch(e){setError(errorText(e));setSaveState('error');}finally{restoringRef.current=false;setRestoringDraft(false);}
   };
-  useEffect(()=>{if(note&&!note.title&&!note.body)requestAnimationFrame(()=>{if(preview)rich.current?.focus();else input.current?.focus();});},[note?.id]);
+  useEffect(()=>{if(!note||note.title||note.body)return;const frame=requestAnimationFrame(()=>{
+    // A delayed first paint must not move input away from a title the user has
+    // already focused, or from a document that has started receiving edits.
+    if(current.current?.title||current.current?.body||document.activeElement?.closest('.study-note-editor'))return;
+    if(visualRef.current)rich.current?.focus();else input.current?.focus();
+  });return()=>cancelAnimationFrame(frame);},[note?.id]);
   const navigateNote=useNoteScroll(body,input,note?.id,preview,note?.body,noteFontSize);
   const closeOutline=()=>{setOutlineOpen(false);requestAnimationFrame(()=>header.current?.querySelector<HTMLButtonElement>('[aria-controls="note-outline-panel"]')?.focus());};
   useEffect(()=>{if(outlineOpen)requestAnimationFrame(()=>{(outlinePanel.current?.querySelector<HTMLButtonElement>('[aria-current="location"]')??outlinePanel.current?.querySelector<HTMLButtonElement>('nav button')??outlinePanel.current?.querySelector<HTMLButtonElement>('button'))?.focus();});},[outlineOpen]);

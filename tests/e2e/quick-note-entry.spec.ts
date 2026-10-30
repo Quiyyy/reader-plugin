@@ -7,6 +7,13 @@ async function rpc(request:APIRequestContext,name:string,args:object={}) {
   const response=await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name,arguments:args}}),value=await response.json();expect(value.isError,JSON.stringify(value)).not.toBe(true);return value._meta.reader;
 }
 
+test('late initial autofocus never steals a title edit',async({page,request})=>{
+  await rpc(request,'reader_preferences',{patch:{noteMode:'source'}});await page.goto('/');await expect(page.getByRole('heading',{name:'书库',exact:true})).toBeVisible();
+  await page.evaluate(()=>{const frame=window.requestAnimationFrame.bind(window),cancel=window.cancelAnimationFrame.bind(window),pending=new Map<number,FrameRequestCallback>();let id=1000000;window.requestAnimationFrame=callback=>{pending.set(++id,callback);return id;};window.cancelAnimationFrame=id=>{if(!pending.delete(id))cancel(id);};(window as any).releaseNoteFrames=()=>{window.requestAnimationFrame=frame;window.cancelAnimationFrame=cancel;for(const callback of pending.values())callback(performance.now());pending.clear();};});
+  await page.getByRole('button',{name:'快速笔记',exact:true}).click();const title=page.getByLabel('笔记标题');await expect(title).toBeVisible();await title.focus();await page.evaluate(()=>(window as any).releaseNoteFrames());await expect(title).toBeFocused();
+  await page.keyboard.insertText('不被正文抢走的标题');await page.getByLabel('笔记正文').fill('正文与标题分别保存。');await expect(page.locator('.study-note-status')).toContainText('已保存到 Reader');await page.getByRole('button',{name:'返回书库',exact:true}).click();const note=(await rpc(request,'reader_workspace')).notes.find((item:any)=>item.title==='不被正文抢走的标题');expect(note).toBeDefined();expect((await rpc(request,'reader_note_get',{id:note.id})).body).toBe('正文与标题分别保存。');
+});
+
 test('quick notes creates one fresh document immediately and returns to the current library folder',async({page,request})=>{
   const folder=(await rpc(request,'reader_folder_save',{name:'快速记录入口',parentId:null})).value;
   await page.goto('/');await page.getByRole('button',{name:'打开文件夹 快速记录入口',exact:true}).click();const before=(await rpc(request,'reader_workspace')).notes;
