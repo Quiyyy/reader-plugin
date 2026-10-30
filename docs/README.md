@@ -7,6 +7,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | [安装指南](INSTALL.md) | 安装方式选择、运行包、升级与回退 |
+| [Google Drive 同步](GOOGLE_DRIVE_SYNC.md) | OAuth 配置、多电脑连接、离线冲突与恢复密钥 |
 | [使用指南](USAGE.md) | 阅读、笔记、Codex、Space、数据与备份 |
 | [Windows 源码接入](WINDOWS.md) | Windows 原生 Node 与本地 marketplace |
 | [平台 marketplace](MARKETPLACE.md) | 自包含平台包、平台限制和分发机制 |
@@ -29,8 +30,9 @@
 
 ## 版本与设计
 
-- [多电脑云同步调研](CLOUD_SYNC_RESEARCH.md)：OneDrive、Google Drive 等方案、数据边界、离线冲突与原型路线，尚未实现。
+- [多电脑云同步调研](CLOUD_SYNC_RESEARCH.md)：OneDrive、Google Drive 等方案、数据边界、离线冲突与原型路线；后续按用户选择先实现 Google Drive。
 - [更新记录](../CHANGELOG.md)：面向使用者的变更摘要与版本说明入口。
+- [0.3.0 Google Drive 同步](RELEASE_0.3.0.md)：加密书库、多电脑版本与验证边界。
 - [0.2.18 宿主缩放定位与笔记侧栏](RELEASE_0.2.18.md)：嵌入面板滚动恢复、并排侧栏和可收起的输入区。
 - [0.2.17 统一设置与内容操作](RELEASE_0.2.17.md)：设置分类、Note Bots 集成、笔记块菜单与阅读重排定位。
 - [0.2.16 快速记录与独立配置](RELEASE_0.2.16.md)：直接新建、Note Bots 配置页和简洁笔记封面。

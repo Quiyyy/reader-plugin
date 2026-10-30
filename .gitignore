@@ -16,3 +16,8 @@ test-results/
 *.log
 .DS_Store
 .reader-local/
+
+# Local Google OAuth downloads (never commit credentials)
+client_secret*.json
+google-desktop*.json
+reader-recovery-key*.txt

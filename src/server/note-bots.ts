@@ -2,6 +2,8 @@ import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
 import { atomicWrite, type ReaderStore } from './store.js';
 import { defaultNoteBots, noteBotSchema, noteBotsSchema, type NoteBot, type NoteBots } from '../shared/note-bots.js';
+import {assertUnchanged,normalValue,validateEntity} from './sync/entities.js';
+import type {ApplyChange,SyncValue} from './sync/engine.js';
 
 export class NoteBotStore {
   private readonly path: string;
@@ -10,6 +12,8 @@ export class NoteBotStore {
     try { return noteBotsSchema.parse(JSON.parse(await fs.readFile(this.path, 'utf8'))); }
     catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return structuredClone(defaultNoteBots); throw error; }
   }
+  async syncValues(){const value=await this.list();const result:Record<string,SyncValue>={};if(!value.revision)return result;for(const bot of value.bots)result['bot:'+bot.id]=normalValue(bot);result['bot-default:default']={id:value.defaultId};return result;}
+  async applySync(changes:ApplyChange[]){if(!changes.length)return [];return this.store.locked('note-bots',async()=>{const state=await this.list(),current=await this.syncValues();for(const change of changes){validateEntity(change.key,change.after);assertUnchanged(current[change.key]??null,change.before);}if(!state.revision)state.bots=[];for(const {key,after} of changes){if(key==='bot-default:default'){if(after!==null)state.defaultId=(after as {id:string}).id;}else{const id=key.slice(4);state.bots=state.bots.filter(bot=>bot.id!==id);if(after!==null)state.bots.push(noteBotSchema.parse(after));}}if(!state.bots.some(bot=>bot.id===state.defaultId))state.defaultId=state.bots[0]?.id??'';state.revision++;const checked=noteBotsSchema.parse(state);await fs.mkdir(join(this.path,'..'),{recursive:true,mode:0o700});await atomicWrite(this.path,JSON.stringify(checked));return changes.map(change=>change.key);});}
   async resolve(id?: string): Promise<NoteBot> {
     const state = await this.list(), bot = state.bots.find(bot => bot.id === (id ?? state.defaultId));
     if (!bot) throw Error('Note Bot 已移除，请重新选择');

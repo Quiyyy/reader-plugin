@@ -8,6 +8,7 @@ import { defaultSettings, type BookDetail, type BookSummary, type Bookmark, type
 import { keyboardSchema, defaultKeyboard, type KeyboardSettings } from '../shared/keyboard.js';
 import type { TrashEntry } from '../shared/types.js';
 import { importDocument, IMPORT_LIMITS, normalizeEncoding } from './importers.js';
+import {assertUnchanged} from './sync/entities.js';
 
 const locatorSchema = z.object({ chapter: z.number().int().nonnegative(), paragraph: z.number().int().nonnegative() });
 const settingsSchema = z.object({ theme: z.enum(['system', 'light', 'sepia', 'dark']), fontSize: z.number().min(14).max(36), lineHeight: z.number().min(1.3).max(2.6), lineWidth: z.number().min(420).max(960), fontFamily: z.enum(['serif', 'sans']) });
@@ -160,14 +161,15 @@ export class ReaderStore {
   /** Caller holds the same per-book lock used by every writer. One atomic marker
    * gates the entire book, source bytes, bookmarks, progress and online cache.
    * No multi-file move/copy or permanent deletion, so interruption cannot split it. */
-  async markTrashed(summary: BookSummary): Promise<TrashEntry> {
-    const entry: TrashEntry = { version: 1, summary, trashedAt: new Date().toISOString() };
+  async markTrashed(summary: BookSummary,when?:string): Promise<TrashEntry> {
+    const entry: TrashEntry = { version: 1, summary, trashedAt: when?z.string().datetime().parse(when):new Date().toISOString() };
     const directory = join(this.dataDir, 'trash-v1');
     await fs.mkdir(directory, { recursive: true, mode: 0o700 });
     await atomicWrite(this.trashPath(summary.id), JSON.stringify({ ...entry, state: 'trashed', generation: randomUUID() })); await syncDirectory(directory);
     return entry;
   }
   async trashBook(id: string): Promise<TrashEntry> { return this.locked(id, async () => this.markTrashed((await this.readState(id)).summary)); }
+  async syncLifecycle(summary:BookSummary,before:string|undefined,after:string|undefined){return this.locked(summary.format==='pdf'?'pdf-'+summary.id:summary.format==='online'?'online-'+summary.id:summary.id,async()=>{let current:Awaited<ReturnType<ReaderStore['readTrash']>>|undefined;try{current=await this.readTrash(summary.id);}catch(e){if(!isMissing(e))throw e;}assertUnchanged(current?.state==='trashed'?current.trashedAt:null,before??null);if(after)await this.markTrashed(summary,after);else if(current?.state==='trashed')await atomicWrite(this.trashPath(summary.id),JSON.stringify({...current,state:'active',generation:randomUUID()}));});}
   private async readTrash(id: string): Promise<TrashEntry & { state: 'trashed' | 'active' }> {
     const schema = z.object({ state: z.enum(['trashed', 'active']).default('trashed'), version: z.literal(1), summary: summarySchema.extend({ format: z.enum(['txt', 'epub', 'online', 'pdf']), locator: locatorSchema.extend({ chapterId: z.string().optional() }) }), trashedAt: z.string() });
     const entry = schema.parse(JSON.parse(await fs.readFile(this.trashPath(id), 'utf8')));
@@ -205,9 +207,10 @@ export class ReaderStore {
     try { return keyboardSchema.parse(JSON.parse(await fs.readFile(join(this.dataDir, 'keyboard-v1.json'), 'utf8'))); }
     catch (error) { if (isMissing(error)) return structuredClone(defaultKeyboard); throw new Error('快捷键设置损坏，请恢复默认；旧设置保留在备份中。'); }
   }
-  async saveKeyboard(value: KeyboardSettings): Promise<KeyboardSettings> {
+  async saveKeyboard(value: KeyboardSettings, expected?:KeyboardSettings): Promise<KeyboardSettings> {
     const checked = keyboardSchema.parse(value);
     return this.locked('keyboard', async () => {
+      if(expected)assertUnchanged(await this.keyboard(),expected);
       const path = join(this.dataDir, 'keyboard-v1.json');
       try { await atomicWrite(join(this.dataDir, 'keyboard-v1.before-save.json'), await fs.readFile(path)); } catch (error) { if (!isMissing(error)) throw error; }
       await atomicWrite(path, JSON.stringify(checked)); await syncDirectory(this.dataDir); return checked;
@@ -335,6 +338,11 @@ export class ReaderStore {
 
   async peek(id: string): Promise<BookDetail> { return this.locked(id, async () => detail(await this.readBook(id))); }
 
+  /** Internal sync export includes a trashed file without marking it as visited. */
+  async syncBook(id:string){return this.locked(id,async()=>{const root=this.bookPath(id),state=stateSchema.parse(JSON.parse(await fs.readFile(join(root,'record.json'),'utf8'))),document=documentSchema.parse(JSON.parse(await fs.readFile(join(root,'document.json'),'utf8')));if(state.summary.id!==id||document.id!==id)throw Error('书籍标识不一致');let rich:unknown;try{rich=JSON.parse(await fs.readFile(join(root,'epub-v2.json'),'utf8'));}catch(e){if(!isMissing(e))throw e;}return {detail:detail({...state,document}),filename:state.originalFilename,bytes:(await fs.stat(join(root,'source.'+state.summary.format))).size,rich};});}
+  async syncBookmarks(id:string,expected:Bookmark[],next:Bookmark[]){return this.locked(id,async()=>{const record=await this.readBook(id);assertUnchanged(record.bookmarks,expected);record.bookmarks=z.array(bookmarkSchema).max(1000).parse(next);for(const mark of record.bookmarks)this.validLocator(record,mark.locator);await this.writeBook(record);});}
+  async syncDescriptor(id:string,title:string,author:string,filename:string){return this.locked(id,async()=>{const record=await this.readBook(id);record.summary.title=title;record.summary.author=author;record.document.title=title;record.document.author=author;record.originalFilename=filename;await atomicWrite(join(this.bookPath(id),'document.json'),JSON.stringify(documentSchema.parse(record.document)));await this.writeBook(record);});}
+
   async open(id: string): Promise<BookDetail> {
     this.bookPath(id);
     return this.locked(id, async () => {
@@ -360,9 +368,10 @@ export class ReaderStore {
     });
   }
 
-  async saveSettings(settings: ReaderSettings): Promise<ReaderSettings> {
+  async saveSettings(settings: ReaderSettings, expected?:ReaderSettings): Promise<ReaderSettings> {
     const checked = settingsSchema.parse(settings);
     return this.locked('settings', async () => {
+      if(expected)assertUnchanged(await this.settings(),expected);
       await atomicWrite(join(this.dataDir, 'settings.json'), JSON.stringify(checked));
       await syncDirectory(this.dataDir);
       return checked;

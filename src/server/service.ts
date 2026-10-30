@@ -1,4 +1,6 @@
 import {ChatService,chatSchemas} from './chat-service.js';
+import {SyncService,type SyncDependencies} from './sync/service.js';
+import {syncSchemas} from '../shared/sync.js';
 import { PdfService } from './pdf-service.js';
 import { WorkspaceService, workspaceSchemas } from './workspace-service.js';
 import { randomUUID } from 'node:crypto';
@@ -19,6 +21,7 @@ const MAX_FILE = 64 * 1024 * 1024;
 const MAX_CHUNK = 256 * 1024;
 const TTL = 15 * 60 * 1000;
 export const actionSchemas = {
+  ...syncSchemas,
   ...workspaceSchemas,
   ...chatSchemas,
   reader_epub_open: z.object({ id }).strict(),
@@ -67,12 +70,17 @@ export class ReaderService {
   readonly pdf: PdfService;
   readonly workspace: WorkspaceService;
   readonly chat: ChatService;
-  constructor(public readonly store: ReaderStore, online?: OnlineSourceService) { this.online = online ?? new OnlineSourceService(store); this.epub = new EpubService(store); this.pdf = new PdfService(store); this.workspace=new WorkspaceService(this);this.chat=new ChatService(this.workspace); }
-  async close(){await this.chat.close();await this.pdf.close();}
+  readonly sync:SyncService;
+  constructor(public readonly store: ReaderStore, online?: OnlineSourceService,syncDependencies?:SyncDependencies) { this.online = online ?? new OnlineSourceService(store); this.epub = new EpubService(store); this.pdf = new PdfService(store); this.workspace=new WorkspaceService(this);this.chat=new ChatService(this.workspace);this.sync=new SyncService(this,syncDependencies); }
+  async close(){await this.sync.close();await this.chat.close();await this.pdf.close();}
+  async bookLifecycle(id:string){return await this.sync.localBook(id)?this.store.lifecycle(id):this.sync.lifecycle(id);}
   async call(name: string, input: unknown): Promise<unknown> {
     for (const [key, value] of this.uploads) if (value.expires < Date.now()) this.uploads.delete(key);
     if (!Object.hasOwn(actionSchemas, name)) throw new Error('未知的 Reader 操作');
     const args = actionSchemas[name as ActionName].parse(input) as any;
+    if(Object.hasOwn(syncSchemas,name))return this.sync.call(name,args);
+    if(name==='reader_get')await this.sync.ensureBook(args.id);
+    if(name==='reader_image_get')await this.sync.ensureImage(args.id);
     if (Object.hasOwn(chatSchemas,name)) return this.chat.call(name,args);
     if (Object.hasOwn(workspaceSchemas,name)) return this.workspace.call(name,args);
     switch (name as ActionName) {
@@ -86,10 +94,10 @@ export class ReaderService {
       case 'reader_keyboard': return this.store.keyboard();
       case 'reader_keyboard_save': return this.store.saveKeyboard(args.settings);
       case 'reader_keyboard_reset': return this.store.saveKeyboard(defaultKeyboard);
-      case 'reader_trash_list': return this.store.listTrash();
-      case 'reader_trash': if(await this.pdf.has(args.id))return this.pdf.trash(args.id); return (await this.online.has(args.id) ? this.online : this.store).trashBook(args.id);
-      case 'reader_restore': await this.store.restoreBook(args.id); return { restored: true };
-      case 'reader_list': { const library = await this.store.list(); return { ...library, books: [...library.books, ...await this.online.listBooks(),...await this.pdf.list()] }; }
+      case 'reader_trash_list': {const local=await this.store.listTrash();return [...local,...await this.sync.cloudTrash(local.map(book=>book.summary.id)).catch(()=>[])];}
+      case 'reader_trash': if(!await this.sync.localBook(args.id))return this.sync.trashBook(args.id);if(await this.pdf.has(args.id))return this.pdf.trash(args.id); return (await this.online.has(args.id) ? this.online : this.store).trashBook(args.id);
+      case 'reader_restore': if(!await this.sync.localBook(args.id))return this.sync.restoreBook(args.id);await this.store.restoreBook(args.id); return { restored: true };
+      case 'reader_list': { const library = await this.store.list(),local=[...library.books, ...await this.online.listBooks(),...await this.pdf.list()];return {...library,books:[...local,...await this.sync.cloudBooks(local.map(book=>book.id)).catch(()=>[])]}; }
       case 'reader_get': if(await this.pdf.has(args.id))return this.pdf.detail(await this.pdf.open(args.id)); return await this.online.has(args.id) ? this.online.run(args.requestId ?? randomUUID(), `open:${args.id}`, signal => this.online.open(args.id, signal)) : this.store.open(args.id);
       case 'reader_progress': return (await this.online.has(args.id) ? this.online : this.store).saveProgress(args.id, args.locator);
       case 'reader_settings': {const prior=await this.store.settings(),saved=await this.store.saveSettings(args.settings);if(prior.theme!==saved.theme){const appearance=(await this.workspace.store.snapshot()).appearance;await this.workspace.store.appearance({...appearance,mode:saved.theme==='sepia'?'light':saved.theme,paper:saved.theme==='sepia'?'cream':'white'});}return saved;}

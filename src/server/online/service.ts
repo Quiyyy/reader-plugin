@@ -1,3 +1,4 @@
+import {assertUnchanged} from '../sync/entities.js';
 import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -383,6 +384,8 @@ export class OnlineSourceService {
     return this.open(id, signal);
   }
   async peek(id: string,chapterId?:string): Promise<BookDetail> { return this.asDetail(await this.read(id),chapterId); }
+  async syncRecord(id:string){return this.store.locked('online-'+id,async()=>{const record=recordSchema.parse(JSON.parse(await fs.readFile(this.path(id),'utf8')));if(record.id!==id)throw Error('在线书籍标识不一致');return {summary:this.summary(record),bookmarks:record.bookmarks};});}
+  async syncDescriptor(id:string,title:string,author:string){return this.store.locked('online-'+id,async()=>{const record=await this.read(id);record.title=title;record.author=author;await this.write(record);});}
   async searchCached(id: string, query: string, limit: number) {
     const book = await this.read(id), hits: { chapter: number; chapterId: string; paragraph: number; title: string; text: string }[] = [];
     let names: string[];
@@ -467,6 +470,7 @@ export class OnlineSourceService {
   }
   async saveProgress(id: string, locator: Locator) { return this.store.locked(`online-${id}`, async () => { const book = await this.read(id); book.locator = await this.checkedLocator(book, locator); book.lastReadAt = new Date().toISOString(); await this.write(book); return this.summary(book); }); }
   async addBookmark(id: string, locator: Locator, label: string): Promise<Bookmark[]> { return this.store.locked(`online-${id}`, async () => { const book = await this.read(id), checked = await this.checkedLocator(book, locator); if (book.bookmarks.length >= 1000) throw new Error('书签超过 1000 条'); if (!book.bookmarks.some(b => b.locator.chapterId === checked.chapterId && b.locator.paragraph === checked.paragraph)) book.bookmarks.push({ id: randomUUID(), locator: checked, label, createdAt: new Date().toISOString() }); await this.write(book); return book.bookmarks; }); }
+  async syncBookmarks(id:string,expected:Bookmark[],next:Bookmark[]){return this.store.locked('online-'+id,async()=>{const book=await this.read(id);assertUnchanged(book.bookmarks,expected);book.bookmarks=recordSchema.shape.bookmarks.parse(next).map(mark=>{const index=book.chapters.findIndex(chapter=>chapter.id===mark.locator.chapterId);return {...mark,locator:{...mark.locator,chapter:index>=0?index:mark.locator.chapter}};});await this.write(book);});}
   async removeBookmark(id: string, bookmarkId: string) { return this.store.locked(`online-${id}`, async () => { const book = await this.read(id); book.bookmarks = book.bookmarks.filter(b => b.id !== bookmarkId); await this.write(book); return book.bookmarks; }); }
 
   /** Duplicate operations share work; cancelling one subscriber keeps others alive. */

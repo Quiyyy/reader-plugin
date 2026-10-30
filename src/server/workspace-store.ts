@@ -1,4 +1,6 @@
 import {preferencesSchema,type WorkspacePreferences} from '../shared/preferences.js';
+import {workspaceValues,syncWorkspaceKinds,workspacePreferencesSchema,assertUnchanged,validateEntity} from './sync/entities.js';
+import type {ApplyChange} from './sync/engine.js';
 import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -75,6 +77,21 @@ export class WorkspaceStore {
   async undoBookList(id:string){return (await this.read()).undo.find(x=>x.id===id)?.libraryBooks??[];}
   async undo(id:string){return this.mutate(state=>{const entry=state.undo.find(x=>x.id===id);if(!entry)throw Error('这项修改已无法撤销');for(const change of entry.changes){const current=change.kind==='books'?state.books[change.id]:state[change.kind].find(x=>x.id===change.id);if(hash(current??null)!==change.after)throw new ConflictError();}for(const change of entry.changes){if(change.kind==='books'){if(change.before===null)delete state.books[change.id];else state.books[change.id]={...bookMetadataSchema.parse(change.before),revision:(state.books[change.id]?.revision??0)+1};}else{const rows=state[change.kind] as Mutable[];const next=rows.filter(x=>'id' in x&&x.id!==change.id);if(change.before)next.push({...change.before as Mutable,revision:(rows.find(x=>'id' in x&&x.id===change.id)?.revision??0)+1});(state[change.kind] as Mutable[])=next;}}state.undo=state.undo.filter(x=>x.id!==id);return {restored:true};},false);}
   async preferences(patch:WorkspacePreferences){return this.mutate(state=>state.preferences={...state.preferences,...preferencesSchema.parse(patch)},false);}
+  async syncValues(preferences:boolean){return workspaceValues(await this.read(),preferences);}
+  async applySync(changes:ApplyChange[]){
+    if(!changes.length)return [];
+    return (await this.mutate(state=>{
+      const current=workspaceValues(state,true);for(const change of changes){validateEntity(change.key,change.after);assertUnchanged(current[change.key]??null,change.before);}
+      for(const {key,after} of changes){const [kind,id]=key.split(':');if(key==='preferences:workspace'){if(after!==null){const value=workspacePreferencesSchema.parse(after);Object.assign(state,value);}continue;}
+        const descriptor=syncWorkspaceKinds[kind as keyof typeof syncWorkspaceKinds];if(!descriptor)throw Error('工作台同步类型无效');
+        if(kind==='bookmeta'){if(after===null)delete state.books[id!];else state.books[id!]={...bookMetadataSchema.parse(after),revision:(state.books[id!]?.revision??0)+1};}
+        else{const rows=(state as any)[descriptor.collection] as any[],previous=rows.find(item=>item.id===id);(state as any)[descriptor.collection]=rows.filter(item=>item.id!==id);if(after!==null){const parsed=descriptor.schema.parse(after);(state as any)[descriptor.collection].push({...parsed,...('revision' in parsed?{revision:(previous?.revision??0)+1}:{})});}}
+      }
+      for(const note of state.notes){this.references(state,note.sourceIds);if(note.imageAnnotations?.some(item=>!note.imageIds.includes(item.imageId)))throw Error('同步笔记的图片引用无效');}
+      for(const annotation of state.annotations)if(!state.sources.some(source=>source.id===annotation.sourceId))throw Error('同步批注的引用尚未到达');
+      return changes.map(change=>change.key);
+    },false)).value;
+  }
   async layout(layout:'cards'|'list'){return this.mutate(state=>state.layout=layout,false);}
   async appearance(value:Appearance){return this.mutate(state=>state.appearance=appearanceSchema.parse({...value,noteFontSize:value.noteFontSize??state.appearance.noteFontSize??14}),false);}
   async allowBook(id:string,allowed:boolean){return this.mutate(state=>{state.aiBooks=state.aiBooks.filter(x=>x!==id);if(allowed)state.aiBooks.push(id);return {allowed};},false);}

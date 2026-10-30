@@ -1,5 +1,5 @@
 import { useEffect,useMemo,useRef,useState } from 'react';
-import { ArrowLeft,BookOpen,Check,CheckSquare2,ChevronDown,ChevronRight,Folder,FolderInput,FolderPlus,LayoutGrid,LayoutList,MoreHorizontal,NotebookPen,Pencil,Plus,Search,Trash2,Upload,X } from 'lucide-react';
+import { ArrowLeft,BookOpen,Check,CheckSquare2,ChevronDown,ChevronRight,Download,Folder,FolderInput,FolderPlus,LayoutGrid,LayoutList,MoreHorizontal,NotebookPen,Pencil,Plus,Search,Trash2,Upload,X } from 'lucide-react';
 import type { BookSummary,ReaderApi } from '../shared/types';
 import type { Mutation,WorkspaceSnapshot } from '../shared/workspace';
 import { IconButton } from './IconButton';
@@ -36,7 +36,7 @@ function EntryCover({entry,api,snapshot}:{entry:LibraryEntry;api:ReaderApi;snaps
   if(entry.kind==='note')return <NoteCover entry={entry} api={api} snapshot={snapshot}/>;
   const tone=0;
   if(entry.kind==='folder')return <span className={'library-art library-folder tone-'+tone} aria-hidden="true"><Folder size={18}/></span>;
-  return <span className={'library-art library-cover tone-'+tone} aria-hidden="true"><BookOpen size={23}/><span className="library-cover-lines"/></span>;
+  return <span className={'library-art library-cover tone-'+tone} aria-hidden="true"><BookOpen size={23}/><span className="library-cover-lines"/>{entry.book?.cloudOnly&&<span className="library-cloud-mark" title={entry.book.cloudAvailable?'打开时下载原文':'原文件尚未上传'}><Download size={13}/></span>}</span>;
 }
 
 export function LibraryShelf(props:Props) {

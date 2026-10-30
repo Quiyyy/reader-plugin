@@ -31,7 +31,8 @@ export function createReaderApi(): ReaderApi {
   let download:((filename:string,mimeType:string,data:Uint8Array)=>Promise<void>)|undefined;
   let hostClose: (() => Promise<void>) | undefined;
   let nativeMessage: ((text:string,images?:Array<{data:string;mimeType:string}>)=>Promise<void>) | undefined;
-  const beforeClose = new Set<() => Promise<unknown>>();
+  const beforeClose = new Set<() => Promise<unknown>>(),afterSaveBeforeClose=new Set<()=>Promise<unknown>>();
+  const prepareClose=async()=>{await Promise.all([...beforeClose].map(listener=>listener()));await Promise.all([...afterSaveBeforeClose].map(listener=>listener()));};
   let onBook: ((book: BookDetail) => void) | undefined;
   let onError: ((message: string) => void) | undefined;
   let queuedBook: BookDetail | undefined;
@@ -55,7 +56,7 @@ export function createReaderApi(): ReaderApi {
     download=async(filename,mimeType,data)=>{const url=URL.createObjectURL(new Blob([new Uint8Array(data)],{type:mimeType}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),5000);};
     call = async (name, args) => {
       const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), name.startsWith('reader_online_') || name.startsWith('reader_pdf_') || name.startsWith('reader_chat_') || name === 'reader_import_finish' || name === 'reader_get' ? 60000 : PREVIEW_REQUEST_TIMEOUT_MS);
+      const timeout = window.setTimeout(() => controller.abort(), name.startsWith('reader_online_') || name.startsWith('reader_pdf_') || name.startsWith('reader_chat_') || name.startsWith('reader_sync_') || name === 'reader_import_finish' || name === 'reader_get' ? 60000 : PREVIEW_REQUEST_TIMEOUT_MS);
       try {
         const response = await fetch('/api/tool', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Reader-Client': 'preview' }, body: JSON.stringify({ name, arguments: args }), signal: controller.signal });
         if (!response.ok) { const error = await response.json().catch(() => ({})); const message = error.error ?? `Reader 服务未就绪 (${response.status})`; throw error.incomplete ? new IncompleteLoadError(message, error.incomplete) : new Error(message); }
@@ -66,7 +67,7 @@ export function createReaderApi(): ReaderApi {
       } finally { window.clearTimeout(timeout); }
     };
   } else {
-    const app = new App({ name: 'Reader', version: '0.2.19' });
+    const app = new App({ name: 'Reader', version: '0.3.0' });
     const extensions = new OpenAIExtensions(app);
     const applyContext = (context: ReturnType<App['getHostContext']>) => {
       if (context?.theme) { applyDocumentTheme(context.theme); document.documentElement.dataset.hostTheme = context.theme; }
@@ -75,7 +76,7 @@ export function createReaderApi(): ReaderApi {
     app.onhostcontextchanged = applyContext;
     // Install handlers before connect: the host can deliver initial file input immediately.
     app.ontoolresult = () => {};
-    app.onteardown = async () => { await Promise.all([...beforeClose].map(listener => listener())); return {}; };
+    app.onteardown = async () => { await prepareClose(); return {}; };
     let ready: Promise<void>;
     app.ontoolinput = ({ arguments: args }) => {
       const parsed = OpenAIFileEntrypointInputSchema.safeParse(args);
@@ -134,13 +135,14 @@ export function createReaderApi(): ReaderApi {
     async requestHostClose() {
       const openai = (window as Window & { openai?: { requestClose?: () => void | Promise<void> } }).openai;
       if (!openai?.requestClose && !hostClose) return { status: 'unsupported', message: '当前预览没有宿主关闭接口。请使用宿主面板的关闭按钮；Esc 只返回 Reader 或关闭弹层。' };
-      await Promise.all([...beforeClose].map(listener => listener()));
+      await prepareClose();
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         await Promise.race([Promise.resolve().then(() => openai?.requestClose ? openai.requestClose() : hostClose!()), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('宿主未在 5 秒内完成关闭请求；面板状态未知，请用宿主关闭按钮')), 5000); })]);
       } finally { if (timer) clearTimeout(timer); }
       return { status: 'requested', message: '已发送关闭请求，是否关闭由宿主决定。若面板仍显示，请使用宿主关闭按钮。' };
     },
+    onAfterSaveBeforeClose(listener) {afterSaveBeforeClose.add(listener);return()=>{afterSaveBeforeClose.delete(listener);};},
     onBeforeClose(listener) { beforeClose.add(listener); return () => { beforeClose.delete(listener); }; },
     list: () => call('reader_list', {}) as ReturnType<ReaderApi['list']>,
     importBook: importFile,
