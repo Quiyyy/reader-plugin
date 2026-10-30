@@ -14,7 +14,9 @@ const noteInput={title:'原创同步笔记',body:'只用原创测试内容。',f
 async function pair(work:(a:ReaderService,b:ReaderService,cloud:MemoryCloud,root:string)=>Promise<void>){const root=await mkdtemp(join(tmpdir(),'Reader two real libraries ')),cloud=new MemoryCloud(),ca=new MemoryCredentials(),cb=new MemoryCredentials();ca.connect();cb.connect();const a=new ReaderService(new ReaderStore(join(root,'a')),undefined,{credentials:ca,provider:()=>cloud}),b=new ReaderService(new ReaderStore(join(root,'b')),undefined,{credentials:cb,provider:()=>cloud});try{await work(a,b,cloud,root);}finally{await a.close();await b.close();await rm(root,{recursive:true,force:true});}}
 async function run(reader:ReaderService){await reader.sync.run();const status=await reader.sync.settled();expect(status.error).toBeUndefined();return status;}
 async function connect(a:ReaderService,b:ReaderService,books=true){const created=await a.sync.create('原创验收书库','电脑 A',{...options,books});await run(a);await b.sync.join(created.recoveryKey,'电脑 B',{...options,books});await run(b);return created;}
-describe('Reader cloud integration with two isolated libraries',()=>{
+// Real PDF workers and durable writes to two libraries exceed the 5 s unit
+// default on shared CI machines. Keep a bounded integration-test budget.
+describe('Reader cloud integration with two isolated libraries',{timeout:60000},()=>{
   it('restores EPUB anchors, bookmarks and PDF viewport from verified original files',()=>pair(async(a,b,cloud,root)=>{
     const epubBytes=await epubFixture(),epub=await a.store.importBook('原创云端.epub',epubBytes),opened=await a.epub.open(epub.summary.id);
     const location=opened.state.location!;expect(location).toBeDefined();await a.epub.save(epub.summary.id,location,{style:'comfort',flow:'scroll',fontSize:18});await a.epub.bookmark(epub.summary.id,location,'原书锚点');
