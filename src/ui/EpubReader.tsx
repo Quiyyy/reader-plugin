@@ -1,6 +1,6 @@
 import type {EpubSettingsController} from './settings-types';
 import type { Annotation,SourceInput,SourceRef } from '../shared/workspace';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, CircleAlert, List, LoaderCircle, Minus, MoreHorizontal, Plus, Search, Settings2, Trash2, X } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { EpubDom } from './epub-dom';
@@ -55,7 +55,7 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
       if(note&&location.current){notes.current.push(location.current);setNoteDepth(notes.current.length);}else if(!restore){notes.current=[];setNoteDepth(0);}
       restoring.current=true;setLoading(true);setPanel(null);setError('');
       const chapter=await epub.chapter(book.summary.id,target.resource);if(!active.current||token!==request.current)return;
-      await dom.current!.show(chapter,appearanceRef.current);if(!active.current||token!==request.current)return;
+      await dom.current!.show(chapter,appearanceRef.current);if(!active.current||token!==request.current||!host.current)return;
       dom.current!.setAppearance(appearanceRef.current);viewport.current={width:host.current!.clientWidth,height:host.current!.clientHeight};
       let matched=true;if(restore)matched=dom.current!.restore(restore);else if(target.fragment)matched=dom.current!.anchor(target.fragment);
       if(!matched)setError('未找到准确位置，原进度已保留');
@@ -66,9 +66,9 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
     }catch(e){if(active.current&&token===request.current){setError(message(e));setLoading(false);restoring.current=false;}}
   },[epub,book.summary.id,flush,capture]);
   navigateRef.current=navigate;
-  useEffect(()=>{
+  useLayoutEffect(()=>{
     active.current=true;
-    const view=new EpubDom(host.current!,book.summary.id,epub,(target,note)=>{intent.current=true;void navigateRef.current?.(target,undefined,note);},(src,alt)=>setImage({src,alt}),value=>{if(active.current)setResourceErrors(old=>[...new Set([...old,value])].slice(0,20));});dom.current=view;
+    const element=host.current!;const view=new EpubDom(element,book.summary.id,epub,(target,note)=>{intent.current=true;void navigateRef.current?.(target,undefined,note);},(src,alt)=>setImage({src,alt}),value=>{if(active.current)setResourceErrors(old=>[...new Set([...old,value])].slice(0,20));});dom.current=view;
     void epub.open(book.summary.id).then(async value=>{
       if(!active.current)return;openRef.current=value;setOpened(value);setMarks(value.state.bookmarks);appearanceRef.current=value.state.appearance;setAppearance(value.state.appearance);
       const searchSection=searchTarget?value.package.sections.find(section=>section.legacyChapter===searchTarget.chapter):undefined;
@@ -78,19 +78,19 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
       if(!value.state.location&&value.legacyLocation&&active.current)setUnmatched(true);
     }).catch(e=>{if(active.current){setError(message(e));setLoading(false);}});
     let frame=0,settle=0;viewport.current={width:host.current!.clientWidth,height:host.current!.clientHeight};
-    const reflow=(force=false)=>{
-      const next={width:host.current!.clientWidth,height:host.current!.clientHeight},previous=viewport.current;
+    const reflow=(force=false)=>{if(!active.current||!element.isConnected)return;
+      const next={width:element.clientWidth,height:element.clientHeight},previous=viewport.current;
       if(!next.width||!next.height||!force&&next.width===previous.width&&next.height===previous.height)return;
       viewport.current=next;if(!force&&restoring.current&&!frame&&!settle)return;
       const prior=location.current;restoring.current=true;cancelAnimationFrame(frame);cancelAnimationFrame(settle);
       view.setAppearance(appearanceRef.current);if(prior)view.restore(prior);
       // Paged restoration snaps to the start of the containing page. Capturing
       // that programmatic scroll would move the anchor backwards on each resize.
-      frame=requestAnimationFrame(()=>{frame=0;view.setAppearance(appearanceRef.current);viewport.current={width:host.current!.clientWidth,height:host.current!.clientHeight};if(prior)view.restore(prior);settle=requestAnimationFrame(()=>{settle=0;if(prior)view.restore(prior);restoring.current=false;});});
+      frame=requestAnimationFrame(()=>{frame=0;if(!active.current||!element.isConnected)return;view.setAppearance(appearanceRef.current);viewport.current={width:element.clientWidth,height:element.clientHeight};if(prior)view.restore(prior);settle=requestAnimationFrame(()=>{settle=0;if(prior)view.restore(prior);restoring.current=false;});});
     };
     reflowRef.current=()=>reflow(true);
     const resize=new ResizeObserver(()=>reflow());resize.observe(host.current!,{box:'border-box'});
-    const element=host.current!,interrupt=()=>{if(!frame&&!settle)return;cancelAnimationFrame(frame);cancelAnimationFrame(settle);frame=settle=0;restoring.current=false;};
+    const interrupt=()=>{if(!frame&&!settle)return;cancelAnimationFrame(frame);cancelAnimationFrame(settle);frame=settle=0;restoring.current=false;};
     for(const event of ['wheel','touchstart','pointerdown','keydown'])element.addEventListener(event,interrupt,{passive:true});
     return ()=>{active.current=false;request.current++;reflowRef.current=undefined;clearTimeout(timer.current);cancelAnimationFrame(frame);cancelAnimationFrame(settle);for(const event of ['wheel','touchstart','pointerdown','keydown'])element.removeEventListener(event,interrupt);resize.disconnect();view.dispose();};
   },[book.summary.id,epub]);
@@ -101,7 +101,7 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
   useEffect(()=>{if(image)dialog.current?.showModal();else dialog.current?.close();},[image]);
   useEffect(()=>{if(panel)popover.current?.querySelector<HTMLElement>('input,button')?.focus();},[panel]);
   const adoptAppearance=useCallback((value:EpubAppearance)=>{appearanceRef.current=value;setAppearance(value);reflowRef.current?.();},[]);
-  useEffect(()=>{registerSettings?.({id:book.summary.id,title:book.document.title,get:()=>appearanceRef.current,apply:adoptAppearance});return()=>registerSettings?.(null);},[registerSettings,book.summary.id,book.document.title,adoptAppearance]);
+  useLayoutEffect(()=>{registerSettings?.({id:book.summary.id,title:book.document.title,get:()=>appearanceRef.current,apply:adoptAppearance});return()=>registerSettings?.(null);},[registerSettings,book.summary.id,book.document.title,adoptAppearance]);
   const changeAppearance=async(next:Partial<EpubAppearance>)=>{
     const value={...appearanceRef.current,...next};adoptAppearance(value);
     try{await epub.settings(book.summary.id,value);}catch(e){setError(message(e));}

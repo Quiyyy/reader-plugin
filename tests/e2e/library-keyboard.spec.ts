@@ -62,6 +62,7 @@ for (const width of [320, 390, 1280]) {
 }
 
 test('MCP AppBridge catalog UI and declined teardown keep the actual UI visible', async ({ page }) => {
+  test.setTimeout(60000);
   const html = await readFile('dist/test-host/index.html', 'utf8');
   await page.route('**/__test_host', route => route.fulfill({ contentType: 'text/html', body: html })); await page.goto('/__test_host');
   const app = page.frameLocator('#reader'); await expect(app.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
@@ -87,7 +88,8 @@ test('MCP AppBridge catalog UI and declined teardown keep the actual UI visible'
   await app.locator('.catalog-receipt > summary').click();
   await expect(app.getByRole('region', { name: '导入预览' })).toContainText('fixture-only'); await expect(app.getByText('候选清单：未保证可读。', { exact: false })).toBeVisible();
   await page.screenshot({ path: 'artifacts/candidate-catalog-harness.png', fullPage: true });
-  await app.getByRole('button', { name: '确认导入', exact: true }).click(); await app.getByRole('button', { name: '启用书源', exact: true }).click();await closeSettings(app);
+  await app.getByRole('button', { name: '确认导入', exact: true }).click();let releaseEnable!:()=>void;const enableGate=new Promise<void>(resolve=>releaseEnable=resolve);await page.route('**/api/tool',async route=>{if(route.request().postDataJSON()?.name==='reader_online_enable')await enableGate;await route.continue();});
+  const enabling=page.waitForRequest(request=>request.url().endsWith('/api/tool')&&request.postDataJSON()?.name==='reader_online_enable');await app.getByRole('button', { name: '启用书源', exact: true }).click();await enabling;try{await expect(app.getByRole('button',{name:'返回 Reader',exact:true})).toBeDisabled();}finally{releaseEnable();}await expect(app.getByRole('button',{name:'返回 Reader',exact:true})).toBeEnabled();await closeSettings(app);
   await app.getByLabel('搜索书源').selectOption({label:'清单原创源'});await app.getByLabel('在线搜索关键词').fill('原创'); await app.getByRole('button', { name: '搜索', exact: true }).click();
   await app.getByRole('button', { name: /^原创河岸故事 Reader 测试作者/ }).click();const added=page.waitForResponse(response=>response.url().endsWith('/api/tool')&&response.request().postDataJSON()?.name==='reader_online_add');await app.getByRole('button', { name: /开始阅读/ }).click();expect((await(await added).json()).isError).not.toBe(true);
   await expect(app.getByRole('heading', { name: '第一章 河岸', exact: true })).toBeVisible();

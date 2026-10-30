@@ -1,4 +1,4 @@
-import { useEffect,useRef,useState,type ReactNode } from 'react';
+import { useCallback,useEffect,useRef,useState,type ReactNode } from 'react';
 import { ArrowLeft,BookOpen,Check,Copy,Database,Globe,Keyboard,LayoutGrid,LoaderCircle,Minus,NotebookPen,Palette,Plus,RotateCcw,Search,X } from 'lucide-react';
 import type { ReaderApi,ReaderSettings } from '../shared/types';
 import { defaultSettings } from '../shared/types';
@@ -32,7 +32,7 @@ interface Props {initialReading:ReaderSettings;initialPath?:string;api:ReaderApi
 export function SettingsPage({initialReading,initialPath,api,snapshot,active,section,onSection,onClose,onChanged,onBotsChanged,onPreview,onReadingSaved,onKeyboardSaved,reading,epub,registerGuard,closeStatus,onCloseHost,onDismissCloseStatus}:Props) {
   const [query,setQuery]=useState(''),[appearance,setAppearance]=useState(snapshot.appearance),[hex,setHex]=useState(snapshot.appearance.accent),[preferences,setPreferences]=useState(()=>resolvePreferences(snapshot.preferences)),[layout,setLayout]=useState(snapshot.layout??'cards'),[text,setText]=useState(initialReading),[epubStyle,setEpubStyle]=useState<EpubAppearance>(),[scope,setScope]=useState<'text'|'epub'>('text'),[keyboard,setKeyboard]=useState<KeyboardSettings>(defaultKeyboard),[path,setPath]=useState(initialPath??''),[error,setError]=useState(''),[status,setStatus]=useState(''),[saving,setSaving]=useState(false),[sourceBusy,setSourceBusy]=useState(false),[visited,setVisited]=useState(new Set<SettingsSection>());
   const preferencesRef=useRef(preferences),textRef=useRef(text);textRef.current=text;
-  const sourceBusyRef=useRef(sourceBusy);sourceBusyRef.current=sourceBusy;
+  const sourceBusyRef=useRef(sourceBusy);const sourceOperation=useCallback((value:boolean)=>{sourceBusyRef.current=value;setSourceBusy(value);},[]);
   const pathInput=useRef<HTMLInputElement>(null);
   const appearanceRef=useRef(appearance),epubRef=useRef(epubStyle),chain=useRef<Promise<unknown>>(Promise.resolve()),failures=useRef(new Map<string,()=>Promise<unknown>>()),pending=useRef(0),alive=useRef(true),back=useRef<HTMLButtonElement>(null),hexRef=useRef(hex),textSequence=useRef(0);
   const enqueue=(key:string,work:()=>Promise<unknown>)=>{pending.current++;setSaving(true);setStatus('');const next=chain.current.catch(()=>{}).then(work);chain.current=next;void next.then(()=>{failures.current.delete(key);},reason=>{failures.current.set(key,work);if(alive.current)setError(errorText(reason));}).finally(()=>{pending.current--;if(alive.current&&!pending.current){setSaving(false);if(!failures.current.size){setError('');setStatus('已保存');}}});return next;};
@@ -69,7 +69,7 @@ export function SettingsPage({initialReading,initialPath,api,snapshot,active,sec
           {section==='data'&&<><Group title="本地书库"><Row title="书库位置"><input ref={pathInput} readOnly aria-label="书库位置" value={path||'当前宿主未提供路径'} onFocus={event=>event.target.select()}/><IconButton label="复制书库位置" disabled={!path} onClick={()=>{void (async()=>{try{if(!navigator.clipboard)throw Error();await navigator.clipboard.writeText(path);setStatus('路径已复制');}catch{pathInput.current?.focus();pathInput.current?.select();setStatus('已选中路径，请复制');}})();}}><Copy size={16}/></IconButton></Row></Group><Group title="Reader"><Row title="版本"><span>{version}</span></Row></Group></>}
         </div>}
         {visited.has('bots')&&<NoteBotManager api={api.study!} embedded active={active&&!query&&section==='bots'} onClose={close} onChanged={onBotsChanged}/>}
-        {visited.has('sources')&&api.online&&<div className="settings-sources" hidden={!!query||section!=='sources'}><OnlinePanel onBusyChange={setSourceBusy} api={api.online} settingsOnly active={active&&!query&&section==='sources'} onOpen={()=>{}} onClose={close}/></div>}
+        {visited.has('sources')&&api.online&&<div className="settings-sources" hidden={!!query||section!=='sources'}><OnlinePanel onBusyChange={sourceOperation} api={api.online} settingsOnly active={active&&!query&&section==='sources'} onOpen={()=>{}} onClose={close}/></div>}
       </main>
     </div>
   </section>;

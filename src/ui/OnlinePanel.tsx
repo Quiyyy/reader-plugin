@@ -19,7 +19,6 @@ export function OnlinePanel({ api, active, onOpen, onClose, settingsOnly=false, 
   const [searched, setSearched] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(''), [cancellable, setCancellable] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<string | null>(null);
   const [incomplete, setIncomplete] = useState<IncompleteLoad | null>(null);
-  useEffect(()=>{onBusyChange?.(!!busy);},[busy,onBusyChange]);
   const requests = useRef(new Set<string>()), generation = useRef(0), busyRef = useRef(false), mounted = useRef(true);
   const main = useRef<HTMLElement>(null), dialog = useRef<HTMLElement>(null), wizardTrigger = useRef<HTMLElement | null>(null), resultTrigger = useRef('');
   const retry = useRef<(() => void) | null>(null), scrollTop = useRef(0), sourceGeneration = useRef(0);
@@ -35,7 +34,7 @@ export function OnlinePanel({ api, active, onOpen, onClose, settingsOnly=false, 
   const abortRequests = () => {
     generation.current++;
     requests.current.forEach(id => { void api.cancel(id).catch(() => {}); }); requests.current.clear();
-    busyRef.current = false; setBusy(''); setCancellable(false);
+    busyRef.current = false; setBusy('');onBusyChange?.(false); setCancellable(false);
   };
   useEffect(() => {
     mounted.current = true;
@@ -69,10 +68,10 @@ export function OnlinePanel({ api, active, onOpen, onClose, settingsOnly=false, 
     const version = ++generation.current;
     const current = () => mounted.current && version === generation.current;
     const request = () => { const id = crypto.randomUUID(); requests.current.add(id); return id; };
-    setBusy(label); setCancellable(network); setError(''); setNotice(''); setIncomplete(null); retry.current = () => { void run(label, work, done, network); };
+    setBusy(label);onBusyChange?.(true); setCancellable(network); setError(''); setNotice(''); setIncomplete(null); retry.current = () => { void run(label, work, done, network); };
     try { const value = await work(request, current); if (current()) done(value); }
     catch (e) { if (current()) { setError(messageOf(e)); setIncomplete(e instanceof IncompleteLoadError ? e.incomplete : null); } }
-    finally { if (current()) { requests.current.clear(); busyRef.current = false; setBusy(''); setCancellable(false); void refreshSources(); } }
+    finally { if (current()) { requests.current.clear(); busyRef.current = false; setBusy('');onBusyChange?.(false); setCancellable(false); void refreshSources(); } }
   };
   const cancel = () => { abortRequests(); setError(''); setNotice('已取消，可以重新尝试。'); };
   const leave = () => { if (busyRef.current && !cancellable) return; abortRequests(); setError(''); onClose(); };

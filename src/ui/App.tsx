@@ -116,6 +116,7 @@ export function App({ onOpenSettings,registerSettings,registerEpubSettings,keybo
   const progressDelegatedRef = useRef(false);
   const currentLocatorRef = useRef<Locator>(locator);
   const restoreRef = useRef(false);
+  const cancelReflowRef=useRef<(()=>void)|undefined>(undefined);
   const textAnchorRef=useRef<TextScrollAnchor|undefined>(undefined),readingSizeRef=useRef({width:0,height:0});
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -389,7 +390,7 @@ export function App({ onOpenSettings,registerSettings,registerEpubSettings,keybo
   useLayoutEffect(() => {
     if (!book || !navigation || !readingRef.current) return;
     let frame1 = 0; let frame2 = 0; let canceled = false;
-    restoreRef.current = true;
+    cancelReflowRef.current?.();restoreRef.current = true;
     const restore = () => {
       const container = readingRef.current;
       const target = document.getElementById(`reader-paragraph-${navigation.locator.chapter}-${navigation.locator.paragraph}`);
@@ -417,8 +418,9 @@ export function App({ onOpenSettings,registerSettings,registerEpubSettings,keybo
       frame=requestAnimationFrame(()=>{frame=0;apply();settle=requestAnimationFrame(()=>{settle=0;apply();restoreRef.current=false;});});
     });observer.observe(host,{box:'border-box'});
     const interrupt=()=>{if(!frame&&!settle)return;cancelAnimationFrame(frame);cancelAnimationFrame(settle);frame=settle=0;restoreRef.current=false;};
+    cancelReflowRef.current=interrupt;
     for(const event of ['wheel','touchstart','pointerdown','keydown'])host.addEventListener(event,interrupt,{passive:true});
-    return()=>{observer.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(settle);for(const event of ['wheel','touchstart','pointerdown','keydown'])host.removeEventListener(event,interrupt);};
+    return()=>{cancelReflowRef.current=undefined;observer.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(settle);for(const event of ['wheel','touchstart','pointerdown','keydown'])host.removeEventListener(event,interrupt);};
   },[book?.document.id,chapterIndex,epubLegacy]);
 
   const onReadingScroll = useCallback(() => {
