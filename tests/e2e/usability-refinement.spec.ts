@@ -1,3 +1,4 @@
+import { openNotes } from './navigation';
 import { test,expect,type APIRequestContext,type Page } from '@playwright/test';
 import { pdfFixture } from '../pdf-fixture';
 import { defaultAppearance } from '../../src/shared/workspace';
@@ -51,7 +52,7 @@ test('batch trash reports partial failure and leaves remaining notes intact',asy
 test('notes search and management preserve Markdown code, tables, nested lists and raw HTML as text',async({page,request,context})=>{
   await context.grantPermissions(['clipboard-read','clipboard-write']);
   const content='## 学习记录\n\n```js\nconst html = "<img src=x onerror=alert(1)>";\nconsole.log(html);\n```\n\n| 概念 | 说明 |\n| --- | --- |\n| **协议** | 有序交换 |\n\n1. 第一步\n   - 子项目\n   - 第二项\n2. 第二步\n\n<script>alert(1)</script>\n\n- [x] 已整理';
-  const note=await makeNote(request,'Markdown 验收',null,content);await page.goto('/');await page.getByRole('button',{name:'快速笔记',exact:true}).click();await page.getByLabel('搜索笔记标题或摘要').fill('Markdown 验收');
+  const note=await makeNote(request,'Markdown 验收',null,content);await page.goto('/');await openNotes(page);await page.getByLabel('搜索笔记标题或摘要').fill('Markdown 验收');
   await page.getByRole('button',{name:'管理笔记 Markdown 验收',exact:true}).click();await page.getByRole('menuitem',{name:'重命名'}).click();await page.getByLabel('笔记名称').focus();await expect(page.getByLabel('笔记名称')).toHaveCSS('outline-style','solid');await page.getByLabel('笔记名称').fill('Markdown 技术笔记');await page.getByRole('dialog',{name:'重命名'}).getByRole('button',{name:'完成'}).click();await expect(page.getByRole('dialog',{name:'重命名'})).toHaveCount(0);await page.getByLabel('搜索笔记标题或摘要').fill('Markdown 技术笔记');
   await page.locator('.study-note-row').click();if(await page.getByRole('button',{name:'返回排版编辑',exact:true}).count())await page.getByRole('button',{name:'返回排版编辑',exact:true}).click();
   await expect(page.locator('.note-code-block pre')).toContainText('console.log(html)');await expect(page.locator('.note-rich-content table tr:has(td)')).toHaveCount(1);await expect(page.locator('.note-rich-content ol > li')).toHaveCount(2);await expect(page.locator('.note-rich-content ol ul > li')).toHaveCount(2);await expect(page.locator('.note-rich-content script,.note-rich-content img')).toHaveCount(0);

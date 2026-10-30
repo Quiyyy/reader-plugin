@@ -1,4 +1,21 @@
 .note-mode { border:0; background:transparent!important; font-size:12px!important; padding:4px; max-width:112px; }
+.study-note-editor[hidden],.study-notes-list[hidden],.note-bot-page[hidden] { display:none!important; }
+.note-bot-page { display:flex; flex-direction:column; flex:1; min-width:0; min-height:0; height:100%; background:var(--study-paper); }
+.note-bot-page-head { display:flex; align-items:center; gap:10px; flex:none; min-height:58px; padding:12px 20px; border-bottom:1px solid var(--study-border); }
+.note-bot-page-head h1 { margin:0; font-size:19px; font-weight:600; }.note-bot-page-head > svg { color:var(--study-accent-ink); }
+.note-bot-page-scroll { flex:1; min-height:0; min-width:0; overflow:auto; padding:26px 24px 32px; }
+.note-bot-page-content { width:100%; max-width:760px; min-width:0; margin:auto; }
+.note-bot-page-picker { display:flex; align-items:center; gap:10px; margin-bottom:26px; }.note-bot-page-picker select { flex:1; min-width:0; width:100%; padding:10px 12px; border:1px solid var(--study-border); border-radius:8px; font-size:14px; }.note-bot-page-picker .icon-button { flex:none; }
+.note-bot-page-form { display:flex; flex-direction:column; min-width:0; gap:22px; }
+.note-bot-page-form > label { display:flex; flex-direction:column; gap:8px; min-width:0; font-size:13px; }
+.note-bot-page-form :is(input,textarea) { display:block; min-width:0; width:100%; max-width:100%; box-sizing:border-box; padding:11px 12px; border:1px solid var(--study-border); border-radius:8px; font-size:14px; line-height:1.65; }
+.note-bot-page-form textarea { min-height:260px; resize:vertical; overflow-wrap:anywhere; }
+.note-bot-page-options { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; min-width:0; }
+.note-bot-page-options > label { display:flex; align-items:center; gap:7px; font-size:13px; white-space:nowrap; }.note-bot-page-options input { width:auto; margin:0; }
+.note-bot-page-options .study-model-picker { min-width:0; max-width:100%; }.note-bot-page-options .study-model-trigger { min-width:0; max-width:100%; }
+.note-bot-page-footer { flex:none; padding:12px 24px; border-top:1px solid var(--study-border); background:var(--study-paper); }
+.note-bot-page-footer > div { display:flex; align-items:center; gap:10px; max-width:760px; margin:auto; }.note-bot-page-footer .primary-button { padding:9px 17px; border-radius:8px; font-size:13px; }
+.note-bot-save-status { display:flex; align-items:center; gap:5px; margin-right:auto; min-width:0; color:var(--study-muted); font-size:12px; }.note-bot-page-error { color:var(--study-ink); border-left:2px solid var(--study-accent); padding-left:12px; font-size:13px; overflow-wrap:anywhere; }
 .study-note-editor { position:relative; background:var(--study-paper); }
 .study-note-editor .study-editor-head { border-bottom:0; min-height:48px; padding:8px 20px; }
 .study-note-editor .study-editor-body { padding:40px max(32px,calc((100% - 880px)/2)) 64px; }
@@ -61,6 +78,14 @@
 .note-chat-menu,.note-chat-mention { position:absolute; z-index:95; left:12px; bottom:calc(100% + 8px); background:var(--study-paper); border:1px solid var(--study-border); padding:5px; border-radius:12px; box-shadow:0 6px 20px #0002; max-height:240px; overflow:auto; min-width:190px; }
 .note-chat-menu button,.note-chat-mention button { display:flex; align-items:center; gap:9px; width:100%; background:transparent; border-radius:7px; padding:9px 10px; font-size:13px; text-align:left; }.note-chat-menu button:hover,.note-chat-mention button[aria-selected="true"] { background:var(--study-soft); }.note-chat-mention small { display:block; font-size:11px; color:var(--study-muted); }
 .note-chat-actions { display:flex; align-items:center; gap:3px; margin-top:6px; }.note-chat-actions .icon-button { width:28px; height:28px; padding:5px; color:var(--study-muted); border-radius:6px; }.note-chat-actions .icon-button:disabled { opacity:.3; }
+.note-chat-statusline { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:26px; margin:0 4px 7px; }
+.study-note-editor .note-chat-statusline .study-note-status { display:flex; align-items:center; min-height:22px; margin:0; padding:0; border:0; font-size:11px; }
+.note-chat-statusline .note-chat-history-toggle { height:22px; margin:0 0 0 auto; padding:0; display:flex; align-items:center; }
+.note-task-status { margin-right:auto; color:var(--study-muted); font-size:11px; }
+.note-chat-dock .note-chat-log { max-height:min(24vh,180px); }
+.note-font-setting { display:flex!important; align-items:center; justify-content:space-between; gap:20px; margin:8px 0; font-size:13px; }.note-font-setting select { width:80px; }
+.study-workspace .study-note-editor .study-note-body,.study-workspace .study-note-editor .note-rich-content { font-size:var(--note-font-size,14px)!important; }
+.study-note-editor .note-rich-content :is(pre,code) { font-size:1em; }
 .note-chat-detail { font-size:12px; color:var(--study-muted); line-height:1.6; padding:8px 4px 0; max-height:100px; overflow:auto; }
 .note-composer-context:empty { display:none; }.note-composer-context { display:flex; align-items:center; flex-wrap:wrap; gap:6px; min-width:0; }
 .note-context-pill { display:inline-flex; align-items:center; gap:5px; max-width:min(280px,100%); border:1px solid var(--study-border); border-radius:9px; padding:3px 5px 3px 8px; color:var(--study-muted); font-size:11px; }.note-context-pill > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.note-context-pill > svg { flex:none; }.note-context-pill .icon-button { width:20px; height:20px; padding:3px; flex:none; }

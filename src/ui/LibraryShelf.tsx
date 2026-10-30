@@ -30,8 +30,7 @@ function NoteCover({entry,api,snapshot}:{entry:LibraryEntry;api:ReaderApi;snapsh
     const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){observer.disconnect();load();}},{root:ref.current?.closest('.library-shelf'),rootMargin:'120px'});
     if(ref.current)observer.observe(ref.current);return()=>{cancelled=true;observer.disconnect();};
   },[imageId,api.study]);
-  const preview=note.preview.trim();
-  return <span ref={ref} className="library-art library-notebook" aria-hidden="true">{image&&image.id===imageId?<img src={image.url} alt="" draggable={false}/>:preview?<><NotebookPen size={13}/><span className="library-page-preview">{preview}</span></>:<span className="library-blank-label"><NotebookPen size={15}/></span>}</span>;
+  return <span ref={ref} className={'library-art library-notebook'+(image&&image.id===imageId?' has-image':'')} aria-hidden="true">{image&&image.id===imageId?<img src={image.url} alt="" draggable={false}/>:<><span className="library-notebook-emblem"><NotebookPen size={20} strokeWidth={1.35}/></span><span className="library-notebook-lines"><i/><i/><i/></span></>}</span>;
 }
 function EntryCover({entry,api,snapshot}:{entry:LibraryEntry;api:ReaderApi;snapshot:WorkspaceSnapshot}) {
   if(entry.kind==='note')return <NoteCover entry={entry} api={api} snapshot={snapshot}/>;

@@ -51,6 +51,28 @@ async function setup() {
 async function started(transport: Transport, count = 1) { await expect.poll(() => transport.requests.filter(r => r.method === 'turn/start').length).toBe(count); }
 
 describe('documented Codex transport and reading scope', () => {
+  it('writes a Note Bot task directly and refuses to overwrite a newer user revision',async()=>{
+    const {reader,chat,transport}=await setup();
+    const note=(await reader.workspace.store.createNote({title:'直接编写',body:'已有内容',folderId:null,tags:[],imageIds:[],sourceIds:[]})).value;
+    const session=await chat.create(undefined,null,note.id,{writeNote:true});
+    await chat.send({id:session.id,messageId:randomUUID(),text:'补充一份学习大纲',sourceIds:[],writeNote:true,noteRevision:note.revision});await started(transport);
+    const options=transport.requests.find(request=>request.method==='thread/start')!.params;
+    expect(options.dynamicTools.map((tool:any)=>tool.name)).toContain('reader_note_update');expect(options.dynamicTools.map((tool:any)=>tool.name)).not.toContain('reader_annotation_save');expect(options.developerInstructions).toContain('直接通过工具更新正文');
+    await transport.tool('reader_note_update',{id:note.id,revision:note.revision,patch:{body:'已有内容\n\n## 学习大纲\n- 基础概念'}});
+    const written=await reader.workspace.store.note(note.id);expect(written.body).toContain('学习大纲');expect((await chat.get(session.id)).messages.find(message=>message.role==='tool')?.undoId).toBeTruthy();
+    const edited=await reader.workspace.store.updateNote(note.id,written.revision,{body:'用户刚保存的新内容'});
+    await expect(transport.tool('reader_note_update',{id:note.id,revision:edited.value.revision,patch:{body:'覆盖用户输入'}})).rejects.toThrow('已有新修改');
+    expect((await reader.workspace.store.note(note.id)).body).toBe('用户刚保存的新内容');
+  });
+  it('can continue an older suggestion conversation as a task only with an explicit current revision',async()=>{
+    const {reader,chat,transport,transports}=await setup();const note=(await reader.workspace.store.createNote({title:'兼容对话',body:'正文',folderId:null,tags:[],imageIds:[],sourceIds:[]})).value;
+    const session=await chat.create(undefined,null,note.id,{proposal:true});
+    await expect(chat.send({id:session.id,messageId:randomUUID(),text:'直接写入',sourceIds:[],writeNote:true})).rejects.toThrow('新修改');
+    await chat.send({id:session.id,messageId:randomUUID(),text:'先给建议',sourceIds:[]});await started(transport);await chat.stop(session.id);
+    await chat.send({id:session.id,messageId:randomUUID(),text:'直接写入',sourceIds:[],writeNote:true,noteRevision:note.revision});await started(transports[1]!);
+    expect(transports[1]!.requests.some(request=>request.method==='thread/resume')).toBe(false);expect(transports[1]!.requests.find(request=>request.method==='turn/start')!.params.input.some((item:any)=>item.text?.includes('先给建议'))).toBe(true);
+    expect(await chat.get(session.id)).toMatchObject({noteTask:true,proposal:false});expect((await chat.list(undefined,note.id,false,true)).map(session=>session.id)).toContain(session.id);
+  });
   it('uses a selected Note Bot and keeps inline suggestions read-only even when its instructions request writes',async()=>{
     const {reader,chat,transport}=await setup();
     const note=(await reader.workspace.store.createNote({title:'建议模式',body:'原始内容',folderId:null,tags:[],imageIds:[],sourceIds:[]})).value;

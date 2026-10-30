@@ -1,6 +1,6 @@
 import { useLayoutEffect,useRef,type ReactNode } from 'react';
 
-export function LibraryMenu({anchor,onClose,children}:{anchor:HTMLButtonElement;onClose:()=>void;children:ReactNode}) {
+export function LibraryMenu({anchor,onClose,children,label='整理菜单'}:{anchor:HTMLButtonElement;onClose:()=>void;children:ReactNode;label?:string}) {
   const ref=useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
     const menu=ref.current!;
@@ -16,7 +16,7 @@ export function LibraryMenu({anchor,onClose,children}:{anchor:HTMLButtonElement;
     window.addEventListener('resize',place);window.addEventListener('scroll',scroll,true);
     return()=>{window.removeEventListener('resize',place);window.removeEventListener('scroll',scroll,true);if(anchor.isConnected)anchor.focus({preventScroll:true});};
   },[anchor]);
-  return <><button type="button" className="library-menu-scrim" aria-label="关闭整理菜单" onClick={onClose}/><div className="library-menu" role="menu" aria-label="整理菜单" ref={ref} onKeyDown={event=>{
+  return <><button type="button" className="library-menu-scrim" aria-label={'关闭'+label} onClick={onClose}/><div className="library-menu" role="menu" aria-label={label} ref={ref} onKeyDown={event=>{
     event.stopPropagation();const buttons=[...event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')],index=buttons.indexOf(document.activeElement as HTMLButtonElement);
     if(event.key==='Escape'){event.preventDefault();onClose();}
     else if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();buttons[(index+(event.key==='ArrowDown'?1:buttons.length-1)+buttons.length)%buttons.length]?.focus();}

@@ -1,2 +1,4 @@
 import type { Page,FrameLocator } from '@playwright/test';
 export async function openDiscovery(page:Page|FrameLocator){const search=page.getByRole('button',{name:'找书',exact:true});if(await search.count()&&await search.first().isVisible()){await search.first().click();return;}await page.getByRole('button',{name:'新建',exact:true}).click();await page.getByRole('menuitem',{name:'在线找书',exact:true}).click();}
+
+export async function openNotes(page:Page|FrameLocator){await page.getByRole('button',{name:'快速笔记',exact:true}).click();await page.getByRole('button',{name:'笔记操作',exact:true}).click();await page.getByRole('button',{name:'全部笔记',exact:true}).click();await page.locator('.study-notes-list').waitFor({state:'visible'});}

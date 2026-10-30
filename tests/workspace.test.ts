@@ -9,6 +9,13 @@ import { defaultAppearance } from '../src/shared/workspace.js';
 const using=async(work:(service:ReaderService,dir:string)=>Promise<void>)=>{const dir=await mkdtemp(join(tmpdir(),'Reader workspace '));try{await work(new ReaderService(new ReaderStore(dir)),dir);}finally{await rm(dir,{recursive:true,force:true});}};
 const noteInput={title:'阅读记录',body:'我的理解',folderId:null,tags:[],sourceIds:[],imageIds:[]};
 describe('learning workspace durability and boundaries',()=>{
+  it('persists note font size without letting older appearance clients reset it',()=>using(async(s,dir)=>{
+    expect((await s.workspace.store.snapshot()).appearance.noteFontSize).toBe(14);
+    await s.workspace.store.appearance({...defaultAppearance,noteFontSize:18});
+    const {noteFontSize:_,...legacy}=defaultAppearance;await s.workspace.store.appearance({...legacy,mode:'dark'});
+    const restarted=new WorkspaceStore(new ReaderStore(dir));expect((await restarted.snapshot()).appearance).toMatchObject({noteFontSize:18,mode:'dark'});
+    await expect(restarted.appearance({...defaultAppearance,noteFontSize:50})).rejects.toThrow();
+  }));
   it('preserves note comments through content edits, restart and undo',()=>using(async(s,dir)=>{
     const created=await s.workspace.store.createNote(noteInput),id=created.value.id;
     const comments=[{id:crypto.randomUUID(),quote:'我的理解',text:'补充具体例子',createdAt:new Date().toISOString(),resolved:false}];

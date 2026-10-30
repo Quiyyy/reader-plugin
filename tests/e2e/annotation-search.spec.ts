@@ -1,3 +1,4 @@
+import { openNotes } from './navigation';
 import { expect,test,type APIRequestContext,type Locator,type Page } from '@playwright/test';
 
 // Existing persistence/selection scenarios exercise the source editing mode.
@@ -58,7 +59,7 @@ test('PDF search can advance within a page and preserve existing excerpt marks',
 test('library and note searches reach scoped full-text results with the matching excerpt and folder',async({page,request})=>{
   const folder=(await rpc(request,'reader_folder_save',{name:'检索课程',parentId:null})).value;
   await rpc(request,'reader_note_create',{title:'技术札记',body:'前文'.repeat(300)+'深处关键词'+'后文'.repeat(200),folderId:folder.id,tags:[],sourceIds:[],imageIds:[]});
-  await page.goto('/');await page.getByRole('button',{name:'快速笔记',exact:true}).click();await page.getByLabel('搜索笔记标题或摘要').fill('深处关键词');await page.getByRole('button',{name:'搜索笔记全文',exact:true}).click();await expect(page.getByLabel('搜索范围')).toHaveValue('note');await expect(page.locator('.study-search-hit mark')).toContainText('深处关键词');await expect(page.locator('.study-search-hit small')).toContainText('检索课程');await page.locator('.study-search-hit').click();await expect(page.getByLabel('笔记正文')).toHaveValue(/深处关键词/);await page.goto('/');await page.getByLabel('搜索书籍、笔记和文件夹').fill('深处关键词');await page.getByLabel('搜索书籍、笔记和文件夹').press('Enter');await expect(page.getByLabel('搜索范围')).toHaveValue('all');await expect(page.locator('.study-search-hit mark')).toContainText('深处关键词');
+  await page.goto('/');await openNotes(page);await page.getByLabel('搜索笔记标题或摘要').fill('深处关键词');await page.getByRole('button',{name:'搜索笔记全文',exact:true}).click();await expect(page.getByLabel('搜索范围')).toHaveValue('note');await expect(page.locator('.study-search-hit mark')).toContainText('深处关键词');await expect(page.locator('.study-search-hit small')).toContainText('检索课程');await page.locator('.study-search-hit').click();await expect(page.getByLabel('笔记正文')).toHaveValue(/深处关键词/);await page.goto('/');await page.getByLabel('搜索书籍、笔记和文件夹').fill('深处关键词');await page.getByLabel('搜索书籍、笔记和文件夹').press('Enter');await expect(page.getByLabel('搜索范围')).toHaveValue('all');await expect(page.locator('.study-search-hit mark')).toContainText('深处关键词');
 });
 
 for(const format of ['txt','epub','pdf'] as const)test(`${format}: a global passage result opens its actual location and highlights the query`,async({page,request})=>{

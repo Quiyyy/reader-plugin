@@ -2,7 +2,7 @@ import { test,expect,type APIRequestContext } from '@playwright/test';
 
 // Existing persistence/selection scenarios exercise the source editing mode.
 test.beforeEach(async({page})=>{await page.addInitScript(()=>{try{localStorage.setItem('reader-note-visual','false');}catch{}});});
-import { openDiscovery } from './navigation';
+import { openDiscovery ,openNotes} from './navigation';
 
 async function rpc(request:APIRequestContext,name:string,args:object={}) {
   const response=await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name,arguments:args}});
@@ -43,7 +43,7 @@ for(const width of [1280,390,320])test(`minimal workspace, model choice and pres
   await page.getByRole('button',{name:'关闭对话',exact:true}).click();await page.getByRole('button',{name:'返回书架',exact:true}).click();
   const folder=(await rpc(request,'reader_folder_save',{name:`旧分类 ${width}`,parentId:null})).value;
   const note=(await rpc(request,'reader_note_create',{title:`保留笔记 ${width}`,body:'保留已有正文。',folderId:folder.id,tags:['历史标签'],sourceIds:[],imageIds:[]})).value;
-  await page.reload();await page.getByRole('button',{name:'快速笔记',exact:true}).click();await page.locator('.study-notes-list').getByRole('button',{name:new RegExp(`^保留笔记 ${width}`)}).click();
+  await page.reload();await openNotes(page);await page.locator('.study-notes-list').getByRole('button',{name:new RegExp(`^保留笔记 ${width}`)}).click();
   await expect(page.getByLabel('笔记正文')).toHaveValue('保留已有正文。');await expect(page.getByLabel('笔记文件夹')).toHaveCount(0);await expect(page.getByLabel('笔记标签')).toHaveCount(0);await expect(page.locator('.study-note-meta')).toHaveCount(0);await expect(page.locator('.study-notes-list').getByText(/处来源/)).toHaveCount(0);
   await page.getByLabel('笔记正文').fill('保留已有正文，并补充新的想法。');await expect(page.locator('.study-note-status')).toContainText('已保存到 Reader');
   const updated=await rpc(request,'reader_note_get',{id:note.id});expect(updated.tags).toEqual(['历史标签']);expect(updated.folderId).toBe(folder.id);

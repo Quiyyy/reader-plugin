@@ -66,7 +66,7 @@ export function createReaderApi(): ReaderApi {
       } finally { window.clearTimeout(timeout); }
     };
   } else {
-    const app = new App({ name: 'Reader', version: '0.2.15' });
+    const app = new App({ name: 'Reader', version: '0.2.16' });
     const extensions = new OpenAIExtensions(app);
     const applyContext = (context: ReturnType<App['getHostContext']>) => {
       if (context?.theme) { applyDocumentTheme(context.theme); document.documentElement.dataset.hostTheme = context.theme; }

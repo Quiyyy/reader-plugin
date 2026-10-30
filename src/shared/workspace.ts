@@ -39,17 +39,17 @@ export const annotationSchema = z.object({ id: entityIdSchema, sourceId: entityI
 export type Annotation = z.infer<typeof annotationSchema>;
 export const bookMetadataSchema = z.object({ title: z.string().trim().min(1).max(240).optional(), folderId: entityIdSchema.nullable(), tags: z.array(z.string().trim().min(1).max(40)).max(30), revision: z.number().int().positive() });
 export type BookMetadata = z.infer<typeof bookMetadataSchema>;
-export const appearanceSchema = z.object({ mode: z.enum(['system','light','dark']), accent: z.string().regex(/^#[a-fA-F0-9]{6}$/), paper: z.enum(['white','cream']), fontSize: z.number().int().min(14).max(36) }).strict();
+export const appearanceSchema = z.object({ mode: z.enum(['system','light','dark']), accent: z.string().regex(/^#[a-fA-F0-9]{6}$/), paper: z.enum(['white','cream']), fontSize: z.number().int().min(14).max(36), noteFontSize:z.number().int().min(12).max(28).optional() }).strict();
 export type Appearance = z.infer<typeof appearanceSchema>;
-export const defaultAppearance: Appearance = { mode:'system',accent:'#526dad',paper:'white',fontSize:20 };
+export const defaultAppearance: Appearance = { mode:'system',accent:'#526dad',paper:'white',fontSize:20,noteFontSize:14 };
 export interface WorkspaceSnapshot { layout?:'cards'|'list'; revision:number; accessRevision?:number; visits?:Record<string,string>; folders:Folder[]; notes:NoteSummary[]; annotations:Annotation[]; sources:SourceRef[]; books:Record<string,BookMetadata>; appearance:Appearance; aiBooks:string[]; }
 export interface Mutation<T> { value:T; undoId?:string; revision:number; }
 export interface SearchHit { kind:'book'|'note'|'annotation'|'passage'; id:string; title:string; text:string; source?:SourceRef; locator?:{chapter:number;paragraph:number;chapterId?:string}; }
 export interface PdfBook { id:string; title:string; author:string; pages:number; addedAt:string; lastReadAt?:string; page:number; scroll:number; scale:number; rotation:number; outline:{title:string;page:number;depth:number}[]; warnings:string[]; locked:boolean; }
-export interface ChatMessage { id:string; role:'user'|'assistant'|'tool'; text:string; sourceIds:string[]; imageIds?:string[]; createdAt:string; }
+export interface ChatMessage { undoId?:string; id:string; role:'user'|'assistant'|'tool'; text:string; sourceIds:string[]; imageIds?:string[]; createdAt:string; }
 export interface ChatModel { id:string; name:string; defaultReasoningEffort?:string; supportedReasoningEfforts:string[]; }
 export interface ChatModels { models:ChatModel[]; defaultModel:string|null; }
-export interface ChatSession { bot?:NoteBot; proposal?:boolean; id:string; bookId?:string; noteId?:string; title:string; threadId?:string; messages:ChatMessage[]; draft:string; draftSourceIds?:string[]; draftImageIds?:string[]; allowBook?:boolean; model?:string|null; status:'idle'|'running'|'error'|'interrupted'; error?:string; createdAt:string; updatedAt:string; revision:number; }
+export interface ChatSession { noteTask?:boolean; bot?:NoteBot; proposal?:boolean; id:string; bookId?:string; noteId?:string; title:string; threadId?:string; messages:ChatMessage[]; draft:string; draftSourceIds?:string[]; draftImageIds?:string[]; allowBook?:boolean; model?:string|null; status:'idle'|'running'|'error'|'interrupted'; error?:string; createdAt:string; updatedAt:string; revision:number; }
 export interface WorkspaceApi {
   download?(filename:string,mimeType:string,data:Uint8Array):Promise<void>;
   call<T=unknown>(name:string,args?:Record<string,unknown>):Promise<T>;
