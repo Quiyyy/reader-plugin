@@ -31,7 +31,9 @@ async function openBook(page: Page, format: 'txt' | 'epub' | 'pdf') {
   const target = format === 'txt' ? page.locator('[data-reader-paragraph]').filter({ hasText: passage }).first()
     : format === 'epub' ? page.locator('.epub-document #passage')
     : page.locator('.textLayer span').filter({ hasText: 'Recall a concept' }).first();
-  await expect(target).toBeVisible();
+  // PDF imports start a real parser worker before the text layer can render.
+  // Match the bounded loading allowance used by the other PDF UI scenarios.
+  await expect(target).toBeVisible({timeout:format==='pdf'?30000:5000});
   // EPUB content appears before asset/layout restoration and its initial focus.
   if (format === 'epub') await expect(page.locator('.epub-loading')).toHaveCount(0);
   return target;

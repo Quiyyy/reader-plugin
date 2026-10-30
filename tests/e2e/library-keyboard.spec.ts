@@ -40,8 +40,12 @@ for (const width of [320, 390, 1280]) {
     await closeSettings(page);
     await page.getByRole('button',{name:'本书操作',exact:true}).click(); await page.getByRole('menuitem', { name: '移到回收站', exact: true }).click();
     await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
+    // Returning reveals the shelf before its asynchronous library refresh.
+    // Wait for removal so undo cannot race the old card being unmounted.
+    const card = page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) });
+    await expect(card).toHaveCount(0);
     await page.getByRole('button', { name: '撤销', exact: true }).click(); await page.getByRole('searchbox', { name: '搜索书籍、笔记和文件夹' }).fill(title);
-    const card = page.getByRole('button', { name: new RegExp(`^打开 ${title}，`) }); await card.focus(); await page.keyboard.press('Enter');
+    await expect(card).toBeEnabled(); await card.press('Enter');
     await expect(page.getByRole('heading', { name: '第二章 回收', exact: true })).toBeVisible();
     await page.getByRole('button', { name: '我的书签', exact: true }).click(); await expect(page.locator('.bookmark-list li')).toHaveCount(1); await page.keyboard.press('Escape');
     await reading.focus(); await page.keyboard.press('Escape'); await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
