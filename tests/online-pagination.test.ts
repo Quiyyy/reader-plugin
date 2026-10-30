@@ -215,5 +215,7 @@ describe('bounded, resumable long directories and chapters', () => {
     await expect(f.online.refresh(book.summary.id, signal())).rejects.toMatchObject({ incomplete: { pages: 256, resumable: false } });
     expect(f.requests).toHaveLength(257); // 256 TOC pages + just the first body.
     expect((await f.online.listBooks())[0].chapterCount).toBe(256);
-  }, 30_000);
+    // Windows hosted runners need time for 256 durable checkpoints. The page
+    // limit and the exact request count above remain the production assertions.
+  }, 60_000);
 });
