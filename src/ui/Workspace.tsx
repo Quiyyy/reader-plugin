@@ -90,6 +90,7 @@ export function Workspace({api}:{api:ReaderApi}){
   const closeNavigation=()=>{setMobileNav(false);if(focusedNote)requestAnimationFrame(()=>root.current?.querySelector<HTMLButtonElement>('[aria-controls="study-main-navigation"]')?.focus());};
   useEffect(()=>{setMobileNav(false);},[view,noteId]);
   useEffect(()=>{if(focusedNote&&mobileNav)root.current?.querySelector<HTMLButtonElement>('.study-nav-brand')?.focus();},[focusedNote,mobileNav]);
+  useEffect(()=>{if(!focusedNote||!mobileNav)return;const close=(event:PointerEvent)=>{if(!(event.target as Element).closest('.study-sidebar,[aria-controls=study-main-navigation]'))setMobileNav(false);};document.addEventListener('pointerdown',close);return()=>document.removeEventListener('pointerdown',close);},[focusedNote,mobileNav]);
   const onSelect=useCallback((input:SourceInput,rect:DOMRect)=>{if(annotationDirtyRef.current||annotationLock.current){setAnnotationError('请先保存或取消当前批注');return;}setSelection({input,rect});},[]);
   useEffect(()=>{
     if(view!=='reading')return;
@@ -137,7 +138,6 @@ export function Workspace({api}:{api:ReaderApi}){
     {view!=='reading'&&!focusedNote&&<div className="study-mobile-nav"><button onClick={()=>void changeView('library')}><BookOpen size={17}/>书库</button><button disabled={busy} onClick={()=>void quickNote()}><NotebookPen size={17}/>快速笔记</button><button aria-label="搜索书库与笔记" onClick={()=>void changeView('search')}><Search size={17}/>搜索</button><IconButton label="更多导航" onClick={()=>setMobileNav(!mobileNav)}><MoreHorizontal size={17}/></IconButton><IconButton label="设置" onClick={()=>void openSettings('general')}><Settings2 size={17}/></IconButton></div>}
     {error&&<div className="study-error global" role="alert"><span>{error}</span>{failedProgress.current.size>0&&<button onClick={()=>void retryProgress()}>重试</button>}<IconButton label="关闭提示" onClick={()=>setError('')}><X size={16}/></IconButton></div>}
     {loading?<div className="study-loading"><LoaderCircle className="spin"/>正在打开 Reader</div>:<div className={'study-shell '+(view==='reading'?'is-reading':focusedNote?'is-note-focused':'')}>
-      {focusedNote&&mobileNav&&<button className="study-nav-scrim" aria-label="关闭主导航" onClick={closeNavigation}/>}
       {view!=='reading'&&(!focusedNote||mobileNav)&&sidebar}
       {view==='library'&&<LibraryShelf onFullSearch={text=>fullSearch(text)} onTrash={setTrashItems} api={api} books={library.books} snapshot={snapshot} title="书库" query={bookQuery} busy={busy} folderId={libraryFolder} sort={librarySort}
         onQuery={setBookQuery} onFolder={visitFolder} onSort={saveSort} onImport={()=>files.current?.click()} onImportOptions={()=>setImportOpen(true)} onDiscover={api.online?()=>void changeView('online'):undefined} onFiles={input=>void importFiles(input)}

@@ -164,7 +164,7 @@ for (const inFlight of [false, true]) {
         await setReaderTheme(page,'dark');
       }
       await page.getByRole('button', { name: '增大字号' }).click();
-      await closeSettings(page);
+      await closeSettings(page,false);
       await observed.promise;
       await expect(page.getByRole('region',{name:'设置',exact:true})).toBeVisible();
       await expect(page.getByRole('heading', { name: '书库', exact: true })).toHaveCount(0);
@@ -224,7 +224,7 @@ test('a late reader settings response preserves edits and existing typography', 
 test('failed settings stay open until a retry succeeds', async ({page,request},testInfo)=>{
   const title='样式失败-'+testInfo.repeatEachIndex;await importSettingsBook(page,request,title);let failSave=true;
   await page.route('**/api/tool',route=>failSave&&route.request().postDataJSON()?.name==='reader_appearance'?route.abort('failed'):route.continue());
-  await setReaderTheme(page,'sepia');await closeSettings(page);const settings=page.getByRole('region',{name:'设置',exact:true});await expect(settings.getByRole('alert')).toBeVisible();await expect(settings).toBeVisible();expect((await previewTool(request,'reader_list')).settings.theme).toBe('system');
+  await setReaderTheme(page,'sepia');await closeSettings(page,false);const settings=page.getByRole('region',{name:'设置',exact:true});await expect(settings.getByRole('alert')).toBeVisible();await expect(settings).toBeVisible();expect((await previewTool(request,'reader_list')).settings.theme).toBe('system');
   failSave=false;await settings.getByRole('button',{name:'重试',exact:true}).click();await expect(settings.getByRole('alert')).toHaveCount(0);await closeSettings(page);await page.getByRole('button',{name:'返回书架',exact:true}).click();await expect(page.getByRole('heading',{name:'书库',exact:true})).toBeVisible();expect((await previewTool(request,'reader_list')).settings.theme).toBe('sepia');
 });
 

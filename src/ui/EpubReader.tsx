@@ -31,6 +31,7 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
   const host=useRef<HTMLDivElement>(null),dom=useRef<EpubDom|undefined>(undefined),dialog=useRef<HTMLDialogElement>(null),popover=useRef<HTMLElement>(null);
   const location=useRef<EpubLocation|undefined>(undefined),pending=useRef<EpubLocation|undefined>(undefined),appearanceRef=useRef(appearance),notes=useRef<EpubLocation[]>([]),active=useRef(true),restoring=useRef(true),request=useRef(0),chain=useRef<Promise<unknown>>(Promise.resolve()),timer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),intent=useRef(false),navigateRef=useRef<((target:EpubTarget,restore?:EpubLocation,note?:boolean)=>Promise<void>)|undefined>(undefined);
   const viewport=useRef({width:0,height:0});
+  const reflowRef=useRef<(()=>void)|undefined>(undefined);
   const progressCallback=useRef(onProgress);progressCallback.current=onProgress;
   const flush=useCallback(async()=>{
     clearTimeout(timer.current);const value=pending.current;if(!value)return chain.current;
@@ -77,17 +78,21 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
       if(!value.state.location&&value.legacyLocation&&active.current)setUnmatched(true);
     }).catch(e=>{if(active.current){setError(message(e));setLoading(false);}});
     let frame=0,settle=0;viewport.current={width:host.current!.clientWidth,height:host.current!.clientHeight};
-    const resize=new ResizeObserver(()=>{
+    const reflow=(force=false)=>{
       const next={width:host.current!.clientWidth,height:host.current!.clientHeight},previous=viewport.current;
-      if(!next.width||!next.height||next.width===previous.width&&next.height===previous.height)return;
-      viewport.current=next;if(restoring.current&&!frame&&!settle)return;
+      if(!next.width||!next.height||!force&&next.width===previous.width&&next.height===previous.height)return;
+      viewport.current=next;if(!force&&restoring.current&&!frame&&!settle)return;
       const prior=location.current;restoring.current=true;cancelAnimationFrame(frame);cancelAnimationFrame(settle);
       view.setAppearance(appearanceRef.current);if(prior)view.restore(prior);
       // Paged restoration snaps to the start of the containing page. Capturing
       // that programmatic scroll would move the anchor backwards on each resize.
-      frame=requestAnimationFrame(()=>{frame=0;settle=requestAnimationFrame(()=>{settle=0;restoring.current=false;});});
-    });resize.observe(host.current!);
-    return ()=>{active.current=false;request.current++;clearTimeout(timer.current);cancelAnimationFrame(frame);cancelAnimationFrame(settle);resize.disconnect();view.dispose();};
+      frame=requestAnimationFrame(()=>{frame=0;view.setAppearance(appearanceRef.current);viewport.current={width:host.current!.clientWidth,height:host.current!.clientHeight};if(prior)view.restore(prior);settle=requestAnimationFrame(()=>{settle=0;if(prior)view.restore(prior);restoring.current=false;});});
+    };
+    reflowRef.current=()=>reflow(true);
+    const resize=new ResizeObserver(()=>reflow());resize.observe(host.current!,{box:'border-box'});
+    const element=host.current!,interrupt=()=>{if(!frame&&!settle)return;cancelAnimationFrame(frame);cancelAnimationFrame(settle);frame=settle=0;restoring.current=false;};
+    for(const event of ['wheel','touchstart','pointerdown','keydown'])element.addEventListener(event,interrupt,{passive:true});
+    return ()=>{active.current=false;request.current++;reflowRef.current=undefined;clearTimeout(timer.current);cancelAnimationFrame(frame);cancelAnimationFrame(settle);for(const event of ['wheel','touchstart','pointerdown','keydown'])element.removeEventListener(event,interrupt);resize.disconnect();view.dispose();};
   },[book.summary.id,epub]);
   useEffect(()=>{dom.current?.highlights(annotations,sources);},[annotations,sources,resource,loading]);
   useEffect(()=>{const el=host.current;const select=()=>{try{const result=dom.current?.selection();if(result)onSelect?.(result.source,result.rect);}catch(e){setError(message(e));}};el?.addEventListener('mouseup',select);el?.addEventListener('keyup',select);return()=>{el?.removeEventListener('mouseup',select);el?.removeEventListener('keyup',select);};},[onSelect,resource]);
@@ -95,11 +100,10 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
   useEffect(()=>api.onBeforeClose?.(flush),[api,flush]);
   useEffect(()=>{if(image)dialog.current?.showModal();else dialog.current?.close();},[image]);
   useEffect(()=>{if(panel)popover.current?.querySelector<HTMLElement>('input,button')?.focus();},[panel]);
-  const adoptAppearance=useCallback((value:EpubAppearance)=>{const prior=location.current??dom.current?.location();appearanceRef.current=value;setAppearance(value);restoring.current=true;dom.current?.setAppearance(value);requestAnimationFrame(()=>{if(prior)dom.current?.restore(prior);restoring.current=false;});},[]);
+  const adoptAppearance=useCallback((value:EpubAppearance)=>{appearanceRef.current=value;setAppearance(value);reflowRef.current?.();},[]);
   useEffect(()=>{registerSettings?.({id:book.summary.id,title:book.document.title,get:()=>appearanceRef.current,apply:adoptAppearance});return()=>registerSettings?.(null);},[registerSettings,book.summary.id,book.document.title,adoptAppearance]);
   const changeAppearance=async(next:Partial<EpubAppearance>)=>{
-    const value={...appearanceRef.current,...next},prior=location.current??dom.current?.location();appearanceRef.current=value;setAppearance(value);restoring.current=true;
-    dom.current?.setAppearance(value);requestAnimationFrame(()=>{if(prior)dom.current?.restore(prior);restoring.current=false;});
+    const value={...appearanceRef.current,...next};adoptAppearance(value);
     try{await epub.settings(book.summary.id,value);}catch(e){setError(message(e));}
   };
   const back=async()=>{try{await flush();await onBack();}catch(e){setError(message(e));}};

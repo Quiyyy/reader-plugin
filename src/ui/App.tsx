@@ -411,10 +411,14 @@ export function App({ onOpenSettings,registerSettings,registerEpubSettings,keybo
       readingSizeRef.current=next;
       if(restoreRef.current&&!frame&&!settle)return;
       restoreRef.current=true;cancelAnimationFrame(frame);cancelAnimationFrame(settle);
-      if(textAnchorRef.current)restoreTextScrollAnchor(host,textAnchorRef.current);
-      frame=requestAnimationFrame(()=>{frame=0;settle=requestAnimationFrame(()=>{settle=0;restoreRef.current=false;});});
-    });observer.observe(host);
-    return()=>{observer.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(settle);};
+      const anchor=textAnchorRef.current,apply=()=>{if(anchor)restoreTextScrollAnchor(host,anchor);};apply();
+      // Embedded Chromium panes can reset native scroll offsets after the
+      // ResizeObserver callback. Restore again after that layout/paint boundary.
+      frame=requestAnimationFrame(()=>{frame=0;apply();settle=requestAnimationFrame(()=>{settle=0;apply();restoreRef.current=false;});});
+    });observer.observe(host,{box:'border-box'});
+    const interrupt=()=>{if(!frame&&!settle)return;cancelAnimationFrame(frame);cancelAnimationFrame(settle);frame=settle=0;restoreRef.current=false;};
+    for(const event of ['wheel','touchstart','pointerdown','keydown'])host.addEventListener(event,interrupt,{passive:true});
+    return()=>{observer.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(settle);for(const event of ['wheel','touchstart','pointerdown','keydown'])host.removeEventListener(event,interrupt);};
   },[book?.document.id,chapterIndex,epubLegacy]);
 
   const onReadingScroll = useCallback(() => {

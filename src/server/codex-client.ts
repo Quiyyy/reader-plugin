@@ -27,7 +27,7 @@ export class CodexClient implements CodexTransport {
       if(data.id!==undefined&&data.method){void this.handle(data);return;}if(data.id!==undefined){const p=this.pending.get(data.id);if(!p)return;clearTimeout(p.timer);this.pending.delete(data.id);if(data.error)p.reject(Error(String(data.error.message??'Codex 请求失败')));else p.resolve(data.result);return;}
       if(data.method)for(const listener of this.listeners)listener(data.method,data.params??{});
     });
-    await this.send('initialize',{clientInfo:{name:'reader_study',title:'Reader',version:'0.2.17'},capabilities:{experimentalApi:true}});this.notify('initialized',{});
+    await this.send('initialize',{clientInfo:{name:'reader_study',title:'Reader',version:'0.2.18'},capabilities:{experimentalApi:true}});this.notify('initialized',{});
   })();try{await this.started;}catch(e){await this.close();throw e;}}
   private notify(method:string,params:unknown){this.child?.stdin.write(JSON.stringify({method,params})+'\n');}
   private send(method:string,params:unknown):Promise<any>{return new Promise((resolve,reject)=>{if(!this.child){reject(Error('Codex 未连接'));return;}const id=++this.sequence,timer=setTimeout(()=>{this.pending.delete(id);reject(Error('Codex 响应超时，请重试连接'));},30000);this.pending.set(id,{resolve,reject,timer});this.child.stdin.write(JSON.stringify({id,method,params})+'\n',error=>{if(error){clearTimeout(timer);this.pending.delete(id);reject(Error('Codex 连接已断开'));}});});}

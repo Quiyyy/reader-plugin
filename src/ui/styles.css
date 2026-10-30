@@ -108,7 +108,7 @@ button { border: 0; }
 .reading-errors .error-notice { margin-bottom: 10px; }
 .reading-layout { flex: 1; display: flex; min-height: 0; position: relative; }
 .reading-column { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100%; }
-.reading-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scroll-behavior: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.reading-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overflow-anchor:none; scroll-behavior: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 .reading-scroll:focus-visible, .epub-document:focus-visible, .pdf-scroll:focus-visible { outline: none; }
 .reading-content { max-width: calc(var(--reading-width) + 96px); margin: 0 auto; padding: 59px 48px 45px; }
 .chapter-kicker { font-size: 10px; letter-spacing: .7px; color: var(--muted); margin-bottom: 20px; display: flex; gap: 13px; align-items: center; flex-wrap: wrap; }

@@ -89,7 +89,7 @@ test('MCP AppBridge catalog UI and declined teardown keep the actual UI visible'
   await page.screenshot({ path: 'artifacts/candidate-catalog-harness.png', fullPage: true });
   await app.getByRole('button', { name: '确认导入', exact: true }).click(); await app.getByRole('button', { name: '启用书源', exact: true }).click();await closeSettings(app);
   await app.getByLabel('搜索书源').selectOption({label:'清单原创源'});await app.getByLabel('在线搜索关键词').fill('原创'); await app.getByRole('button', { name: '搜索', exact: true }).click();
-  await app.getByRole('button', { name: /^原创河岸故事 Reader 测试作者/ }).click(); await app.getByRole('button', { name: /开始阅读/ }).click();
+  await app.getByRole('button', { name: /^原创河岸故事 Reader 测试作者/ }).click();const added=page.waitForResponse(response=>response.url().endsWith('/api/tool')&&response.request().postDataJSON()?.name==='reader_online_add');await app.getByRole('button', { name: /开始阅读/ }).click();expect((await(await added).json()).isError).not.toBe(true);
   await expect(app.getByRole('heading', { name: '第一章 河岸', exact: true })).toBeVisible();
   const calls = await page.evaluate(() => (window as any).__readerHarness.calls); expect(calls).toContain('reader_catalog_preview'); expect(calls).toContain('reader_online_commit'); expect(calls).toContain('reader_online_add');
 });
