@@ -103,7 +103,9 @@ jobs:
             Reader Windows 中文/artifacts/*.png
             Reader Windows 中文/test-results/
   marketplace-native:
-    timeout-minutes: 30
+    # Windows ARM can finish every test yet exceed 30 minutes during artifact
+    # upload/cleanup. Keep per-test limits, but allow the full job to finish.
+    timeout-minutes: ${{ matrix.target == 'win32-arm64' && 45 || 30 }}
     strategy:
       fail-fast: false
       matrix:
