@@ -1,3 +1,4 @@
+import {importBooks} from './import-books';
 import {openSettings,closeSettings,setReaderTheme} from './navigation';
 import { test,expect,type APIRequestContext } from '@playwright/test';
 import { defaultAppearance } from '../../src/shared/workspace';
@@ -17,7 +18,7 @@ test('workbench layout is independent of appearance, responsive and preserves re
   await call(request,'reader_library_layout',{layout:'list'});
   await page.goto('/');
   const titles=['慢读的方法','山河小记','日常设计札记','长夜里的灯塔','时间的形状','缓慢的观察'];
-  await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles(titles.map((title,i)=>({name:title+'.txt',mimeType:'text/plain',buffer:Buffer.from(original+'\n\n'+title+' · 原创验收 '+i)})));
+  await importBooks(page,titles.map((title,i)=>({name:title+'.txt',mimeType:'text/plain',buffer:Buffer.from(original+'\n\n'+title+' · 原创验收 '+i)})));
   for(const title of titles)await expect(page.getByRole('button',{name:new RegExp('^打开 '+title+'，')})).toBeVisible();
   const library=await call(request,'reader_list'),books=titles.map(title=>(library.books as BookSummary[]).find(b=>b.title===title)!);
   const folder=(await call(request,'reader_folder_save',{name:'我的书库',parentId:null})).value;

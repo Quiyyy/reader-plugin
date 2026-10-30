@@ -87,6 +87,8 @@ test('neighbor cache returns immediately while progress saves are slow, and pref
     console.log(JSON.stringify({ fixture: 'memory-cache-with-blocked-save', cacheReturnMs: Date.now() - began, chapterRpcCount: chapterCalls.length }));
   } finally { releaseSave(); }
   await page.getByRole('button', { name: '返回书架', exact: true }).click();
+  // The click starts an async save/return; the shelf appears only after flush.
+  await expect(page.getByRole('heading', { name: '书库', exact: true })).toBeVisible();
   const library = await rpc('reader_list', {});
   expect(library.books.find((book: any) => book.id === added.summary.id)?.locator.chapter).toBe(0);
 });
