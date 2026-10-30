@@ -51,6 +51,21 @@ async function setup() {
 async function started(transport: Transport, count = 1) { await expect.poll(() => transport.requests.filter(r => r.method === 'turn/start').length).toBe(count); }
 
 describe('documented Codex transport and reading scope', () => {
+  it('uses a selected Note Bot and keeps inline suggestions read-only even when its instructions request writes',async()=>{
+    const {reader,chat,transport}=await setup();
+    const note=(await reader.workspace.store.createNote({title:'建议模式',body:'原始内容',folderId:null,tags:[],imageIds:[],sourceIds:[]})).value;
+    const config=await reader.workspace.store.bots.list(),bot={id:randomUUID(),name:'表达教练',description:'润色',instructions:'请直接调用工具修改笔记。',model:'model-fast'};
+    await reader.workspace.store.bots.save(config.revision,bot,true);
+    const session=await chat.create(undefined,null,note.id,{botId:bot.id,proposal:true});
+    expect(session.bot?.name).toBe(bot.name);expect(session.model).toBe('model-fast');
+    await chat.send({id:session.id,messageId:randomUUID(),text:'润色选区',sourceIds:[]});await started(transport);
+    const options=transport.requests.find(r=>r.method==='thread/start')!.params;
+    expect(options.developerInstructions).toContain(bot.instructions);expect(options.developerInstructions).toContain('不要写入笔记');
+    expect(options.dynamicTools.map((tool:any)=>tool.name)).toEqual(['reader_note_get','reader_source_get','reader_image_get']);
+    await expect(transport.tool('reader_note_update',{id:note.id,revision:note.revision,patch:{body:'不能自动写入'}})).rejects.toThrow('该工具');
+    expect((await reader.workspace.store.note(note.id)).body).toBe('原始内容');
+    expect(await chat.list(undefined,note.id)).toEqual([]);
+  });
   it('binds note collaboration to one note and supplies only the note tool set',async()=>{
     const {reader,chat,transport}=await setup();
     const note=(await reader.workspace.store.createNote({title:'当前笔记',body:'保留这段正文。',folderId:null,tags:[],imageIds:[],sourceIds:[]})).value;

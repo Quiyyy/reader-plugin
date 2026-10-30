@@ -1,4 +1,7 @@
 import { test,expect,type Page } from '@playwright/test';
+
+// Existing persistence/selection scenarios exercise the source editing mode.
+test.beforeEach(async({page})=>{await page.addInitScript(()=>{try{localStorage.setItem('reader-note-visual','false');}catch{}});});
 import { pdfFixture } from '../pdf-fixture';
 import { strToU8, unzipSync, zipSync } from 'fflate';
 import { readFile } from 'node:fs/promises';
@@ -11,7 +14,7 @@ test('real TXT source, annotation, note persistence and return navigation',async
   await page.getByRole('button',{name:'批注与笔记',exact:true}).click();await expect(page.locator('.study-reading-panel')).toContainText('先回忆，再核对。');await page.getByRole('button',{name:'关闭学习面板',exact:true}).click();
   await selectText(page);await page.getByRole('toolbar',{name:'选区操作'}).getByRole('button',{name:'记笔记',exact:true}).click();await page.getByRole('dialog',{name:'加入笔记',exact:true}).getByRole('button',{name:'加入笔记',exact:true}).click();await expect(page.getByLabel('笔记正文')).toBeVisible();await page.getByLabel('笔记标题').fill('真实存储的学习笔记');await page.getByLabel('笔记正文').fill('## 我的理解\n\n先主动表达，再核对原文。');await expect(page.locator('.study-note-status')).toContainText('已保存到 Reader');
   await page.screenshot({path:'artifacts/workspace-notes.png'});await page.locator('.note-references > summary').click();await page.locator('.note-references .source-title').first().click();await page.getByRole('button',{name:'回到原文 ↗',exact:true}).click();await expect(page.getByRole('button',{name:'返回笔记',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'第一章 原文与理解',exact:true})).toBeVisible();await page.getByRole('button',{name:'返回笔记',exact:true}).click();await expect(page.getByLabel('笔记正文')).toHaveValue('## 我的理解\n\n先主动表达，再核对原文。');
-  await page.reload();await page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name:'笔记',exact:true}).click();await page.locator('.study-notes-list').getByRole('button',{name:/^真实存储的学习笔记/}).click();await expect(page.getByLabel('笔记正文')).toHaveValue('## 我的理解\n\n先主动表达，再核对原文。');expect(uncaught).toEqual([]);
+  await page.reload();await page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name:'快速笔记',exact:true}).click();await page.locator('.study-notes-list').getByRole('button',{name:/^真实存储的学习笔记/}).click();await expect(page.getByLabel('笔记正文')).toHaveValue('## 我的理解\n\n先主动表达，再核对原文。');expect(uncaught).toEqual([]);
 });
 test('real PDF renders a page and captures an image with a durable source',async({page})=>{
   const uncaught=errors(page);await page.goto('/');await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles({name:'PDF原创学习材料.pdf',mimeType:'application/pdf',buffer:pdfFixture()});await expect(page.getByRole('region',{name:'PDF 阅读器'})).toHaveCount(0);await expect(page.locator('.pdf-reader')).toBeVisible();await expect(page.locator('.pdf-loading')).toHaveCount(0,{timeout:30000});await expect(page.locator('.textLayer')).toContainText('Reader original learning fixture');

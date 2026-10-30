@@ -1,16 +1,20 @@
 import { searchSnippet } from '../shared/search.js';
 import { z } from 'zod';
-import { annotationSchema, imageMarkSchema, noteImageAnnotationsSchema, appearanceSchema, bookIdSchema as id, bookMetadataSchema, entityIdSchema as uuid, noteSchema, sourceInputSchema, type SearchHit, type SourceInput, type SourceRef } from '../shared/workspace.js';
+import { annotationSchema, noteCommentSchema, imageMarkSchema, noteImageAnnotationsSchema, appearanceSchema, bookIdSchema as id, bookMetadataSchema, entityIdSchema as uuid, noteSchema, sourceInputSchema, type SearchHit, type SourceInput, type SourceRef } from '../shared/workspace.js';
 import type { BookDetail, BookSummary } from '../shared/types.js';
 import type { EpubNode } from '../shared/epub.js';
 import type { ReaderService } from './service.js';
 import { WorkspaceStore } from './workspace-store.js';
+import { noteBotSchema } from '../shared/note-bots.js';
 
 const revision=z.number().int().positive(),folderId=uuid.nullable(),tags=z.array(z.string().trim().min(1).max(40)).max(30);
-const noteFields={title:z.string().max(240),body:z.string().max(500000),folderId,tags,sourceIds:z.array(uuid).max(300),imageIds:z.array(id).max(100),imageAnnotations:noteImageAnnotationsSchema.optional()};
+const noteFields={title:z.string().max(240),body:z.string().max(500000),folderId,tags,sourceIds:z.array(uuid).max(300),imageIds:z.array(id).max(100),imageAnnotations:noteImageAnnotationsSchema.optional(),comments:z.array(noteCommentSchema).max(200).optional()};
 const libraryFields={kind:z.enum(['book','note','folder']),id:z.string().min(1).max(64)};
 const validLibraryTarget=(value:{kind:string;id:string})=>(value.kind==='book'?id:uuid).safeParse(value.id).success;
 export const workspaceSchemas={
+  reader_note_bots:z.object({}).strict(),
+  reader_note_bot_save:z.object({revision:z.number().int().nonnegative(),bot:noteBotSchema,makeDefault:z.boolean().optional()}).strict(),
+  reader_note_bot_delete:z.object({revision:z.number().int().nonnegative(),id:uuid}).strict(),
   reader_book_purge:z.object({id,trashedAt:z.string().max(100)}).strict(),
   reader_library_layout:z.object({layout:z.enum(['cards','list'])}).strict(),
   reader_library_visit:z.object(libraryFields).strict().refine(validLibraryTarget,'条目标识无效'),
@@ -103,6 +107,9 @@ export class WorkspaceService {
     case 'reader_library_visit':{if(args.kind==='book'&&!(await this.books()).some(book=>book.id===args.id))throw Error('书籍不存在或已在回收站');return this.store.visit(args);}
     case 'reader_library_move':{const books=new Set((await this.books()).map(book=>book.id));if(args.items.some((item:{kind:string;id:string})=>item.kind==='book'&&!books.has(item.id)))throw Error('书籍不存在或已在回收站');return this.store.move(args.items,args.folderId);}
     case 'reader_workspace': return {...await this.store.snapshot(),navigation:this.navigation};
+    case 'reader_note_bots':return this.store.bots.list();
+    case 'reader_note_bot_save':return this.store.bots.save(args.revision,args.bot,args.makeDefault);
+    case 'reader_note_bot_delete':return this.store.bots.remove(args.revision,args.id);
     case 'reader_note_list':return (await this.store.snapshot()).notes.filter(n=>(args.includeTrash||!n.trashedAt)&&(args.folderId===undefined||n.folderId===args.folderId)&&(!args.query||(n.title+n.preview).toLowerCase().includes(args.query.toLowerCase())));
     case 'reader_note_get':return this.store.note(args.id);
     case 'reader_note_create':{for(const id of args.imageIds)await this.store.image(id);return this.store.createNote(args);}

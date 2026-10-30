@@ -1,3 +1,4 @@
+import type { NoteBot } from './note-bots.js';
 import { z } from 'zod';
 export const bookIdSchema = z.string().regex(/^[a-f0-9]{64}$/);
 export const entityIdSchema = z.string().uuid();
@@ -29,7 +30,9 @@ export const imageMarkSchema=z.discriminatedUnion('kind',[
 export const noteImageAnnotationsSchema=z.array(z.object({imageId:bookIdSchema,marks:z.array(imageMarkSchema).max(50)}).strict()).max(100).refine(items=>new Set(items.map(item=>item.imageId)).size===items.length,'图片标注重复');
 export type ImageMark=z.infer<typeof imageMarkSchema>;
 export type NoteImageAnnotations=z.infer<typeof noteImageAnnotationsSchema>;
-export const noteSchema = z.object({ id: entityIdSchema, title: z.string().max(240), body: z.string().max(500000), sourceIds: z.array(entityIdSchema).max(300), imageIds: z.array(bookIdSchema).max(100), imageAnnotations:noteImageAnnotationsSchema.optional(), folderId: entityIdSchema.nullable(), tags: z.array(z.string().trim().min(1).max(40)).max(30), relatedBookId: bookIdSchema.optional(), revision: z.number().int().positive(), createdAt: z.string(), updatedAt: z.string(), trashedAt: z.string().optional(), space: z.object({ url: z.string().url().max(2048), revision: z.number().int().positive(), exportedAt: z.string() }).optional() });
+export const noteCommentSchema=z.object({id:entityIdSchema,quote:z.string().max(8000),text:z.string().trim().min(1).max(8000),createdAt:z.string(),resolved:z.boolean().default(false)}).strict();
+export type NoteComment=z.infer<typeof noteCommentSchema>;
+export const noteSchema = z.object({ id: entityIdSchema, title: z.string().max(240), body: z.string().max(500000), comments:z.array(noteCommentSchema).max(200).optional(), sourceIds: z.array(entityIdSchema).max(300), imageIds: z.array(bookIdSchema).max(100), imageAnnotations:noteImageAnnotationsSchema.optional(), folderId: entityIdSchema.nullable(), tags: z.array(z.string().trim().min(1).max(40)).max(30), relatedBookId: bookIdSchema.optional(), revision: z.number().int().positive(), createdAt: z.string(), updatedAt: z.string(), trashedAt: z.string().optional(), space: z.object({ url: z.string().url().max(2048), revision: z.number().int().positive(), exportedAt: z.string() }).optional() });
 export type Note = z.infer<typeof noteSchema>;
 export type NoteSummary = Omit<Note,'body'> & { preview: string };
 export const annotationSchema = z.object({ id: entityIdSchema, sourceId: entityIdSchema, comment: z.string().max(10000), color: z.enum(['yellow','green','blue','pink']), revision: z.number().int().positive(), createdAt: z.string(), updatedAt: z.string(), trashedAt: z.string().optional() });
@@ -46,7 +49,7 @@ export interface PdfBook { id:string; title:string; author:string; pages:number;
 export interface ChatMessage { id:string; role:'user'|'assistant'|'tool'; text:string; sourceIds:string[]; imageIds?:string[]; createdAt:string; }
 export interface ChatModel { id:string; name:string; defaultReasoningEffort?:string; supportedReasoningEfforts:string[]; }
 export interface ChatModels { models:ChatModel[]; defaultModel:string|null; }
-export interface ChatSession { id:string; bookId?:string; noteId?:string; title:string; threadId?:string; messages:ChatMessage[]; draft:string; draftSourceIds?:string[]; draftImageIds?:string[]; allowBook?:boolean; model?:string|null; status:'idle'|'running'|'error'|'interrupted'; error?:string; createdAt:string; updatedAt:string; revision:number; }
+export interface ChatSession { bot?:NoteBot; proposal?:boolean; id:string; bookId?:string; noteId?:string; title:string; threadId?:string; messages:ChatMessage[]; draft:string; draftSourceIds?:string[]; draftImageIds?:string[]; allowBook?:boolean; model?:string|null; status:'idle'|'running'|'error'|'interrupted'; error?:string; createdAt:string; updatedAt:string; revision:number; }
 export interface WorkspaceApi {
   download?(filename:string,mimeType:string,data:Uint8Array):Promise<void>;
   call<T=unknown>(name:string,args?:Record<string,unknown>):Promise<T>;
