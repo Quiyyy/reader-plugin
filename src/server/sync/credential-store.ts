@@ -7,7 +7,7 @@ import {atomicWrite} from '../store.js';
 
 export interface CredentialStore {read():Promise<string|undefined>;write(value:string):Promise<void>;remove():Promise<void>;}
 function command(executable:string,args:string[],input=''):Promise<string>{
-  return new Promise((resolve,reject)=>{let output='',failed=false;const child=spawn(executable,args,{stdio:['pipe','pipe','pipe'],windowsHide:true});const timer=setTimeout(()=>{failed=true;child.kill();reject(Error('安全凭据存储响应超时'));},10000);
+  return new Promise((resolve,reject)=>{let output='',failed=false;const child=spawn(executable,args,{stdio:['pipe','pipe','pipe'],windowsHide:true});const timer=setTimeout(()=>{failed=true;child.kill();reject(Error('安全凭据存储响应超时'));},30000);
     child.stdout.setEncoding('utf8');child.stdout.on('data',chunk=>{output+=chunk;if(output.length>2*1024*1024){failed=true;child.kill();}});child.stderr.resume();child.on('error',()=>{clearTimeout(timer);reject(Error('当前系统的安全凭据存储不可用'));});child.on('exit',code=>{clearTimeout(timer);if(!failed&&code===0)resolve(output.trim());else reject(Error('无法访问系统安全凭据存储'));});child.stdin.on('error',()=>{});child.stdin.end(input);
   });
 }

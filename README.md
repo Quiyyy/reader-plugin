@@ -9,7 +9,7 @@
 
 Reader 是面向 MCP Apps 宿主的阅读插件，也提供独立浏览器预览。支持 TXT、EPUB、PDF 和在线书源；书籍、笔记和文件夹放在同一书库中，摘录与笔记保留可回到原文的出处。
 
-当前源码版本为 **0.3.0**，新增可配置的 Google Drive 多电脑同步，保留离线修改与冲突版本。首次使用需要个人 OAuth 配置；真实账号联调尚待完成。详见 [版本说明](docs/RELEASE_0.3.0.md) 和 [同步指南](docs/GOOGLE_DRIVE_SYNC.md)。平台包由 CI 分发，实际安装版本以包内 manifest 和来源提交为准。
+当前源码版本为 **0.3.1**，新增可配置的 Google Drive 多电脑同步，保留离线修改与冲突版本。首次使用需要个人 OAuth 配置；真实账号联调尚待完成。详见 [版本说明](docs/RELEASE_0.3.0.md) 和 [同步指南](docs/GOOGLE_DRIVE_SYNC.md)。平台包由 CI 分发，实际安装版本以包内 manifest 和来源提交为准。
 
 ![Reader 0.2.14 书库：文件夹、书籍和笔记混合排列，支持搜索与最近访问排序](docs/images/library-0.2.14.png)
 
