@@ -18,7 +18,9 @@ export class SystemCredentialStore implements CredentialStore {
   constructor(dataDir:string){this.account=createHash('sha256').update(process.platform==='win32'?resolve(dataDir).toLowerCase():resolve(dataDir)).digest('hex');this.path=join(process.env.LOCALAPPDATA??join(homedir(),'.local','share'),'ReaderCredentials',this.account+'.bin');}
   private async dpapi(action:'Protect'|'Unprotect',value:string){
     const ps=join(process.env.SystemRoot??'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
-    const script=`$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Security; $b=[Convert]::FromBase64String([Console]::In.ReadToEnd()); $v=[Security.Cryptography.ProtectedData]::${action}($b,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser); [Console]::Out.Write([Convert]::ToBase64String($v))`;
+    // Avoid Add-Type's PowerShell module autoload: it hangs under Git Bash on
+    // Windows ARM. Load the platform assembly directly without compiling code.
+    const script=`$ErrorActionPreference='Stop'; [void][Reflection.Assembly]::Load('System.Security, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'); $b=[Convert]::FromBase64String([Console]::In.ReadToEnd()); $v=[Security.Cryptography.ProtectedData]::${action}($b,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser); [Console]::Out.Write([Convert]::ToBase64String($v))`;
     return command(ps,['-NoProfile','-NonInteractive','-Command',script],value);
   }
   async read(){
