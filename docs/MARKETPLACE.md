@@ -1,6 +1,6 @@
 # 平台 marketplace 安装与分发
 
-本文说明自包含平台包机制，最初建立于 0.1.6；每个平台当前版本以安装包 manifest 和来源提交为准。0.2.0 源码开发预览尚不表示平台包已升级。
+本文说明自包含平台包机制，最初建立于 0.1.6。源码版本以 [package.json](../package.json) 为准；平台包只有在 `main` 的分发 CI 全部通过后才会推进，各平台实际版本以安装包 manifest 和来源提交为准。
 
 Reader 的平台运行包自带官方 Node 24.21.0；用户无需安装 Node、npm、Go，也无需运行 setup。源码仓库中的 npm/Go 命令只用于维护者构建。插件不执行 npm lifecycle、postinstall 或隐藏安装脚本，首次启动不访问网络。
 

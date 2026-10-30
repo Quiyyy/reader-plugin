@@ -1,6 +1,6 @@
 # 安装指南
 
-Reader 提供平台 marketplace、需要系统 Node 的运行包，以及源码接入三种方式。请选择与你取得的版本相符的方式；0.2.0 当前为源码开发预览，不能据此假定 marketplace 已更新到同一版本。
+Reader 提供平台 marketplace、需要系统 Node 的运行包，以及源码接入三种方式。源码版本以 [package.json](../package.json) 为准，平台包版本以其 manifest 和来源提交为准；更新源码 `main` 后，平台包仍需通过分发 CI 才会更新。
 
 ## 选择安装方式
 
@@ -64,7 +64,7 @@ codex plugin marketplace add "<setup 输出的 marketplace 路径>"
 codex plugin add reader-plugin@reader-local
 ```
 
-也可以使用桌面的本地 marketplace 管理入口，在 **Reader Local** 中安装或刷新 **Reader**。CLI 本身不渲染阅读 UI，具体界面入口仍需宿主支持。
+也可以使用桌面的本地 marketplace 管理入口，在 **Reader Local** 中安装或刷新 **Reader**。CLI 本身不渲染阅读 UI，具体界面入口仍需宿主支持。已有桌面连接的更新应通过宿主安装／更新入口完成；外部 CLI 注册不代表原连接已刷新，见 [本地更新方案](LOCAL_UPDATES.md)。
 
 Windows 若 `codex.ps1` 被执行策略拦截，可使用官方 npm 安装随附的 `codex.cmd`；无需修改执行策略。不要把运行 ZIP 的下载 URL 当作本地 marketplace 路径，也不要覆盖整个 `~/.codex/config.toml`。
 
@@ -90,6 +90,6 @@ node setup.mjs --install-dir "稳定安装目录" --rollback <已保留的版本
 
 ## 验证安装
 
-检查实际安装版本，然后验证导入、阅读、保存与桌面重启恢复。原生 global/thread/file 入口、下载和原生消息交接须分别检查，手动导入成功不等于宿主文件分派成功。
+常规本地更新核对注册版本、包内文件、服务启动和书库数据完整性，具体步骤见 [Windows 单包交付](WINDOWS_DELIVERY.md)。不要求每次更新后重启桌面或重新截图验收。首次接入新的宿主，或排查已报告的打开失败时，再检查实际页面及受影响的入口；手动导入成功不等于宿主文件分派成功。
 
 运行包附有项目 LICENSE、`THIRD_PARTY_NOTICES.md`、`DEPENDENCIES.json` 及文件摘要清单。摘要验证内容完整性，不代替系统信任判断或发布者签名。平台与宿主记录见 [项目文档](https://github.com/Quiyyy/reader-plugin/tree/main/docs)；问题反馈见 [Issues](https://github.com/Quiyyy/reader-plugin/issues)。
