@@ -20,7 +20,9 @@ export class GoogleDrive implements CloudProvider {
   private async request(path:string,init:RequestInit={},signal?:AbortSignal):Promise<Response>{
     const url=path.startsWith('https://')?new URL(path):new URL(path,'https://www.googleapis.com');if(url.origin!=='https://www.googleapis.com'||!/^\/(?:drive\/v3|upload\/drive\/v3)\//.test(url.pathname))throw Error('Google Drive 响应地址无效');
     for(let attempt=0;attempt<4;attempt++){
-      const response=await this.http(url,{...init,headers:{...Object.fromEntries(new Headers(init.headers)),Authorization:'Bearer '+await this.token()},redirect:'error',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000)});
+      // Drive uses 308 as a resumable-upload acknowledgement. Read it without
+      // following Location; redirect:'error' rejects even a 308 with no Location.
+      const response=await this.http(url,{...init,headers:{...Object.fromEntries(new Headers(init.headers)),Authorization:'Bearer '+await this.token()},redirect:'manual',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000)});
       if(response.status===429||response.status>=500){if(attempt===3)throw Error('Google Drive 暂时繁忙，请稍后重试');await response.body?.cancel();await delay(Math.min(8000,Math.max(500,Number(response.headers.get('retry-after')??0)*1000||500*2**attempt)),undefined,{signal});continue;}
       if(response.status===401)throw Error('Google Drive 授权已失效，请重新连接');if(response.status===403)throw Error('Google Drive 权限或存储配额不足');return response;
     }throw Error('Google Drive 请求失败');

@@ -3,6 +3,7 @@ import {mkdtemp,rm,readdir,readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash,randomBytes,randomUUID} from 'node:crypto';
+import {createServer} from 'node:http';
 import {ReaderStore} from '../src/server/store.js';
 import {GoogleAuth,GOOGLE_SCOPE} from '../src/server/sync/google-auth.js';
 import {GoogleDrive} from '../src/server/sync/google-drive.js';
@@ -37,6 +38,35 @@ describe('Google OAuth and Drive transport',()=>{
     try{const drive=new GoogleDrive(async()=> 'fixture',fake,sessions);await expect(drive.put(id,data,{vaultId,kind:'asset',key:'a'.repeat(64)})).rejects.toThrow();expect(accepted).toBe(1024*1024);const files=await readdir(root);expect(files).toHaveLength(1);expect((await readFile(join(root,files[0]!))).includes(Buffer.from('private-session'))).toBe(false);fail=false;await new GoogleDrive(async()=> 'fixture',fake,sessions).put(id,data,{vaultId,kind:'asset',key:'a'.repeat(64)});expect(starts).toBe(1);expect(accepted).toBe(data.length);expect(await readdir(root)).toHaveLength(0);}finally{await rm(root,{recursive:true,force:true});}
   });
   it('rejects a foreign upload URL before sending a bearer token there',async()=>{const visited:string[]=[];const fake:typeof fetch=async(input)=>{visited.push(new URL(String(input)).origin);return new Response(null,{status:200,headers:{Location:'https://example.invalid/steal'}});};const drive=new GoogleDrive(async()=> 'fixture-private',fake);await expect(drive.put(randomUUID(),Buffer.from('encrypted'),{vaultId:randomUUID(),kind:'commit',key:randomUUID()})).rejects.toThrow('地址');expect(visited).toEqual(['https://www.googleapis.com']);});
+  it.each([false,true])('handles real HTTP 308 acknowledgements and restart probes (Location: %s)',async(withLocation)=>{
+    const root=await mkdtemp(join(tmpdir(),'Reader HTTP resume ')),vaultId=randomUUID(),id=randomUUID(),key=randomBytes(32).toString('base64url'),sessions=new EncryptedUploadSessions(root,async()=>key),data=randomBytes(1500000);
+    let accepted=0,starts=0,probes=0,redirects=0,interrupt=true,origin='';
+    const received:Buffer[]=[];
+    const server=createServer(async(req,res)=>{
+      const body:Buffer[]=[];for await(const chunk of req)body.push(Buffer.from(chunk));
+      if(req.url==='/redirect'){redirects++;res.writeHead(400).end();return;}
+      if(req.method==='POST'){starts++;res.writeHead(200,{Location:'https://www.googleapis.com/upload/drive/v3/files?upload_id=fixture'}).end();return;}
+      const range=req.headers['content-range']??'';
+      if(range.startsWith('bytes */'))probes++;
+      else{const match=/^bytes (\d+)-(\d+)\/(\d+)$/.exec(range);if(!match||Number(match[1])!==accepted){res.writeHead(400).end();return;}received.push(Buffer.concat(body));accepted=Number(match[2])+1;}
+      if(accepted===data.length){res.writeHead(200,{'Content-Type':'application/json'}).end(JSON.stringify({id}));return;}
+      res.writeHead(308,{Range:`bytes=0-${accepted-1}`,...(withLocation?{Location:origin+'/redirect'}:{})}).end();
+    });
+    await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));origin=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
+    const http:typeof fetch=async(input,init)=>{const url=new URL(String(input)),range=new Headers(init?.headers).get('content-range');if(interrupt&&accepted&&range&&!range.startsWith('bytes */'))throw Error('network interrupted');return fetch(origin+url.pathname+url.search,init);};
+    try{
+      await expect(new GoogleDrive(async()=> 'fixture',http,sessions).put(id,data,{vaultId,kind:'asset',key:'a'.repeat(64)})).rejects.toThrow(/network interrupted|上传进度无效/);
+      expect(accepted).toBe(1024*1024);interrupt=false;
+      await new GoogleDrive(async()=> 'fixture',http,sessions).put(id,data,{vaultId,kind:'asset',key:'a'.repeat(64)});
+      expect(starts).toBe(1);expect(probes).toBeGreaterThan(0);expect(redirects).toBe(0);expect(Buffer.concat(received)).toEqual(data);expect(await readdir(root)).toEqual([]);
+    }finally{server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));await rm(root,{recursive:true,force:true});}
+  });
+  it('does not follow an HTTP redirect returned by a metadata request',async()=>{
+    let origin='',redirects=0;const server=createServer((req,res)=>{if(req.url==='/redirect'){redirects++;res.writeHead(200).end('{}');}else res.writeHead(302,{Location:origin+'/redirect'}).end();});
+    await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));origin=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
+    const http:typeof fetch=(input,init)=>fetch(origin+new URL(String(input)).pathname,init);
+    try{await expect(new GoogleDrive(async()=> 'fixture',http).metadata('fixture')).rejects.toThrow('302');expect(redirects).toBe(0);}finally{server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}
+  });
   it('retains removal signals and pages Drive changes within appDataFolder',async()=>{const vaultId=randomUUID();let page=0;const fake:typeof fetch=async(input)=>{const url=new URL(String(input));expect(url.searchParams.get('spaces')).toBe('appDataFolder');page++;return page===1?json({changes:[{fileId:'removed',removed:true}],nextPageToken:'next'}):json({changes:[{fileId:'other',file:{id:'other',appProperties:{readerSync:'1',vaultId:randomUUID(),kind:'commit'}}}],newStartPageToken:'done'});};expect(await new GoogleDrive(async()=> 'fixture',fake).changes(vaultId,'begin')).toEqual({files:[],removed:['removed'],cursor:'done'});});
   it.runIf(process.platform==='win32')('persists a disposable credential using Windows DPAPI',{timeout:120000},async()=>{const root=await mkdtemp(join(tmpdir(),'Reader DPAPI test ')),credentials=new SystemCredentialStore(root);try{await credentials.write('original-disposable-test-secret');expect(await credentials.read()).toBe('original-disposable-test-secret');expect(await new SystemCredentialStore(root).read()).toBe('original-disposable-test-secret');await credentials.remove();expect(await credentials.read()).toBeUndefined();}finally{await credentials.remove();await rm(root,{recursive:true,force:true});}});
 });

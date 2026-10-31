@@ -1,6 +1,6 @@
 {
   "name": "reader-plugin",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "A local reading and learning workspace for TXT, EPUB and PDF, with notes, annotations and scoped Codex conversations.",
   "author": {
     "name": "Quiyyy"
