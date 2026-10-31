@@ -77383,7 +77383,7 @@ var CodexClient = class {
         }
         if (data3.method) for (const listener of this.listeners) listener(data3.method, data3.params ?? {});
       });
-      await this.send("initialize", { clientInfo: { name: "reader_study", title: "Reader", version: "0.3.6" }, capabilities: { experimentalApi: true } });
+      await this.send("initialize", { clientInfo: { name: "reader_study", title: "Reader", version: "0.3.7" }, capabilities: { experimentalApi: true } });
       this.notify("initialized", {});
     })();
     try {
@@ -119767,7 +119767,7 @@ var OpenAIFileEntrypointInputSchema = external_exports2.object({
 });
 
 // src/server/mcp.ts
-var VERSION = "0.3.6";
+var VERSION = "0.3.7";
 var UI_URI = `ui://reader/v${VERSION}/bookshelf.html`;
 function isPreviousUiVersion(value) {
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value)) return false;
