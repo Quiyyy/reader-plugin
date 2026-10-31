@@ -116,8 +116,8 @@ try{
     if(sampleEpub){await expect.poll(async()=>{report.tocAnchorTop=await app.locator('.epub-document').evaluate(el=>el.shadowRoot.querySelector('#bridge').getBoundingClientRect().top-el.getBoundingClientRect().top);return report.tocAnchorTop>=0&&report.tocAnchorTop<=60;}).toBe(true);}
     report.checks.push('Table of contents navigation completed');
     if(sampleEpub){await app.getByRole('button',{name:'目录（T）',exact:true}).click();await expect(app.locator('.epub-toc button.current')).toHaveCount(1);await capture('contents-current');await app.getByRole('button',{name:'关闭目录',exact:true}).click();}
-    await app.getByRole('button',{name:'设置',exact:true}).click();await app.getByRole('button',{name:'放大字号',exact:true}).click();await app.getByRole('button',{name:'舒适',exact:true}).click();await capture('appearance-wide');
-    await app.getByRole('button',{name:'返回 Reader',exact:true}).click();
+    await app.getByRole('button',{name:'设置',exact:true}).click();await app.getByRole('button',{name:'增大字号',exact:true}).click();await app.getByRole('button',{name:'舒适',exact:true}).click();await capture('appearance-wide');
+    await app.getByRole('button',{name:'返回 Reader',exact:true}).click();await app.getByRole('region',{name:'设置',exact:true}).waitFor({state:'hidden'});
     await app.locator('.epub-document').hover();await page.mouse.wheel(0,430);await page.waitForTimeout(600);
     await app.getByRole('button',{name:'收藏当前位置（B）',exact:true}).click();
     await app.getByRole('button',{name:'返回书架',exact:true}).click();
