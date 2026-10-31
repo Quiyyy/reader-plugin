@@ -1,3 +1,4 @@
+import {epubAppearance} from '../shared/reader-settings.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { ReaderStore } from './store.js';
@@ -53,6 +54,7 @@ export class EpubService {
   private async archive(id:string){if(this.cached?.id===id){await this.store.assertActive(id);return this.cached.archive;}return (await this.read(id)).archive;}
   async open(id:string):Promise<EpubOpen>{
     const {detail,rich,archive}=await this.read(id),state=stateFor(rich,detail,archive);
+    state.appearance=epubAppearance(await this.store.settings());
     const legacy=detail.summary.locator,section=archive.package.sections.find(x=>x.legacyChapter===legacy.chapter),paras=detail.document.chapters[legacy.chapter]?.paragraphs??[];
     return {package:archive.package,state,...(!state.location&&section?{legacyLocation:{resource:section.path,exact:paras[legacy.paragraph]??'',prefix:paras[legacy.paragraph-1]??'',suffix:paras[legacy.paragraph+1]??''}}:{})};
   }
@@ -87,7 +89,7 @@ export class EpubService {
       return {state,result:{progress,lastReadAt}};
     });
   }
-  async settings(id:string,appearance:EpubAppearance){const archive=await this.archive(id);return this.store.updateEpub(id,(raw,book)=>{const state=stateFor(raw,book,archive);state.appearance=epubAppearanceSchema.parse(appearance);return {state,result:{saved:true}};});}
+  async settings(id:string,appearance:EpubAppearance){await this.store.assertActive(id);await this.store.saveEpubSettings(epubAppearanceSchema.parse(appearance));return {saved:true};}
   async syncBookmarks(id:string,changes:ApplyChange[]){const archive=await this.archive(id);return this.store.updateEpub(id,(raw,book)=>{const state=stateFor(raw,book,archive);for(const change of changes){const markId=change.key.split(':')[2]!;assertUnchanged(state.bookmarks.find(mark=>mark.id===markId)??null,change.before);if(change.after!==null){const mark=syncEpubMarkSchema.parse(change.after);if(mark.location)this.validate(archive,mark.location);state.bookmarks=state.bookmarks.filter(value=>value.id!==markId).concat(mark);}else{state.bookmarks=state.bookmarks.filter(value=>value.id!==markId);if(book.bookmarks.some(mark=>mark.id===markId))state.deletedLegacyIds=[...new Set([...(state.deletedLegacyIds??[]),markId])];}}return {state:stateSchema.parse(state),result:undefined};});}
   async bookmark(id:string,location:EpubLocation,label:string):Promise<EpubMark[]>{
     const archive=await this.archive(id);this.validate(archive,location);

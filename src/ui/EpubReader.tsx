@@ -1,7 +1,7 @@
-import type {EpubSettingsController} from './settings-types';
+import {epubAppearance} from '../shared/reader-settings';
 import type { Annotation,SourceInput,SourceRef } from '../shared/workspace';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, CircleAlert, List, LoaderCircle, Minus, MoreHorizontal, Plus, Search, Settings2, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, CircleAlert, List, LoaderCircle, Minus, Plus, Search, Settings2, Trash2, X } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { EpubDom } from './epub-dom';
 import { SearchNavigation } from './SearchText';
@@ -11,14 +11,14 @@ import { editableTarget, eventShortcut, shortcutActions, type KeyboardSettings }
 import './epub.css';
 
 const message=(e:unknown)=>e instanceof Error?e.message:'暂时无法读取，请重试';
-type Panel='toc'|'appearance'|'bookmarks'|'menu'|'search'|null;
-interface Props {onOpenSettings?:()=>void;registerSettings?:(value:EpubSettingsController|null)=>void; searchTarget?:{query:string;chapter:number;paragraph:number}; onAnnotation?:(id:string)=>void; onTheme:(theme:ReaderSettings['theme'])=>void; registerGuard?:(guard:(()=>Promise<boolean>)|null)=>void;extraTools?:React.ReactNode;returnLabel?:string;source?:SourceRef; annotations?:Annotation[]; sources?:SourceRef[]; onSelect?:(source:SourceInput,rect:DOMRect)=>void; book:BookDetail; api:ReaderApi; settings:ReaderSettings; keyboard:KeyboardSettings; onBack:()=>Promise<void>; onLegacy:()=>void; onProgress:(progress:number,lastReadAt:string)=>void; }
+type Panel='toc'|'appearance'|'bookmarks'|'search'|null;
+interface Props {onOpenSettings?:()=>void;onSettings:(value:ReaderSettings)=>void; searchTarget?:{query:string;chapter:number;paragraph:number}; onAnnotation?:(id:string)=>void; onTheme:(theme:ReaderSettings['theme'])=>void; registerGuard?:(guard:(()=>Promise<boolean>)|null)=>void;extraTools?:React.ReactNode;returnLabel?:string;source?:SourceRef; annotations?:Annotation[]; sources?:SourceRef[]; onSelect?:(source:SourceInput,rect:DOMRect)=>void; book:BookDetail; api:ReaderApi; settings:ReaderSettings; keyboard:KeyboardSettings; onBack:()=>Promise<void>; onLegacy:()=>void; onProgress:(progress:number,lastReadAt:string)=>void; }
 function Toc({items,resource,fragment,select}: {items:EpubToc[];resource:string;fragment?:string;select:(target:EpubTarget)=>void}){
   return <ul className="epub-toc">{items.map((item,index)=><li key={`${item.target.resource}#${item.target.fragment??''}-${index}`}>
     {item.children.length?<details open><summary><button type="button" className={item.target.resource===resource&&item.target.fragment===fragment?'current':''} onClick={e=>{e.preventDefault();select(item.target);}}>{item.label}</button></summary><Toc items={item.children} resource={resource} fragment={fragment} select={select}/></details>:<button type="button" className={item.target.resource===resource&&item.target.fragment===fragment?'current':''} onClick={()=>select(item.target)}>{item.label}</button>}
   </li>)}</ul>;
 }
-export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnotation,onTheme,book,api,settings,keyboard,onBack,onLegacy,onProgress,source,annotations=[],sources=[],onSelect,extraTools,returnLabel,registerGuard}:Props){
+export function EpubReader({onOpenSettings,onSettings,searchTarget,onAnnotation,onTheme,book,api,settings,keyboard,onBack,onLegacy,onProgress,source,annotations=[],sources=[],onSelect,extraTools,returnLabel,registerGuard}:Props){
   const epub=api.epub!;
   const [opened,setOpened]=useState<EpubOpen>();const openRef=useRef<EpubOpen|undefined>(undefined);
   const [panel,setPanel]=useState<Panel>(null);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [saving,setSaving]=useState(false);
@@ -31,6 +31,8 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
   const host=useRef<HTMLDivElement>(null),dom=useRef<EpubDom|undefined>(undefined),dialog=useRef<HTMLDialogElement>(null),popover=useRef<HTMLElement>(null);
   const location=useRef<EpubLocation|undefined>(undefined),pending=useRef<EpubLocation|undefined>(undefined),appearanceRef=useRef(appearance),notes=useRef<EpubLocation[]>([]),active=useRef(true),restoring=useRef(true),request=useRef(0),chain=useRef<Promise<unknown>>(Promise.resolve()),timer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),intent=useRef(false),navigateRef=useRef<((target:EpubTarget,restore?:EpubLocation,note?:boolean)=>Promise<void>)|undefined>(undefined);
   const viewport=useRef({width:0,height:0});
+  const userScrollUntil=useRef(0),scrollPoint=useRef({top:0,left:0});
+  const readingGesture=()=>{intent.current=true;userScrollUntil.current=performance.now()+600;};
   const reflowRef=useRef<(()=>void)|undefined>(undefined);
   const progressCallback=useRef(onProgress);progressCallback.current=onProgress;
   const flush=useCallback(async()=>{
@@ -42,9 +44,19 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
       catch(e){if(active.current)setError(message(e));throw e;}finally{if(active.current)setSaving(false);}
     });chain.current=work;return work;
   },[epub,book.summary.id]);
-  const capture=useCallback(()=>{
+  const capture=useCallback((explicit=false)=>{
     if(restoring.current)return;
     if(host.current&&(host.current.clientWidth!==viewport.current.width||host.current.clientHeight!==viewport.current.height))return;
+    // Scroll events also come from native layout resets, focus and our own
+    // restoration. Only a reading gesture or explicit navigation may advance
+    // the anchor. A delayed host reset must not be persisted as chapter start.
+    const element=host.current;if(!element||!element.clientWidth||!element.clientHeight)return;
+    if(!explicit&&performance.now()>userScrollUntil.current){
+      if(Math.abs(element.scrollTop-scrollPoint.current.top)>1||Math.abs(element.scrollLeft-scrollPoint.current.left)>1)reflowRef.current?.();
+      return;
+    }
+    scrollPoint.current={top:element.scrollTop,left:element.scrollLeft};
+    if(!explicit)userScrollUntil.current=performance.now()+200;
     const value=dom.current?.location();if(!value)return;location.current=value;
     if(intent.current&&!notes.current.length){pending.current=value;clearTimeout(timer.current);timer.current=setTimeout(()=>{void flush().catch(()=>{});},400);}
   },[flush]);
@@ -61,7 +73,8 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
       if(!matched)setError('未找到准确位置，原进度已保留');
       location.current=matched?(restore??dom.current!.location()):undefined;
       setResource(target.resource);setFragment(target.fragment);setUnmatched(!matched);restoring.current=false;setLoading(false);
-      if(intent.current&&matched&&!notes.current.length)capture();
+      scrollPoint.current={top:host.current.scrollTop,left:host.current.scrollLeft};
+      if(intent.current&&matched&&!notes.current.length)capture(true);
       host.current?.focus({preventScroll:true});
     }catch(e){if(active.current&&token===request.current){setError(message(e));setLoading(false);restoring.current=false;}}
   },[epub,book.summary.id,flush,capture]);
@@ -74,19 +87,21 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
       const searchSection=searchTarget?value.package.sections.find(section=>section.legacyChapter===searchTarget.chapter):undefined;
       const target=searchSection?.path??(source?.anchor.kind==='epub'?source.anchor.resource:undefined)??value.state.location?.resource??value.legacyLocation?.resource??value.package.sections[0]?.path;
       if(!target)throw Error('这本书没有可显示的章节');
-      await navigateRef.current?.({resource:target},source||searchTarget?undefined:value.state.location);if(source&&active.current)dom.current?.restoreSource(source);
+      await navigateRef.current?.({resource:target},source||searchTarget?undefined:value.state.location);if(source&&active.current&&dom.current?.restoreSource(source)){location.current=dom.current.location();scrollPoint.current={top:element.scrollTop,left:element.scrollLeft};}
       if(!value.state.location&&value.legacyLocation&&active.current)setUnmatched(true);
     }).catch(e=>{if(active.current){setError(message(e));setLoading(false);}});
     let frame=0,settle=0;viewport.current={width:host.current!.clientWidth,height:host.current!.clientHeight};
     const reflow=(force=false)=>{if(!active.current||!element.isConnected)return;
       const next={width:element.clientWidth,height:element.clientHeight},previous=viewport.current;
-      if(!next.width||!next.height||!force&&next.width===previous.width&&next.height===previous.height)return;
+      if(!next.width||!next.height){viewport.current=next;userScrollUntil.current=0;return;}
+      if(!force&&next.width===previous.width&&next.height===previous.height)return;
       viewport.current=next;if(!force&&restoring.current&&!frame&&!settle)return;
-      const prior=location.current;restoring.current=true;cancelAnimationFrame(frame);cancelAnimationFrame(settle);
-      view.setAppearance(appearanceRef.current);if(prior)view.restore(prior);
+      const prior=location.current;restoring.current=true;userScrollUntil.current=0;cancelAnimationFrame(frame);cancelAnimationFrame(settle);
+      const apply=()=>{if(!element.clientWidth||!element.clientHeight)return;view.setAppearance(appearanceRef.current);if(prior)view.restore(prior);scrollPoint.current={top:element.scrollTop,left:element.scrollLeft};};
+      apply();
       // Paged restoration snaps to the start of the containing page. Capturing
       // that programmatic scroll would move the anchor backwards on each resize.
-      frame=requestAnimationFrame(()=>{frame=0;if(!active.current||!element.isConnected)return;view.setAppearance(appearanceRef.current);viewport.current={width:element.clientWidth,height:element.clientHeight};if(prior)view.restore(prior);settle=requestAnimationFrame(()=>{settle=0;if(prior)view.restore(prior);restoring.current=false;});});
+      frame=requestAnimationFrame(()=>{frame=0;if(!active.current||!element.isConnected)return;viewport.current={width:element.clientWidth,height:element.clientHeight};apply();settle=requestAnimationFrame(()=>{settle=0;apply();restoring.current=false;});});
     };
     reflowRef.current=()=>reflow(true);
     const resize=new ResizeObserver(()=>reflow());resize.observe(host.current!,{box:'border-box'});
@@ -101,16 +116,16 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
   useEffect(()=>{if(image)dialog.current?.showModal();else dialog.current?.close();},[image]);
   useEffect(()=>{if(!panel)return;const previous=document.activeElement as HTMLElement|null;popover.current?.querySelector<HTMLElement>('input,button')?.focus({preventScroll:true});return()=>{if(previous?.isConnected)previous.focus({preventScroll:true});};},[panel]);
   const adoptAppearance=useCallback((value:EpubAppearance)=>{appearanceRef.current=value;setAppearance(value);reflowRef.current?.();},[]);
-  useLayoutEffect(()=>{registerSettings?.({id:book.summary.id,title:book.document.title,get:()=>appearanceRef.current,apply:adoptAppearance});return()=>registerSettings?.(null);},[registerSettings,book.summary.id,book.document.title,adoptAppearance]);
+  useEffect(()=>{adoptAppearance(epubAppearance(settings));},[settings.fontSize,settings.fontFamily,settings.lineHeight,settings.lineWidth,settings.epub?.style,settings.epub?.flow,adoptAppearance]);
   const changeAppearance=async(next:Partial<EpubAppearance>)=>{
     const value={...appearanceRef.current,...next};adoptAppearance(value);
-    try{await epub.settings(book.summary.id,value);}catch(e){setError(message(e));}
+    try{await epub.settings(book.summary.id,value);onSettings((await api.list()).settings);}catch(e){setError(message(e));}
   };
   const back=async()=>{try{await flush();await onBack();}catch(e){setError(message(e));}};
   const addBookmark=async()=>{const loc=location.current??dom.current?.location();if(!loc)return;try{setMarks(await epub.bookmark(book.summary.id,loc,loc.quote.exact.slice(0,100)));}catch(e){setError(message(e));}};
   const remove=async(id:string)=>{try{setMarks(await epub.removeBookmark(book.summary.id,id));}catch(e){setError(message(e));}};
   const page=(direction:number)=>{
-    intent.current=true;if(dom.current?.page(direction)){requestAnimationFrame(capture);return;}
+    readingGesture();if(dom.current?.page(direction)){requestAnimationFrame(()=>capture(true));return;}
     const sections=openRef.current?.package.sections??[],index=sections.findIndex(x=>x.path===resource),next=sections[index+direction];
     if(next)void navigate({resource:next.path});
   };
@@ -124,28 +139,30 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
     const action=shortcutActions.find(action=>keyboard.bindings[action]&&keyboard.bindings[action]===eventShortcut(event.nativeEvent));
     if(action==='closeHost'){event.preventDefault();void api.requestHostClose?.().catch(e=>setError(message(e)));return;}
     if(panel)return;
+    if(['Home','End','ArrowUp','ArrowDown','Tab'].includes(event.key))readingGesture();
     if(event.shiftKey&&event.key.startsWith('Arrow'))return;
     if(action==='previousChapter'||action==='nextChapter'){event.preventDefault();const list=openRef.current?.package.sections??[],index=list.findIndex(x=>x.path===resource),next=list[index+(action==='previousChapter'?-1:1)];if(next)jump({resource:next.path});return;}
     if(['ArrowRight','PageDown',' '].includes(event.key)){event.preventDefault();page(1);}else if(['ArrowLeft','PageUp'].includes(event.key)){event.preventDefault();page(-1);}else if(action==='scrollDown'||action==='scrollUp'){intent.current=true;host.current?.scrollBy({top:action==='scrollDown'?80:-80});event.preventDefault();}
     else if(!event.ctrlKey&&!event.metaKey&&!event.altKey){if(event.key.toLowerCase()==='t')setPanel('toc');if(event.key.toLowerCase()==='b')void addBookmark();if(event.key.toLowerCase()==='f')setPanel('search');}
   };
   const section=opened?.package.sections.find(x=>x.path===resource),sectionIndex=opened?.package.sections.findIndex(x=>x.path===resource)??0;
-  const title=panel==='toc'?'目录':panel==='appearance'?'阅读外观':panel==='bookmarks'?'书签':panel==='search'?'搜索本章':'更多';
-  useEffect(()=>{setFindIndex(-1);setFindCount(loading?0:dom.current?.find(query)??0);if(!loading&&initialFind.current&&dom.current){const target=initialFind.current;initialFind.current=undefined;const quote=book.document.chapters[target.chapter]?.paragraphs[target.paragraph],index=quote?dom.current.findQuote(quote,query):-1;if(index>=0){setFindIndex(index);intent.current=true;capture();}else setError('未找到结果的准确位置，请在本章继续查找');}},[query,resource,loading]);
-  const find=(index:number)=>{if(!dom.current?.revealMatch(index))return;intent.current=true;setFindIndex(index);setPanel(null);capture();};
+  const title=panel==='toc'?'目录':panel==='appearance'?'阅读外观':panel==='bookmarks'?'书签':'搜索本章';
+  useEffect(()=>{setFindIndex(-1);setFindCount(loading?0:dom.current?.find(query)??0);if(!loading&&initialFind.current&&dom.current){const target=initialFind.current;initialFind.current=undefined;const quote=book.document.chapters[target.chapter]?.paragraphs[target.paragraph],index=quote?dom.current.findQuote(quote,query):-1;if(index>=0){setFindIndex(index);intent.current=true;capture(true);}else setError('未找到结果的准确位置，请在本章继续查找');}},[query,resource,loading]);
+  const find=(index:number)=>{if(!dom.current?.revealMatch(index))return;intent.current=true;setFindIndex(index);setPanel(null);capture(true);};
   const search=()=>{if(findCount)find(0);};
   return <section className="epub-reader" onKeyDown={key} aria-label="EPUB 阅读器">
-    <header className="reader-toolbar"><div className="reader-title-group"><IconButton label={returnLabel??"返回书架"} onClick={()=>void back()}><ArrowLeft size={19}/></IconButton><div className="reading-title" title={book.document.title}>{book.document.title}</div></div><nav className="reader-actions" aria-label="阅读工具">{extraTools}<IconButton label="目录（T）" active={panel==='toc'} aria-expanded={panel==='toc'} onClick={()=>setPanel(panel==='toc'?null:'toc')}><List size={19}/></IconButton><IconButton label={onOpenSettings?'设置':'阅读外观'} disabled={loading} active={panel==='appearance'} onClick={()=>onOpenSettings?onOpenSettings():setPanel(panel==='appearance'?null:'appearance')}><Settings2 size={19}/></IconButton><IconButton label="收藏当前位置（B）" onClick={()=>void addBookmark()}><Bookmark size={18}/></IconButton><IconButton label="更多" active={panel==='menu'} onClick={()=>setPanel(panel==='menu'?null:'menu')}><MoreHorizontal size={19}/></IconButton></nav></header>
+    <header className="reader-toolbar"><div className="reader-title-group"><IconButton label={returnLabel??"返回书架"} onClick={()=>void back()}><ArrowLeft size={19}/></IconButton><div className="reading-title" title={book.document.title}>{book.document.title}</div></div><nav className="reader-actions" aria-label="阅读工具">{extraTools}<IconButton label="目录（T）" active={panel==='toc'} aria-expanded={panel==='toc'} onClick={()=>setPanel(panel==='toc'?null:'toc')}><List size={19}/></IconButton><IconButton label={onOpenSettings?'设置':'阅读外观'} disabled={loading} active={panel==='appearance'} onClick={()=>onOpenSettings?onOpenSettings():setPanel(panel==='appearance'?null:'appearance')}><Settings2 size={19}/></IconButton><IconButton label="收藏当前位置（B）" onClick={()=>void addBookmark()}><Bookmark size={18}/></IconButton><IconButton label="搜索本章" active={panel==='search'} onClick={()=>setPanel(panel==='search'?null:'search')}><Search size={18}/></IconButton></nav></header>
     {error&&<div className="error-notice" role="alert"><CircleAlert size={16}/><span>{error}</span><button className="text-button" onClick={()=>void flush().catch(()=>{})}>重试保存</button><IconButton label="关闭提示" onClick={()=>setError('')}><X size={15}/></IconButton></div>}
+    {!!resourceErrors.length&&<div className="error-notice" role="status"><CircleAlert size={16}/><span>{resourceErrors[0]}</span><IconButton label="关闭资源提示" onClick={()=>setResourceErrors([])}><X size={15}/></IconButton></div>}
     {!!findCount&&<SearchNavigation query={query} previous={findIndex>0} next={findIndex<findCount-1} onPrevious={()=>find(findIndex-1)} onNext={()=>find(findIndex+1)} onClose={()=>setQuery('')}/>}
-    <div className="epub-stage"><div ref={host} className="epub-document" aria-label="EPUB 正文" onClick={event=>{if(event.nativeEvent.composedPath().some(node=>node instanceof Element&&node.matches('a[role=link],img'))||dom.current?.hasSelection())return;const id=dom.current?.annotationAt(event.clientX,event.clientY);if(id){setPanel(null);onAnnotation?.(id);}}} tabIndex={0} onScroll={capture} onWheel={()=>{intent.current=true;}} onTouchStart={()=>{intent.current=true;}} onPointerDown={()=>{intent.current=true;}} />
+    <div className="epub-stage"><div ref={host} className="epub-document" aria-label="EPUB 正文" onClick={event=>{if(event.nativeEvent.composedPath().some(node=>node instanceof Element&&node.matches('a[role=link],img'))||dom.current?.hasSelection())return;const id=dom.current?.annotationAt(event.clientX,event.clientY);if(id){setPanel(null);onAnnotation?.(id);}}} tabIndex={0} onScroll={()=>capture()} onWheel={readingGesture} onTouchStart={readingGesture} onTouchMove={readingGesture} onPointerDown={readingGesture} onPointerMove={event=>{if(event.buttons)readingGesture();}} />
       {loading&&<div className="epub-loading" role="status"><LoaderCircle size={22} className="spin"/><span>正在打开…</span></div>}
       {unmatched&&!loading&&<div className="epub-position-notice"><span>原进度已保留</span><button className="text-button" onClick={async()=>{await flush();onLegacy();}}>旧版阅读</button><IconButton label="关闭位置提示" onClick={()=>setUnmatched(false)}><X size={15}/></IconButton></div>}
       {noteDepth>0&&<button className="epub-note-return" onClick={returnFromNote}><ArrowLeft size={14}/>返回正文</button>}
       {panel&&<><button className="epub-scrim" aria-label="关闭面板" onClick={()=>setPanel(null)}/><aside ref={popover} className={`epub-panel ${panel==='toc'||panel==='bookmarks'||panel==='search'?'epub-drawer':'epub-popover'}`} role="dialog" aria-label={title} onKeyDown={event=>{if(event.key!=='Tab')return;const items=[...event.currentTarget.querySelectorAll<HTMLElement>('button,input,summary')].filter(x=>x.getClientRects().length),first=items[0],last=items.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}}><div className="panel-heading"><h2>{title}</h2><IconButton label={`关闭${title}`} onClick={()=>setPanel(null)}><X size={18}/></IconButton></div>
+        {(panel==='toc'||panel==='bookmarks')&&<div className="epub-navigation-tabs" role="group" aria-label="阅读导航"><button aria-pressed={panel==='toc'} onClick={()=>setPanel('toc')}>目录</button><button aria-pressed={panel==='bookmarks'} onClick={()=>setPanel('bookmarks')}>书签</button></div>}
         {panel==='toc'&&opened&&<Toc items={opened.package.toc} resource={resource} fragment={fragment} select={target=>jump(target)}/>}
         {panel==='appearance'&&<div className="epub-appearance"><div className="theme-options" role="group" aria-label="阅读主题">{(['system','light','sepia','dark'] as const).map((theme,index)=><button key={theme} type="button" aria-pressed={settings.theme===theme} onClick={()=>onTheme(theme)}>{['跟随系统','浅色','暖纸','深色'][index]}</button>)}</div><div className="segmented"><button aria-pressed={appearance.style==='original'} className={appearance.style==='original'?'selected':''} onClick={()=>void changeAppearance({style:'original'})}>原书</button><button aria-pressed={appearance.style==='comfort'} className={appearance.style==='comfort'?'selected':''} onClick={()=>void changeAppearance({style:'comfort'})}>舒适</button></div><div className="epub-setting"><span>字号</span><div className="epub-stepper"><IconButton label="缩小字号" disabled={appearance.fontSize<=14} onClick={()=>void changeAppearance({fontSize:appearance.fontSize-2})}><Minus size={15}/></IconButton><output>{appearance.fontSize}</output><IconButton label="放大字号" disabled={appearance.fontSize>=34} onClick={()=>void changeAppearance({fontSize:appearance.fontSize+2})}><Plus size={15}/></IconButton></div></div><div className="epub-setting"><span>阅读</span><div className="segmented"><button aria-pressed={appearance.flow==='scroll'} className={appearance.flow==='scroll'?'selected':''} onClick={()=>void changeAppearance({flow:'scroll'})}>滚动</button><button aria-pressed={appearance.flow==='pages'} className={appearance.flow==='pages'?'selected':''} onClick={()=>void changeAppearance({flow:'pages'})}>翻页</button></div></div></div>}
-        {panel==='menu'&&<div className="epub-menu"><button onClick={()=>setPanel('bookmarks')}><Bookmark size={16}/>书签</button><button onClick={()=>setPanel('search')}><Search size={16}/>搜索本章</button><button onClick={async()=>{await flush();onLegacy();}}>旧版阅读</button>{(resourceErrors.length>0||opened?.package.warnings.length)&&<details><summary><CircleAlert size={14}/>显示提示</summary><ul>{[...opened?.package.warnings??[],...resourceErrors].map(x=><li key={x}>{x}</li>)}</ul></details>}</div>}
         {panel==='bookmarks'&&<ul className="bookmark-list">{marks.map(mark=><li key={mark.id}><button className="bookmark-jump" onClick={()=>mark.location?jump({resource:mark.location.resource},mark.location):setError('此旧书签尚未匹配，已保留原位置')}><p>{mark.label}</p>{!mark.location&&<small>旧书签</small>}</button><IconButton label={`移除书签：${mark.label.slice(0,20)}`} onClick={()=>void remove(mark.id)}><Trash2 size={15}/></IconButton></li>)}{!marks.length&&<li className="panel-empty">还没有书签</li>}</ul>}
         {panel==='search'&&<form className="epub-search" onSubmit={event=>{event.preventDefault();search();}}><label className="search-field"><Search size={16}/><input type="search" aria-label="搜索本章内容" placeholder="输入关键词" value={query} onChange={event=>setQuery(event.target.value)}/></label><button className="secondary-button" type="submit" disabled={!findCount}>查找</button>{!!query.trim()&&!loading&&!findCount&&<p className="panel-empty">本章没有匹配内容</p>}</form>}
       </aside></>}

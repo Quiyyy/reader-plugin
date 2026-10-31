@@ -1,3 +1,4 @@
+import {readerSettingsSchema} from '../../shared/reader-settings.js';
 import {z} from 'zod';
 import {noteSchema,folderSchema,annotationSchema,sourceSchema,bookMetadataSchema,appearanceSchema,bookIdSchema} from '../../shared/workspace.js';
 import {noteBotSchema} from '../../shared/note-bots.js';
@@ -15,7 +16,7 @@ export type BookManifest=z.infer<typeof bookManifestSchema>;
 export const positionSchema=z.object({bookId:bookIdSchema,deviceId:z.string().uuid(),deviceName:z.string().min(1).max(80),format:z.enum(['txt','epub','pdf','online']),title:z.string().max(500),updatedAt:z.string().datetime(),locator:locator.optional(),epub:epubLocationSchema.optional(),appearance:epubAppearanceSchema.optional(),pdf:z.object({page:z.number().int().min(1).max(10000),scroll:z.number().min(0).max(1),scale:z.number().min(.3).max(3),rotation:z.number().int().multipleOf(90).min(0).max(270)}).strict().optional()}).strict();
 export type SyncedPosition=z.infer<typeof positionSchema>;
 export const workspacePreferencesSchema=z.object({appearance:appearanceSchema,preferences:preferencesSchema.optional(),layout:z.enum(['cards','list'])}).strict();
-export const readerPreferencesSchema=z.object({theme:z.enum(['system','light','sepia','dark']),fontSize:z.number().min(14).max(36),lineHeight:z.number().min(1.3).max(2.6),lineWidth:z.number().min(420).max(960),fontFamily:z.enum(['serif','sans'])}).strict();
+export const readerPreferencesSchema=readerSettingsSchema;
 export const syncWorkspaceKinds={note:{collection:'notes',schema:noteSchema},folder:{collection:'folders',schema:folderSchema},annotation:{collection:'annotations',schema:annotationSchema},source:{collection:'sources',schema:sourceSchema},bookmeta:{collection:'books',schema:bookMetadataSchema}} as const;
 export const normalValue=(value:unknown):SyncValue=>JSON.parse(JSON.stringify(value)) as SyncValue;
 export const revisionless=(value:unknown):SyncValue=>value&&typeof value==='object'&&'revision' in value?normalValue({...value,revision:1}):normalValue(value);

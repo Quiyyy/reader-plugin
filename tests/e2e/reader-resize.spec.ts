@@ -1,7 +1,10 @@
+import {defaultSettings} from '../../src/shared/types';
 import {test,expect} from '@playwright/test';
 import {strToU8,zipSync} from 'fflate';
 import {openSettings,closeSettings} from './navigation';
 
+test.beforeEach(async({request})=>{await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name:'reader_settings',arguments:{settings:{...defaultSettings,epub:{style:'original',flow:'scroll'}}}}});});
+test.afterEach(async({request})=>{await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name:'reader_settings',arguments:{settings:{...defaultSettings,epub:{style:'original',flow:'scroll'}}}}});});
 for(const format of ['txt','epub','pages'])test(`continuous pane resizing retains the passage in ${format}`,async({page})=>{
   const passage=(i:number)=>`第 ${i} 段。`+'阅读窗口宽度变化时，正在阅读的内容应该留在视野中，不能重新跳到章节开头。'.repeat(8);
   const title='连续调整宽度 '+format;
@@ -20,5 +23,21 @@ for(const format of ['txt','epub','pages'])test(`continuous pane resizing retain
   const anchorVisible=()=>scroller.evaluate((host,anchor)=>{const element=[...host.shadowRoot!.querySelectorAll<HTMLElement>('[data-reader-node]')].find(el=>el.dataset.readerNode===anchor.element)!;const walker=document.createTreeWalker(element,NodeFilter.SHOW_TEXT);let node:Node|null,offset=anchor.offset;while((node=walker.nextNode())){const length=node.textContent!.length;if(offset<length){const range=document.createRange();range.setStart(node,offset);range.setEnd(node,offset+1);const rect=range.getBoundingClientRect(),box=host.getBoundingClientRect();return rect.right>box.left&&rect.left<box.right&&rect.bottom>box.top&&rect.top<box.bottom;}offset-=length;}return false;},anchor);
   for(const width of [1100,920,780,660,540,390,520,760,1040,1280]){await page.setViewportSize({width,height:900});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));if(epub)await expect.poll(anchorVisible).toBe(true);else await expect(target).toBeInViewport();}
   if(epub)expect((await rpc('reader_epub_open',{id:book.id})).state.location).toEqual(anchor);
+  if(epub){
+    // A desktop pane can be collapsed for a layout pass and return to the same
+    // dimensions. The last non-zero dimensions alone cannot detect this cycle.
+    await scroller.evaluate(async el=>{el.style.display='none';await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));el.style.display='';});
+    await expect.poll(anchorVisible).toBe(true);
+    // Chromium can deliver a delayed native offset reset after resize settles.
+    // With no new reading gesture, this must never become the saved progress.
+    await scroller.evaluate((el,paged)=>{if(paged)el.scrollLeft=0;else el.scrollTop=0;},format==='pages');
+    await expect.poll(anchorVisible).toBe(true);
+    expect((await rpc('reader_epub_open',{id:book.id})).state.location).toEqual(anchor);
+  }
   expect(await scroller.evaluate((el,paged)=>paged?el.scrollLeft:el.scrollTop,format==='pages')).toBeGreaterThan(1000);
+  if(epub){
+    if(format==='pages')await scroller.press('PageDown');
+    else{await scroller.hover();await page.mouse.wheel(0,600);}
+    await expect.poll(async()=>(await rpc('reader_epub_open',{id:book.id})).state.location).not.toEqual(anchor);
+  }
 });

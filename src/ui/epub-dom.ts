@@ -109,7 +109,7 @@ export class EpubDom {
     const comfort=appearance.style==='comfort';
     this.appearanceStyle.textContent=`
       .reader-book-body{font-size:${appearance.fontSize}px!important;margin-inline:auto!important;
-        ${appearance.flow==='pages'?`width:${width}px!important;max-width:none!important;height:${height}px!important;column-width:${width-48}px!important;column-gap:48px!important;column-fill:auto!important;padding:24px!important;`: `width:100%!important;max-width:760px!important;min-height:100%;padding-inline:24px!important;`}}
+        ${appearance.flow==='pages'?`width:${width}px!important;max-width:none!important;height:${height}px!important;column-width:${width-48}px!important;column-gap:48px!important;column-fill:auto!important;padding:24px!important;`: `width:100%!important;max-width:var(--reading-width,680px)!important;min-height:100%;padding-inline:24px!important;`}}
       .reader-book-body *{max-width:100%;overflow-wrap:break-word}
       ${comfort?`.reader-book-body,.reader-book-body *{font-family:var(--reading-font,serif)!important;line-height:var(--reading-line-height,1.9)!important;color:var(--text,#292c28)!important;background-color:transparent!important;letter-spacing:normal!important;writing-mode:horizontal-tb!important}
         .reader-book-body p{font-size:1em!important;margin-block:0 1em!important;text-indent:0!important}

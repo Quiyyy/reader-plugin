@@ -1,3 +1,4 @@
+import {readerSettingsSchema} from '../shared/reader-settings.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import * as fs from 'node:fs/promises';
@@ -11,7 +12,7 @@ import { importDocument, IMPORT_LIMITS, normalizeEncoding } from './importers.js
 import {assertUnchanged} from './sync/entities.js';
 
 const locatorSchema = z.object({ chapter: z.number().int().nonnegative(), paragraph: z.number().int().nonnegative() });
-const settingsSchema = z.object({ theme: z.enum(['system', 'light', 'sepia', 'dark']), fontSize: z.number().min(14).max(36), lineHeight: z.number().min(1.3).max(2.6), lineWidth: z.number().min(420).max(960), fontFamily: z.enum(['serif', 'sans']) });
+const settingsSchema = readerSettingsSchema;
 const summarySchema = z.object({ id: z.string().regex(/^[a-f0-9]{64}$/), title: z.string(), author: z.string(), format: z.enum(['txt', 'epub']), addedAt: z.string(), lastReadAt: z.string().optional(), progress: z.number().min(0).max(1), locator: locatorSchema, chapterCount: z.number().int().positive(), wordCount: z.number().int().nonnegative() });
 const bookmarkSchema = z.object({ id: z.string(), locator: locatorSchema, label: z.string(), createdAt: z.string() });
 const chapterSchema = z.object({ sourcePath: z.string().optional(), id: z.string(), title: z.string(), paragraphs: z.array(z.string()).min(1), paragraphStarts: z.array(z.number().int().nonnegative()).min(1).optional() }).refine(chapter => !chapter.paragraphStarts || chapter.paragraphStarts.every((start, index, starts) => start < chapter.paragraphs.length && (index === 0 ? start === 0 : start > starts[index - 1]!)), 'Invalid reading paragraph boundaries');
@@ -372,10 +373,14 @@ export class ReaderStore {
     const checked = settingsSchema.parse(settings);
     return this.locked('settings', async () => {
       if(expected)assertUnchanged(await this.settings(),expected);
-      await atomicWrite(join(this.dataDir, 'settings.json'), JSON.stringify(checked));
+      const value=expected?checked:{...await this.settings(),...checked};
+      await atomicWrite(join(this.dataDir, 'settings.json'), JSON.stringify(value));
       await syncDirectory(this.dataDir);
-      return checked;
+      return value;
     });
+  }
+  async saveEpubSettings(appearance:import('../shared/epub.js').EpubAppearance){
+    return this.locked('settings',async()=>{const current=await this.settings(),value=settingsSchema.parse({...current,fontSize:appearance.fontSize,epub:{style:appearance.style,flow:appearance.flow}});await atomicWrite(join(this.dataDir,'settings.json'),JSON.stringify(value));await syncDirectory(this.dataDir);return value;});
   }
   async settings():Promise<ReaderSettings>{try{return settingsSchema.parse(JSON.parse(await fs.readFile(join(this.dataDir,'settings.json'),'utf8')));}catch(error){if(isMissing(error))return {...defaultSettings};throw Error('阅读设置损坏，书籍文件不受影响');}}
 

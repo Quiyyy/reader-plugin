@@ -1,8 +1,11 @@
+import {defaultSettings} from '../../src/shared/types';
 import {test,expect,type Page,type APIRequestContext} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {strToU8,zipSync} from 'fflate';
 import {openNotes,openSettings,closeSettings} from './navigation';
 
+test.beforeEach(async({request})=>{await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name:'reader_settings',arguments:{settings:{...defaultSettings,epub:{style:'original',flow:'scroll'}}}}});});
+test.afterEach(async({request})=>{await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name:'reader_settings',arguments:{settings:{...defaultSettings,epub:{style:'original',flow:'scroll'}}}}});});
 async function rpc(request:APIRequestContext,name:string,args:object={}){return (await(await request.post('/api/tool',{headers:{'X-Reader-Client':'preview'},data:{name,arguments:args}})).json())._meta.reader;}
 async function host(page:Page){const html=await readFile('dist/test-host/index.html','utf8');await page.route('**/__test_host',route=>route.fulfill({contentType:'text/html',body:html}));await page.goto('/__test_host');const app=page.frameLocator('#reader');await expect(app.getByRole('heading',{name:'书库',exact:true})).toBeVisible();return app;}
 const paragraph=(i:number)=>`位置 ${i}：`+'这是用于检查宿主窗口重新布局的原创内容，改变宽度后仍应留在当前阅读位置。'.repeat(7);

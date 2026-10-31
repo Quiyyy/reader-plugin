@@ -1,3 +1,4 @@
+import {readerSettingsSchema} from '../shared/reader-settings.js';
 import {ChatService,chatSchemas} from './chat-service.js';
 import {SyncService,type SyncDependencies} from './sync/service.js';
 import {syncSchemas} from '../shared/sync.js';
@@ -16,7 +17,7 @@ const locator = z.object({ chapter: z.number().int().min(0), paragraph: z.number
 const id = z.string().regex(/^[a-f0-9]{64}$/);
 const requestId = z.string().uuid();
 const onlineResult = z.object({ sourceId: id, revision: id, title: z.string().max(500), author: z.string().max(500), url: z.string().max(4096) }).strict();
-export const settingsSchema = z.object({ theme: z.enum(['system','light','sepia','dark']), fontSize: z.number().min(14).max(36), lineHeight: z.number().min(1.3).max(2.6), lineWidth: z.number().min(420).max(960), fontFamily: z.enum(['serif','sans']) }).strict();
+export const settingsSchema = readerSettingsSchema;
 const MAX_FILE = 64 * 1024 * 1024;
 const MAX_CHUNK = 256 * 1024;
 const TTL = 15 * 60 * 1000;

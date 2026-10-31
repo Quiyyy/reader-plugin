@@ -17,6 +17,14 @@ async function connect(a:ReaderService,b:ReaderService,books=true){const created
 // Real PDF workers and durable writes to two libraries exceed the 5 s unit
 // default on shared CI machines. Keep a bounded integration-test budget.
 describe('Reader cloud integration with two isolated libraries',{timeout:60000},()=>{
+  it('syncs global EPUB preferences only when preference sync is enabled',()=>pair(async(a,b)=>{
+    await connect(a,b);expect((await b.store.settings()).epub).toBeUndefined();
+    await a.sync.settings({options:{...options,preferences:true}});await b.sync.settings({options:{...options,preferences:true}});
+    await run(a);await run(b);await run(a);
+    await a.store.saveSettings({...await a.store.settings(),fontSize:25,epub:{style:'comfort',flow:'pages'}});
+    await run(a);await run(b);expect(await b.store.settings()).toMatchObject({fontSize:25,epub:{style:'comfort',flow:'pages'}});
+    await b.sync.settings({options});await a.store.saveSettings({...await a.store.settings(),fontSize:22});await run(a);await run(b);expect((await b.store.settings()).fontSize).toBe(25);
+  }));
   it('restores EPUB anchors, bookmarks and PDF viewport from verified original files',()=>pair(async(a,b,cloud,root)=>{
     const epubBytes=await epubFixture(),epub=await a.store.importBook('原创云端.epub',epubBytes),opened=await a.epub.open(epub.summary.id);
     const location=opened.state.location!;expect(location).toBeDefined();await a.epub.save(epub.summary.id,location,{style:'comfort',flow:'scroll',fontSize:18});await a.epub.bookmark(epub.summary.id,location,'原书锚点');

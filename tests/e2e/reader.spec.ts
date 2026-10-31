@@ -3,7 +3,9 @@ import {openSettings,closeSettings,setReaderTheme} from './navigation';
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { zipSync, strToU8 } from 'fflate';
-import { defaultSettings, type ReaderSettings } from '../../src/shared/types';
+import { defaultSettings as baseSettings, type ReaderSettings } from '../../src/shared/types';
+
+const defaultSettings:ReaderSettings={...baseSettings,epub:{style:'original',flow:'scroll'}};
 
 function signal() {
   let resolve!: () => void;

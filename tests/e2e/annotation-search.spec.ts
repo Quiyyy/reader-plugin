@@ -48,7 +48,7 @@ test('TXT search finds repeated matches, advances across chapters and clears its
 });
 
 test('EPUB search highlights across inline elements and advances without modifying content',async({page})=>{
-  await open(page,'epub');await page.getByRole('button',{name:'更多',exact:true}).click();await page.getByRole('button',{name:'搜索本章',exact:true}).click();await page.getByLabel('搜索本章内容').fill('target phrase');await page.getByRole('button',{name:'查找',exact:true}).click();const nav=page.getByRole('toolbar',{name:'搜索定位'});
+  await open(page,'epub');await page.getByRole('button',{name:'搜索本章',exact:true}).click();await page.getByLabel('搜索本章内容').fill('target phrase');await page.getByRole('button',{name:'查找',exact:true}).click();const nav=page.getByRole('toolbar',{name:'搜索定位'});
   const active=()=>page.evaluate(()=>Array.from((CSS as any).highlights.get('epub-find-active')??[]).map((r:any)=>r.toString()).join(''));await expect.poll(active).toBe('Target phrase');await nav.getByRole('button',{name:'下一处匹配'}).click();await expect.poll(active).toBe('target phrase');await nav.getByRole('button',{name:'结束查找'}).click();await expect.poll(active).toBe('');await expect(page.locator('.epub-document strong')).toHaveText('Target');
 });
 

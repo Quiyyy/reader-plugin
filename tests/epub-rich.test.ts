@@ -75,10 +75,30 @@ describe('structured EPUB safety and preservation', () => {
     await service.save(id, opened.state.location!, { style: 'comfort', flow: 'pages', fontSize: 24 });
     const restarted = await new EpubService(new ReaderStore(directory)).open(id);
     expect(restarted.state.location).toEqual(opened.state.location);
-    expect(restarted.state.appearance.fontSize).toBe(24);
+    // Position writes from an older pane must not overwrite global typography.
+    expect(restarted.state.appearance.fontSize).toBe(20);
     expect(restarted.state.bookmarks[0]?.id).toBe(marks[0]?.id);
     expect(await Promise.all(paths.map(path => readFile(path)))).toEqual(before);
     await expect(service.save(id, { ...opened.state.location!, quote: { exact: 'invented', prefix: '', suffix: '' } }, opened.state.appearance)).rejects.toThrow(/text does not match/);
+  });
+
+  it('uses one global EPUB style across books and keeps legacy sidecars and progress independent',async()=>{
+    const store=new ReaderStore(directory),service=new EpubService(store);
+    const first=await store.importBook('one.epub',await epubFixture());
+    const second=await store.importBook('two.epub',await epubFixture({'EPUB/story.xhtml':'<html><body><h1>Second book</h1><p>A different passage.</p></body></html>'}));
+    const opened=await service.open(first.summary.id);
+    await service.save(first.summary.id,opened.state.location!,{style:'original',flow:'scroll',fontSize:18});
+    // Use the public snapshot so the test does not assume an internal filename.
+    const before=(await store.epubSnapshot(first.summary.id)).rich;
+    await service.settings(first.summary.id,{style:'comfort',flow:'pages',fontSize:26});
+    for(const id of [first.summary.id,second.summary.id])expect((await service.open(id)).state.appearance).toEqual({style:'comfort',flow:'pages',fontSize:26});
+    expect((await store.epubSnapshot(first.summary.id)).rich).toEqual(before);
+    await service.save(first.summary.id,opened.state.location!,{style:'original',flow:'scroll',fontSize:18});
+    expect((await service.open(first.summary.id)).state.appearance.fontSize).toBe(26);
+    const current=await store.settings();const {epub,...legacy}=current;
+    await store.saveSettings({...legacy,theme:'dark'});
+    expect((await new ReaderStore(directory).settings()).epub).toEqual(epub);
+    expect((await service.open(first.summary.id)).state.location).toEqual(opened.state.location);
   });
 
   it('does not guess duplicated legacy text, and remaps only after explicit legacy progress changes', async () => {

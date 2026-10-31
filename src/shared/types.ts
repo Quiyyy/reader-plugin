@@ -3,7 +3,7 @@ import type { OnlineApi } from './online.js';
 import type { EpubApi } from './epub.js';
 export type BookFormat = 'txt' | 'epub' | 'online' | 'pdf';
 export type Theme = 'system' | 'light' | 'sepia' | 'dark';
-export interface ReaderSettings { theme: Theme; fontSize: number; lineHeight: number; lineWidth: number; fontFamily: 'serif' | 'sans'; }
+export interface ReaderSettings { theme: Theme; fontSize: number; lineHeight: number; lineWidth: number; fontFamily: 'serif' | 'sans'; epub?: {style:'original'|'comfort';flow:'scroll'|'pages'}; }
 export const defaultSettings: ReaderSettings = { theme: 'system', fontSize: 20, lineHeight: 1.9, lineWidth: 680, fontFamily: 'serif' };
 export interface Locator { chapter: number; paragraph: number; chapterId?: string; }
 export interface Bookmark { id: string; locator: Locator; label: string; createdAt: string; }
