@@ -116,7 +116,7 @@ export function OnlinePanel({ api, active, onOpen, onClose, settingsOnly=false, 
   const status = <>{busy && <div className="online-progress" role="status"><LoaderCircle size={16} className="spin" /><span>{busy}…</span>{cancellable && <button className="text-button" onClick={cancel}>取消</button>}</div>}{notice && <p className="online-notice" role="status">{notice}</p>}{error && <div className={incomplete?.paused ? "online-notice pagination-notice" : "error-notice"} role={incomplete?.paused ? "status" : "alert"}><span>{error}</span><button className="text-button" disabled={!!busy} onClick={() => retry.current?.()}>{incomplete?.resumable ? incomplete.stage === "toc" ? "继续加载目录" : "继续加载章节" : "重试"}</button></div>}</>;
   if (!active) return null;
   return <main className="discovery-shell" ref={main} aria-label="找书与书源" onKeyDown={event => {
-    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+    if (event.defaultPrevented || event.nativeEvent.isComposing || event.keyCode === 229) return;
     if (event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); if (step) closeWizard(); else if (detail) backToResults(); else if (view === 'sources'&&!settingsOnly) setView('find'); else leave(); }
   }}>
     <div className="discovery-content" inert={!!step}>

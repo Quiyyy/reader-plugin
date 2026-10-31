@@ -1,3 +1,4 @@
+import {noteSummaryPreview} from '../shared/note-reference.js';
 import {preferencesSchema,type WorkspacePreferences} from '../shared/preferences.js';
 import {workspaceValues,syncWorkspaceKinds,workspacePreferencesSchema,assertUnchanged,validateEntity} from './sync/entities.js';
 import type {ApplyChange} from './sync/engine.js';
@@ -60,7 +61,7 @@ export class WorkspaceStore {
       return {moved:items.length};
     });
   }
-  async snapshot():Promise<WorkspaceSnapshot>{const [{preferences,layout,revision,folders,notes,annotations,sources,books,appearance,aiBooks},access]=await Promise.all([this.read(),this.readAccess()]);return {preferences,layout,revision,accessRevision:access.revision,visits:access.visits,folders,notes:notes.map(({body,...note})=>({...note,preview:body.slice(0,180)})),annotations,sources,books,appearance,aiBooks};}
+  async snapshot():Promise<WorkspaceSnapshot>{const [{preferences,layout,revision,folders,notes,annotations,sources,books,appearance,aiBooks},access]=await Promise.all([this.read(),this.readAccess()]);return {preferences,layout,revision,accessRevision:access.revision,visits:access.visits,folders,notes:notes.map(({body,...note})=>({...note,preview:noteSummaryPreview(body)})),annotations,sources,books,appearance,aiBooks};}
   async note(id:string):Promise<Note>{entityIdSchema.parse(id);const note=(await this.read()).notes.find(x=>x.id===id);if(!note)throw Error('笔记不存在');return note;}
   async source(id:string):Promise<SourceRef>{entityIdSchema.parse(id);const source=(await this.read()).sources.find(x=>x.id===id);if(!source)throw Error('引用不存在');return source;}
   async addSource(value:Omit<SourceRef,'id'|'createdAt'>):Promise<SourceRef>{return (await this.mutate(state=>{const same=state.sources.find(s=>s.bookId===value.bookId&&hash(s.anchor)===hash(value.anchor)&&s.quote===value.quote&&s.imageId===value.imageId);if(same)return same;const source=sourceSchema.parse({...value,id:randomUUID(),createdAt:new Date().toISOString()});state.sources.push(source);return source;},false)).value;}

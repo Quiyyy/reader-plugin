@@ -22,7 +22,7 @@ export function useLibraryDrag(options: Options) {
   useEffect(() => { if (options.disabled) clear(); }, [options.disabled, clear]);
   useEffect(() => {
     if (!items.length) return;
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); clear(); } };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape'&&!event.isComposing) { event.preventDefault(); event.stopImmediatePropagation(); clear(); } };
     let frame: number;
     const scroll = () => { if (speed.current) options.root.current?.scrollBy({ top: speed.current }); frame = requestAnimationFrame(scroll); };
     frame = requestAnimationFrame(scroll);

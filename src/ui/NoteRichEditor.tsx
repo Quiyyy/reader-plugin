@@ -14,14 +14,17 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Image from '@tiptap/extension-image';
 import CodeBlock from '@tiptap/extension-code-block';
+import {findMention,sourceMentionId,type MentionRange} from './note-mentions';
 
 export type NoteFormat='bold'|'italic'|'underline'|'strike'|'code'|'paragraph'|'heading1'|'heading'|'heading3'|'list'|'ordered'|'quote'|'task';
 export interface NoteSelection { mode:'visual'|'source'; from:number; to:number; text:string; style?:NoteFormat; marks?:string[];rect?:{left:number;top:number;bottom:number;width?:number}; }
-export interface NoteMention { from:number; to:number; query:string; rect:{left:number;top:number;bottom:number}; }
+export interface NoteMention extends MentionRange {rect:{left:number;top:number;bottom:number};}
 export interface NoteRichHandle {
   capture(atEnd?:boolean):NoteSelection|undefined;
   replace(selection:NoteSelection, markdown:string, insert?:boolean):void;
   removeMention(mention:NoteMention):NoteSelection;
+  insertMention(mention:NoteMention,value:{text:string;href?:string}):void;
+  mentionRect(mention:NoteMention):{left:number;top:number;bottom:number};
   format(kind:NoteFormat):void;
   highlight(selection?:NoteSelection):void;
   heading(index:number):void;
@@ -78,7 +81,7 @@ interface BlockTarget {anchor:HTMLButtonElement;editor:Editor;node:ProseNode;pos
 export function noteEditorExtensions(onBlock?:(target:BlockTarget)=>void) {
   let hovered:{node:ProseNode;editor:Editor}|undefined;
   // Focusing or opening a note must not append a paragraph and rewrite its source.
-  return [StarterKit.configure({link:{openOnClick:false,autolink:false,linkOnPaste:false},codeBlock:false,trailingNode:false}),EditableCode,ContextHighlight,
+  return [StarterKit.configure({link:{openOnClick:false,autolink:false,linkOnPaste:false,protocols:['reader'],isAllowedUri:(url,context)=>/^reader:/i.test(url)?!!sourceMentionId(url):context.defaultValidate(url)},codeBlock:false,trailingNode:false}),EditableCode,ContextHighlight,
     DragHandle.configure({onNodeChange:({node,editor})=>{hovered=node?{node,editor}:undefined;},render:()=>{
       const handle=document.createElement('button');handle.type='button';handle.className='note-block-handle';handle.title='拖动调整顺序，点击打开块操作';handle.setAttribute('aria-label','块操作');handle.setAttribute('aria-haspopup','menu');
       const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 14 14');svg.setAttribute('width','14');svg.setAttribute('height','14');svg.setAttribute('aria-hidden','true');
@@ -104,14 +107,14 @@ export const NoteRichEditor=forwardRef<NoteRichHandle,Props>(function NoteRichEd
     if(editor.view.composing)return;
     latest.current.onSelection(capture(editor));
     const {$from,empty}=editor.state.selection;
-    const before=$from.parent.textBetween(0,$from.parentOffset,'','\ufffc');
-    const match=empty?/(?:^|\s)@([^@\s]{0,32})$/.exec(before):null;
+    const text=$from.parent.textBetween(0,$from.parent.content.size,'','\ufffc').replace(/\ufffc/g,'\n');
+    const match=empty&&!editor.isActive('code')?findMention(text,$from.parentOffset):undefined;
     const rect=editor.view.coordsAtPos($from.pos);
-    latest.current.onMention(match&&!$from.parent.type.spec.code?{from:$from.pos-match[1].length-1,to:$from.pos,query:match[1],rect:{left:rect.left,top:rect.top,bottom:rect.bottom}}:undefined);
+    latest.current.onMention(match&&!$from.parent.type.spec.code?{...match,from:$from.start()+match.from,to:$from.start()+match.to,caret:$from.pos,rect:{left:rect.left,top:rect.top,bottom:rect.bottom}}:undefined);
   };
   const editor=useEditor({
     extensions,content:props.value,contentType:'markdown',
-    editorProps:{attributes:{class:'note-rich-content',role:'textbox','aria-label':'笔记正文','aria-multiline':'true','data-placeholder':'写下想法，输入 @ 指派 Note Bot…'},
+    editorProps:{attributes:{class:'note-rich-content',role:'textbox','aria-label':'笔记正文','aria-multiline':'true','data-placeholder':'写下想法，输入 @ 指派或引用…'},
       handleKeyDown:(_view,event)=>latest.current.onKey(event),
       handlePaste:(_view,event)=>{if([...event.clipboardData?.files??[]].some(file=>file.type.startsWith('image/')))return true;return false;},
       handleDOMEvents:{compositionend:()=>{requestAnimationFrame(()=>{if(editor&&!editor.isDestroyed)report(editor);});return false;}},
@@ -120,12 +123,14 @@ export const NoteRichEditor=forwardRef<NoteRichHandle,Props>(function NoteRichEd
     onSelectionUpdate:({editor})=>report(editor),
     immediatelyRender:true,
   });
-  useEffect(()=>{if(editor&&props.value!==last.current){last.current=props.value;editor.commands.setContent(props.value,{contentType:'markdown',emitUpdate:false});}},[editor,props.value]);
+  useEffect(()=>{if(editor&&props.value!==last.current){last.current=props.value;editor.commands.setContent(props.value,{contentType:'markdown',emitUpdate:false});report(editor);}},[editor,props.value]);
   useEffect(()=>{if(block&&editor?.state.doc.nodeAt(block.pos)!==block.node)closeBlock();},[props.value]);
   useImperativeHandle(ref,()=>({
     capture:atEnd=>editor?capture(editor,atEnd):undefined,
     replace(selection,markdown,insert){if(!editor)return;const at=insert?selection.to:selection.from;editor.chain().focus().insertContentAt({from:at,to:insert?at:selection.to},markdown,{contentType:'markdown'}).run();},
-    removeMention(mention){if(!editor)throw Error('编辑器尚未就绪');editor.chain().focus().deleteRange({from:mention.from,to:mention.to}).run();return capture(editor);},
+    removeMention(mention){if(!editor)throw Error('编辑器尚未就绪');if(editor.state.doc.textBetween(mention.from,mention.to)!=='@'+(mention.raw??mention.query))throw Error('插入位置已变化，请重新输入 @');editor.chain().focus().deleteRange({from:mention.from,to:mention.to}).run();return capture(editor);},
+    insertMention(mention,value){if(!editor)throw Error('编辑器尚未就绪');if(editor.state.doc.textBetween(mention.from,mention.to)!=='@'+(mention.raw??mention.query))throw Error('插入位置已变化，请重新输入 @');editor.chain().focus().insertContentAt({from:mention.from,to:mention.to},[{type:'text',text:value.text,...(value.href?{marks:[{type:'link',attrs:{href:value.href}}]}:{})},{type:'text',text:' '}]).run();},
+    mentionRect(mention){if(!editor)throw Error('编辑器尚未就绪');return editor.view.coordsAtPos(mention.caret??mention.to);},
     format(kind){if(!editor)return;const chain=editor.chain().focus();if(kind==='bold')chain.toggleBold().run();else if(kind==='italic')chain.toggleItalic().run();else if(kind==='underline')chain.toggleUnderline().run();else if(kind==='strike')chain.toggleStrike().run();else if(kind==='code')chain.toggleCode().run();else if(kind==='paragraph')chain.setParagraph().run();else if(kind.startsWith('heading'))chain.toggleHeading({level:kind==='heading1'?1:kind==='heading3'?3:2}).run();else if(kind==='list')chain.toggleBulletList().run();else if(kind==='ordered')chain.toggleOrderedList().run();else if(kind==='quote')chain.toggleBlockquote().run();else chain.toggleTaskList().run();},
     highlight(selection){if(!editor)return;const valid=selection?.mode==='visual'&&selection.from>=0&&selection.to<=editor.state.doc.content.size?selection:null;editor.view.dispatch(editor.state.tr.setMeta(contextKey,valid));},
     heading(index){if(!editor)return;let count=0;editor.state.doc.descendants((node,pos)=>{if(node.type.name==='heading'&&count++===index)editor.chain().focus().setTextSelection(pos+1).scrollIntoView().run();});},

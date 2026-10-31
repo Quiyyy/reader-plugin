@@ -1,9 +1,11 @@
 import { useLayoutEffect,useRef } from 'react';
 import { Bold,Code,Italic,MessageSquare,ScanText,Strikethrough,Underline } from 'lucide-react';
 import type { NoteSelection,NoteFormat } from './NoteRichEditor';
+import {usePopup} from './use-popup';
 
-export function NoteSelectionTools({selection,onFormat,onRequest,onComment}:{selection:NoteSelection;onFormat:(kind:NoteFormat)=>void;onRequest:()=>void;onComment:()=>void}) {
+export function NoteSelectionTools({selection,onFormat,onRequest,onComment,onDismiss,owner}:{selection:NoteSelection;onFormat:(kind:NoteFormat)=>void;onRequest:()=>void;onComment:()=>void;onDismiss:()=>void;owner:()=>HTMLElement|null}) {
   const ref=useRef<HTMLDivElement>(null);
+  usePopup({panel:ref,owner,kind:'panel',outside:false,focusOutside:true,onClose:()=>onDismiss()});
   useLayoutEffect(()=>{const element=ref.current!;const rect=selection.rect;const place=()=>{const center=(rect?.left??80)+(rect?.width??0)/2;element.style.left=Math.max(10,Math.min(innerWidth-element.offsetWidth-10,center-element.offsetWidth/2))+'px';element.style.top=Math.max(56,(rect?.top??110)-element.offsetHeight-10)+'px';};place();window.addEventListener('resize',place);return()=>window.removeEventListener('resize',place);},[selection]);
   return <div ref={ref} className="note-space-selection" role="toolbar" aria-label="笔记选区操作" onMouseDown={event=>{if(!(event.target instanceof HTMLSelectElement))event.preventDefault();}}>
     <button className="note-request-edit" type="button" onClick={onRequest}><ScanText size={18}/><span>提出修改要求</span></button><i/>

@@ -9,7 +9,7 @@
 
 Reader 是面向 MCP Apps 宿主的阅读插件，也提供独立浏览器预览。支持 TXT、EPUB、PDF 和在线书源；书籍、笔记和文件夹放在同一书库中，摘录与笔记保留可回到原文的出处。
 
-当前源码版本为 **0.3.7**，支持 Google Drive 多电脑同步及显式代理，保留离线修改与冲突版本；搜索可按内容类型和文件夹筛选。已完成真实 Google 账户下的双书库联调，首次同步需要个人 OAuth 配置。详见 [更新记录](CHANGELOG.md) 和 [同步指南](docs/GOOGLE_DRIVE_SYNC.md)。平台包由 CI 分发，实际安装版本以包内 manifest 和来源提交为准。
+当前源码版本为 **0.3.8**，支持 Google Drive 多电脑同步及显式代理，保留离线修改与冲突版本；搜索可按内容类型和文件夹筛选。已完成真实 Google 账户下的双书库联调，首次同步需要个人 OAuth 配置。详见 [更新记录](CHANGELOG.md) 和 [同步指南](docs/GOOGLE_DRIVE_SYNC.md)。平台包由 CI 分发，实际安装版本以包内 manifest 和来源提交为准。
 
 ![Reader 0.2.14 书库：文件夹、书籍和笔记混合排列，支持搜索与最近访问排序](docs/images/library-0.2.14.png)
 
@@ -63,6 +63,7 @@ node scripts/preview-workspace.mjs --port 4187
 1. 从“新建”导入书籍、创建笔记或文件夹；也可从“找书”进入在线阅读。
 2. 拖拽条目到文件夹进行整理，或使用“选择 → 移动”批量归档。
 3. 阅读时划选文字进行高亮、批注或提问，在笔记中记录自己的理解并通过来源回看原文。
+4. 在笔记正文或底部输入框输入 `@`，选择 Note Bot、已有原文引用或日期。方向键切换候选，`Tab`／`Enter` 确认，`Esc` 关闭并保留输入。完整规则见 [键盘交互](docs/KEYBOARD_INTERACTIONS.md)。
 
 使用对话功能前，需要安装并登录官方 Codex CLI。程序不在 PATH 时，可用 `READER_CODEX_PATH` 指定其绝对路径；配置方式见 [使用指南](docs/USAGE.md#与-codex-讨论)。
 

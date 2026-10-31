@@ -555,8 +555,8 @@ export function App({ onOpenSettings,registerSettings,registerEpubSettings,keybo
   const onReaderKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.defaultPrevented || event.nativeEvent.isComposing || event.keyCode === 229 || event.getModifierState('AltGraph') || returningRef.current || trashBusyRef.current) return;
     const target = event.target as HTMLElement;
-    if (editableTarget(target)) return;
     if (event.key === 'Escape') {
+      if (editableTarget(target)&&!panel&&!helpOpen&&!trashOpen) return;
       const menu = target.closest('details[open]');
       if (menu) { menu.removeAttribute('open'); menu.querySelector<HTMLElement>('summary')?.focus(); }
       else if (helpOpen) setHelpOpen(false);
@@ -566,6 +566,7 @@ export function App({ onOpenSettings,registerSettings,registerEpubSettings,keybo
       else return;
       event.preventDefault(); return;
     }
+    if (editableTarget(target)) return;
     const action = shortcutActions.find(action => keyboard.bindings[action] && keyboard.bindings[action] === eventShortcut(event.nativeEvent));
     if (action === 'closeHost') { event.preventDefault(); if (!event.repeat) void requestHostClose(); return; }
     if (helpOpen || trashOpen || onlineOpen && !bookRef.current || panel || target.closest('details[open]')) return;
@@ -605,7 +606,7 @@ export function App({ onOpenSettings,registerSettings,registerEpubSettings,keybo
   };
 
   useEffect(() => {
-    if (!panel && !helpOpen && !trashOpen) { previouslyFocusedRef.current?.focus(); previouslyFocusedRef.current = null; return; }
+    if (!panel && !helpOpen && !trashOpen) { previouslyFocusedRef.current?.focus({preventScroll:true}); previouslyFocusedRef.current = null; return; }
     if (!previouslyFocusedRef.current) previouslyFocusedRef.current = document.activeElement as HTMLElement;
     (overlayRef.current?.querySelector<HTMLElement>('input') ?? overlayRef.current?.querySelector<HTMLElement>('button, [tabindex="0"]'))?.focus();
   }, [panel, helpOpen, trashOpen]);

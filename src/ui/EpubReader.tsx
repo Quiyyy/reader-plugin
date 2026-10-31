@@ -99,7 +99,7 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
   useEffect(()=>{registerGuard?.(()=>flush().then(()=>true).catch(()=>false));return()=>registerGuard?.(null);},[registerGuard,flush]);
   useEffect(()=>api.onBeforeClose?.(flush),[api,flush]);
   useEffect(()=>{if(image)dialog.current?.showModal();else dialog.current?.close();},[image]);
-  useEffect(()=>{if(panel)popover.current?.querySelector<HTMLElement>('input,button')?.focus();},[panel]);
+  useEffect(()=>{if(!panel)return;const previous=document.activeElement as HTMLElement|null;popover.current?.querySelector<HTMLElement>('input,button')?.focus({preventScroll:true});return()=>{if(previous?.isConnected)previous.focus({preventScroll:true});};},[panel]);
   const adoptAppearance=useCallback((value:EpubAppearance)=>{appearanceRef.current=value;setAppearance(value);reflowRef.current?.();},[]);
   useLayoutEffect(()=>{registerSettings?.({id:book.summary.id,title:book.document.title,get:()=>appearanceRef.current,apply:adoptAppearance});return()=>registerSettings?.(null);},[registerSettings,book.summary.id,book.document.title,adoptAppearance]);
   const changeAppearance=async(next:Partial<EpubAppearance>)=>{
@@ -117,6 +117,7 @@ export function EpubReader({onOpenSettings,registerSettings,searchTarget,onAnnot
   const jump=(target:EpubTarget,restore?:EpubLocation)=>{intent.current=true;void navigate(target,restore);};
   const returnFromNote=()=>{const prior=notes.current.pop();setNoteDepth(notes.current.length);if(prior)void navigate({resource:prior.resource},prior);};
   const key=(event:React.KeyboardEvent)=>{
+    if(event.defaultPrevented||event.nativeEvent.isComposing||event.keyCode===229)return;
     event.stopPropagation();
     if(event.key==='Escape'){if(image)setImage(undefined);else if(panel)setPanel(null);else void back();event.preventDefault();return;}
     if(editableTarget(event.target as HTMLElement))return;
