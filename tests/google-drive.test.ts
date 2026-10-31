@@ -58,7 +58,7 @@ describe('Google OAuth and Drive transport',()=>{
       await expect(new GoogleDrive(async()=> 'fixture',http,sessions).put(id,data,{vaultId,kind:'asset',key:'a'.repeat(64)})).rejects.toThrow(/network interrupted|上传进度无效/);
       expect(accepted).toBe(1024*1024);interrupt=false;
       await new GoogleDrive(async()=> 'fixture',http,sessions).put(id,data,{vaultId,kind:'asset',key:'a'.repeat(64)});
-      expect(starts).toBe(1);expect(probes).toBeGreaterThan(0);expect(redirects).toBe(0);expect(Buffer.concat(received)).toEqual(data);expect(await readdir(root)).toEqual([]);
+      expect(starts).toBe(1);expect(probes).toBeGreaterThan(0);expect(redirects).toBe(0);expect(Buffer.concat(received).equals(data)).toBe(true);expect(await readdir(root)).toEqual([]);
     }finally{server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));await rm(root,{recursive:true,force:true});}
   });
   it('does not follow an HTTP redirect returned by a metadata request',async()=>{
