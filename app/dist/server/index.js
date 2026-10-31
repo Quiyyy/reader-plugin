@@ -51111,7 +51111,7 @@ var CodexClient = class {
         }
         if (data3.method) for (const listener of this.listeners) listener(data3.method, data3.params ?? {});
       });
-      await this.send("initialize", { clientInfo: { name: "reader_study", title: "Reader", version: "0.3.3" }, capabilities: { experimentalApi: true } });
+      await this.send("initialize", { clientInfo: { name: "reader_study", title: "Reader", version: "0.3.5" }, capabilities: { experimentalApi: true } });
       this.notify("initialized", {});
     })();
     try {
@@ -52851,7 +52851,7 @@ var GoogleDrive = class {
     const url3 = path2.startsWith("https://") ? new URL(path2) : new URL(path2, "https://www.googleapis.com");
     if (url3.origin !== "https://www.googleapis.com" || !/^\/(?:drive\/v3|upload\/drive\/v3)\//.test(url3.pathname)) throw Error("Google Drive \u54CD\u5E94\u5730\u5740\u65E0\u6548");
     for (let attempt = 0; attempt < 4; attempt++) {
-      const response = await this.http(url3, { ...init, headers: { ...Object.fromEntries(new Headers(init.headers)), Authorization: "Bearer " + await this.token() }, redirect: "error", signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(6e4)]) : AbortSignal.timeout(6e4) });
+      const response = await this.http(url3, { ...init, headers: { ...Object.fromEntries(new Headers(init.headers)), Authorization: "Bearer " + await this.token() }, redirect: "manual", signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(6e4)]) : AbortSignal.timeout(6e4) });
       if (response.status === 429 || response.status >= 500) {
         if (attempt === 3) throw Error("Google Drive \u6682\u65F6\u7E41\u5FD9\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5");
         await response.body?.cancel();
@@ -93388,7 +93388,7 @@ var OpenAIFileEntrypointInputSchema = external_exports2.object({
 });
 
 // src/server/mcp.ts
-var VERSION = "0.3.3";
+var VERSION = "0.3.5";
 var UI_URI = `ui://reader/v${VERSION}/bookshelf.html`;
 function isPreviousUiVersion(value) {
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value)) return false;

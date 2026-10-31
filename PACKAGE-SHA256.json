@@ -4,10 +4,10 @@
   "LICENSE": "525a37b47d9bcab43c8f07fe4e45ec6579b27b5f655a8dd5ec32890549fd8b02",
   "THIRD_PARTY_NOTICES.md": "e7cf612659af4d3f07b8698c0f7a4a64343207477400dabb04b7c17956e8cfd3",
   "app/LICENSE": "525a37b47d9bcab43c8f07fe4e45ec6579b27b5f655a8dd5ec32890549fd8b02",
-  "app/dist/server/index.js": "0faeb32b15405b46d36777ac17c00ac0a71ae520ae58b4b1831122b7ef9acad6",
+  "app/dist/server/index.js": "003c08bc89db958b2baef0aac9231df130c9b4f194e4e1e685d2e8e837b50b28",
   "app/dist/server/pdf-worker.js": "b494b3d69f21727783977124fccc3bc3a69d21efdcdf5160549174a91185e40f",
   "app/dist/server/script-worker.js": "4bf3bb90578b56ea0359bc8fa10fc08837847b14d58257f008952d218f99f335",
-  "app/dist/ui/index.html": "c1054fb7879c54e5669c7d95895f1fe5c5a690de0e84b81b710bd232bbf576d6",
+  "app/dist/ui/index.html": "a01ee2e134b5cf65bd64ff63a4e5a331a3bf428e6656763c1b0d17e83b2eaad7",
   "app/node_modules/@jitl/quickjs-ffi-types/LICENSE": "3c6040aa318612a234cc951609b640c0c63d85ae5a98a9330d3116f1553a79db",
   "app/node_modules/@jitl/quickjs-ffi-types/README.md": "808124bff16606acac21b74e72017c201200b370f62064dcd61baefbaa5470d6",
   "app/node_modules/@jitl/quickjs-ffi-types/dist/index.d.mts": "89d6886dc16653c9e3372b255d3967ca756babe1f82ba07ed7d32af269c1b21e",
@@ -701,7 +701,7 @@
   "app/node_modules/quickjs-emscripten/dist/variants.mjs": "e3f70bc7cb4591c875997b8d1b570d1f2c03531f4b2f59c046b2965672e8209c",
   "app/node_modules/quickjs-emscripten/dist/variants.mjs.map": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3",
   "app/node_modules/quickjs-emscripten/package.json": "0feb2558c02e41fc9b8ab20c674edfa84af70d21d1189b55ec6455fe133ad9f6",
-  "app/package.json": "a4acc6613587914acf1d068231feb8fc0c2e97f9e8b1a788fa882aa369408e1a",
+  "app/package.json": "a09913de310b00f2c1f5aa6461505eba62f3bd3e81844b90ee59e8b9f31b6199",
   "licenses/GO-LICENSE": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
   "licenses/NODE-LICENSE": "ed34dd8e3f0a78dbaf00d0444ce8e285b015b765379c2e17880455f70370f8e9",
   "licenses/dependency-0-0.txt": "117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76",
@@ -1132,7 +1132,7 @@
   "licenses/upstream/theKashey-react-remove-scroll-bar-LICENSE": "a79aae0c0f21990d9d963bb3c5a79cdcea9a46f8523ba55c58d7fe776b6ebc84",
   "mcp.json": "cb0cea23f613ebf893d57386d4809f3f23d598675549175892532245f8ada4be",
   "payload/node.gz": "83121e51f1810c396f42bc42ac22f32a1385a907c7ffd61d70cf3de83bfa5a94",
-  "plugin.json": "26a11b76e98c5aa9e61a57604176f95258c2c1051450db43a2c414150f5128d4",
-  "reader-launcher.exe": "74929229d83b934e12a0beba324acf1488e8220fbb02ef1f03a6cd5f088274fc",
-  "runtime-manifest.json": "c06ca79c9b681e76a243c19d1243c92b6a0b0518968a1f13fb324918b0578375"
+  "plugin.json": "80f46ce085fdcc51595fe645c318dd846bc0ef6d81d4f1278aa673b32a9312d2",
+  "reader-launcher.exe": "6bf6cdedfe1da6a22756376912d3387c48632ae4145cd7467d3b6b185b1993bf",
+  "runtime-manifest.json": "4d9ddbacf45e009cb422e68f6c5d833c33c0b99713dfdf987229c8f86217a13e"
 }
