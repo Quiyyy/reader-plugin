@@ -3,6 +3,11 @@ import { z } from 'zod';
 export const syncOptionsSchema=z.object({books:z.boolean(),preferences:z.boolean()}).strict();
 export type SyncOptions=z.infer<typeof syncOptionsSchema>;
 export const defaultSyncOptions:SyncOptions={books:true,preferences:false};
+export const syncNetworkSchema=z.discriminatedUnion('mode',[
+  z.object({mode:z.literal('direct')}).strict(),
+  z.object({mode:z.literal('proxy'),url:z.string().trim().min(1).max(2048).refine(value=>{try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)&&!!url.hostname&&!url.username&&!url.password&&!url.search&&!url.hash&&url.pathname==='/';}catch{return false;}},'请输入 HTTP 或 HTTPS 代理地址，不包含账号、密码或路径')}).strict(),
+]);
+export type SyncNetwork=z.infer<typeof syncNetworkSchema>;
 export const googleClientSchema=z.object({clientId:z.string().max(256).regex(/^[\w.-]+\.apps\.googleusercontent\.com$/),clientSecret:z.string().min(1).max(512).optional()}).strict();
 export type GoogleClient=z.infer<typeof googleClientSchema>;
 export type SyncPhase='unconfigured'|'disconnected'|'authorizing'|'connected'|'paused'|'syncing'|'ready'|'error';
@@ -11,6 +16,7 @@ export interface SyncStatus {
   phase:SyncPhase;configured:boolean;connected:boolean;email?:string;vaultId?:string;vaultName?:string;
   deviceName:string;enabled:boolean;options:SyncOptions;lastSyncedAt?:string;error?:string;
   pending:number;conflicts:SyncConflictSummary[];downloadedBooks:number;cloudBooks:number;
+  network?:SyncNetwork;
 }
 export interface CloudVault {id:string;fileId:string;name:string;}
 export interface SyncConflictVersion {id:string;deviceName:string;createdAt:string;deleted:boolean;title:string;text:string;}
@@ -25,7 +31,8 @@ export const syncSchemas={
   reader_sync_vaults:z.object({}).strict(),
   reader_sync_create:z.object({name:z.string().trim().min(1).max(80),deviceName:z.string().trim().min(1).max(80),options:syncOptionsSchema}).strict(),
   reader_sync_join:z.object({recoveryKey:z.string().max(160),deviceName:z.string().trim().min(1).max(80),options:syncOptionsSchema}).strict(),
-  reader_sync_settings:z.object({enabled:z.boolean().optional(),options:syncOptionsSchema.optional(),deviceName:z.string().trim().min(1).max(80).optional()}).strict(),
+  reader_sync_settings:z.object({enabled:z.boolean().optional(),options:syncOptionsSchema.optional(),deviceName:z.string().trim().min(1).max(80).optional(),network:syncNetworkSchema.optional()}).strict(),
+  reader_sync_network_test:z.object({network:syncNetworkSchema}).strict(),
   reader_sync_run:z.object({}).strict(),
   reader_sync_cancel:z.object({}).strict(),
   reader_sync_recovery_key:z.object({}).strict(),

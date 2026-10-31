@@ -45,7 +45,7 @@ export const workspaceSchemas={
   reader_ai_book_access:z.object({id,allowed:z.boolean()}).strict(),
   reader_image_put:z.object({data:z.string().max(6*1024*1024).regex(/^[A-Za-z0-9+/]*={0,2}$/)}).strict(),
   reader_image_get:z.object({id}).strict(),
-  reader_workspace_search:z.object({query:z.string().trim().min(1).max(200),bookId:id.optional(),limit:z.number().int().min(1).max(100).optional()}).strict(),
+  reader_workspace_search:z.object({query:z.string().trim().min(1).max(200),bookId:id.optional(),kind:z.enum(['book','note','annotation','passage']).optional(),folderId:uuid.nullable().optional(),limit:z.number().int().min(1).max(201).optional()}).strict(),
   reader_quote_create:z.object({source:sourceInputSchema}).strict(),
   reader_study_search:z.object({query:z.string().trim().min(1).max(200),bookId:id.optional(),limit:z.number().int().min(1).max(100).optional()}).strict(),
   reader_books_search:z.object({query:z.string().max(200).optional()}).strict(),
@@ -100,9 +100,39 @@ export class WorkspaceService {
   async resolveSource(id:string){const source=await this.store.source(id);try{await this.validateSource(source);return {source,available:true};}catch(error){return {source,available:false,reason:error instanceof Error?error.message:'来源不可用'};}}
   async toc(args:{id:string;offset?:number;limit?:number;loadMore?:boolean},scope?:string){if(scope!==args.id&&!await this.store.canReadBook(args.id))throw Error('请先允许 Codex 读取本书目录');const offset=args.offset??0,limit=args.limit??100;if(await this.reader.pdf.has(args.id)){const pdf=await this.reader.pdf.peek(args.id);return {id:args.id,total:pdf.outline.length,entries:pdf.outline.slice(offset,offset+limit),pages:pdf.pages};}let book=await this.book(args.id);if(args.loadMore&&book.summary.format==='online')book=await this.reader.online.run(crypto.randomUUID(),'toc:'+args.id,signal=>this.reader.online.refresh(args.id,signal));return {id:args.id,total:book.document.chapters.length,complete:book.document.tocComplete!==false,entries:book.document.chapters.slice(offset,offset+limit).map((c,i)=>({id:c.id,title:c.title,chapter:offset+i})),next:offset+limit<book.document.chapters.length?offset+limit:null};}
   async readPassage(args:{id:string;chapter?:number;paragraph?:number;count?:number;page?:number},scope?:string){if(scope!==args.id&&!await this.store.canReadBook(args.id))throw Error('这本书尚未允许 Codex 读取正文，请在 Reader 中开启本书访问，或使用已选原文引用。');if(await this.reader.pdf.has(args.id)){const result=await this.reader.pdf.text(args.id,args.page??1);return {...result,id:args.id,text:result.text.slice(0,30000),truncated:result.text.length>30000};}let book=await this.book(args.id),chapter=args.chapter??0;if(book.summary.format==='online'){const item=book.document.chapters[chapter];if(!item)throw Error('章节不存在');if(!item.loaded)book=await this.reader.online.run(crypto.randomUUID(),`agent:${args.id}:${item.id}`,signal=>this.reader.online.chapter(args.id,item.id,signal));}const item=book.document.chapters[chapter];if(!item)throw Error('章节不存在');const start=args.paragraph??0;if(start>=item.paragraphs.length)throw Error('段落不存在');return {id:args.id,title:book.summary.title,chapter,titleOfChapter:item.title,paragraph:start,paragraphs:item.paragraphs.slice(start,start+(args.count??12)).map(text=>text.slice(0,10000))};}
-  async search(query:string,bookId?:string,agent=false,limit=60,allowedBooks?:string[]):Promise<SearchHit[]>{const state=await this.store.snapshot(),q=query.toLocaleLowerCase(),hits:SearchHit[]=[];for(const book of await this.books()){if(bookId&&book.id!==bookId)continue;const title=state.books[book.id]?.title||book.title;if((title+' '+book.author+' '+(state.books[book.id]?.tags.join(' ')??'')).toLocaleLowerCase().includes(q))hits.push({kind:'book',id:book.id,title,text:book.author});if(agent&&!(allowedBooks??state.aiBooks).includes(book.id))continue;if(book.format==='pdf'){for(const found of await this.reader.pdf.search(book.id,query,Math.max(1,limit-hits.length)))hits.push({kind:'passage',id:book.id,title:title+' · 第 '+found.page+' 页',text:found.text,locator:{chapter:found.page-1,paragraph:0}});continue;}if(book.format==='online'){for(const found of await this.reader.online.searchCached(book.id,query,Math.max(1,limit-hits.length)))hits.push({kind:'passage',id:book.id,title:title+' · '+found.title,text:found.text,locator:{chapter:found.chapter,paragraph:found.paragraph,chapterId:found.chapterId}});continue;}const detail=await this.book(book.id);for(let c=0;c<detail.document.chapters.length&&hits.length<limit;c++){const chapter=detail.document.chapters[c]!;for(let p=0;p<chapter.paragraphs.length&&hits.length<limit;p++){const text=chapter.paragraphs[p]!;const at=text.toLocaleLowerCase().indexOf(q);if(at>=0)hits.push({kind:'passage',id:book.id,title:`${title} · ${chapter.title}`,text:text.slice(Math.max(0,at-60),at+180),locator:{chapter:c,paragraph:p}});}}}
-    for(const note of state.notes.filter(n=>!n.trashedAt&&(!bookId||n.relatedBookId===bookId||n.sourceIds.some(id=>state.sources.find(s=>s.id===id)?.bookId===bookId)))){const full=await this.store.note(note.id);if((full.title+' '+full.body+' '+full.tags.join(' ')).toLocaleLowerCase().includes(q))hits.push({kind:'note',id:note.id,title:note.title,text:searchSnippet(full.body,query)});}
-    for(const a of state.annotations.filter(a=>!a.trashedAt)){const source=state.sources.find(s=>s.id===a.sourceId);if(source&&(!bookId||source.bookId===bookId)&&(source.quote+' '+a.comment).toLocaleLowerCase().includes(q))hits.push({kind:'annotation',id:a.id,title:source.title,text:searchSnippet(a.comment.toLocaleLowerCase().includes(q)?a.comment:source.quote,query),source});}return hits.slice(0,limit);}
+  async search(query:string,bookId?:string,agent=false,limit=60,allowedBooks?:string[],filter:{kind?:SearchHit['kind'];folderId?:string|null}={}):Promise<SearchHit[]>{
+    const state=await this.store.snapshot(),q=query.toLocaleLowerCase(),hits:SearchHit[]=[];
+    const activeFolders=new Set(state.folders.filter(folder=>!folder.trashedAt).map(folder=>folder.id)),scope=new Set<string>();
+    if(filter.folderId&&activeFolders.has(filter.folderId)){
+      scope.add(filter.folderId);for(let depth=0;depth<3;depth++)for(const folder of state.folders)if(!folder.trashedAt&&folder.parentId&&scope.has(folder.parentId))scope.add(folder.id);
+    }
+    const inFolder=(folderId?:string|null)=>{if(filter.folderId===undefined)return true;if(filter.folderId===null)return !folderId||!activeFolders.has(folderId);return !!folderId&&scope.has(folderId);};
+    const includes=(kind:SearchHit['kind'])=>!filter.kind||filter.kind===kind;
+    const books=(await this.books()).filter(book=>(!bookId||book.id===bookId)&&inFolder(state.books[book.id]?.folderId));
+    if(includes('book'))for(const book of books){const title=state.books[book.id]?.title||book.title;if((title+' '+book.author+' '+(state.books[book.id]?.tags.join(' ')??'')).toLocaleLowerCase().includes(q))hits.push({kind:'book',id:book.id,title,text:book.author});}
+    if(includes('note'))for(const note of state.notes.filter(n=>!n.trashedAt&&inFolder(n.folderId)&&(!bookId||n.relatedBookId===bookId||n.sourceIds.some(id=>state.sources.find(s=>s.id===id)?.bookId===bookId)))){
+      const full=await this.store.note(note.id);if((full.title+' '+full.body+' '+full.tags.join(' ')).toLocaleLowerCase().includes(q))hits.push({kind:'note',id:note.id,title:note.title,text:searchSnippet(full.body,query)});
+    }
+    if(includes('annotation'))for(const annotation of state.annotations.filter(a=>!a.trashedAt)){
+      const source=state.sources.find(s=>s.id===annotation.sourceId);if(source&&inFolder(state.books[source.bookId]?.folderId)&&(!bookId||source.bookId===bookId)&&(source.quote+' '+annotation.comment).toLocaleLowerCase().includes(q))hits.push({kind:'annotation',id:annotation.id,title:source.title,text:searchSnippet(annotation.comment.toLocaleLowerCase().includes(q)?annotation.comment:source.quote,query),source});
+    }
+    // Rank whole-item matches before filling remaining slots with book passages.
+    // Content filters are applied before the limit, so notes never disappear behind passages.
+    const score=(hit:SearchHit)=>{const title=hit.title.toLocaleLowerCase();return title===q?3:title.startsWith(q)?2:title.includes(q)?1:0;};
+    hits.sort((a,b)=>score(b)-score(a));
+    if(includes('passage'))for(const book of books){
+      if(hits.length>=limit)break;if(book.cloudOnly||agent&&!(allowedBooks??state.aiBooks).includes(book.id))continue;
+      const title=state.books[book.id]?.title||book.title;
+      if(book.format==='pdf'){for(const found of await this.reader.pdf.search(book.id,query,limit-hits.length))hits.push({kind:'passage',id:book.id,title:title+' · 第 '+found.page+' 页',text:found.text,locator:{chapter:found.page-1,paragraph:0}});continue;}
+      if(book.format==='online'){for(const found of await this.reader.online.searchCached(book.id,query,limit-hits.length))hits.push({kind:'passage',id:book.id,title:title+' · '+found.title,text:found.text,locator:{chapter:found.chapter,paragraph:found.paragraph,chapterId:found.chapterId}});continue;}
+      const detail=await this.book(book.id);
+      for(let chapterIndex=0;chapterIndex<detail.document.chapters.length&&hits.length<limit;chapterIndex++){
+        const chapter=detail.document.chapters[chapterIndex]!;
+        for(let paragraph=0;paragraph<chapter.paragraphs.length&&hits.length<limit;paragraph++){const text=chapter.paragraphs[paragraph]!;if(text.toLocaleLowerCase().includes(q))hits.push({kind:'passage',id:book.id,title:`${title} · ${chapter.title}`,text:searchSnippet(text,query),locator:{chapter:chapterIndex,paragraph}});}
+      }
+    }
+    return hits.slice(0,limit);
+  }
   async call(name:string,args:any):Promise<any>{switch(name){
     case 'reader_book_purge':{const result=await this.reader.sync.localBook(args.id)?await this.reader.store.purgeBook(args.id,args.trashedAt):await this.reader.sync.purgeBook(args.id,args.trashedAt);await this.store.forgetBook(args.id);return result;}
     case 'reader_library_layout':return this.store.layout(args.layout);
@@ -136,7 +166,7 @@ export class WorkspaceService {
     case 'reader_ai_book_access':await this.book(args.id);return this.store.allowBook(args.id,args.allowed);
     case 'reader_image_put':return this.store.putImage(args.data);
     case 'reader_image_get':await this.reader.sync.ensureImage(args.id);return this.store.image(args.id);
-    case 'reader_workspace_search':return this.search(args.query,args.bookId,false,args.limit);
+    case 'reader_workspace_search':return this.search(args.query,args.bookId,false,args.limit,undefined,{kind:args.kind,folderId:args.folderId});
     case 'reader_study_search':return this.search(args.query,args.bookId,true,args.limit);
     case 'reader_quote_create':if(!await this.store.canReadBook(args.source.bookId))throw Error('请先允许 Codex 读取这本书');return this.createSource(args.source);
     case 'reader_books_search':{const state=await this.store.snapshot();return (await this.books()).filter(b=>!args.query||((state.books[b.id]?.title||b.title)+' '+b.author+' '+(state.books[b.id]?.tags.join(' ')??'')).toLowerCase().includes(args.query.toLowerCase())).map(b=>({...b,title:state.books[b.id]?.title||b.title,aiAccess:state.aiBooks.includes(b.id),metadata:state.books[b.id]??{folderId:null,tags:[],revision:0}}));}

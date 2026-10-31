@@ -24,7 +24,7 @@ const sections=[
   {id:'reading',title:'阅读',Icon:BookOpen,keywords:'字体 字号 行距 宽度 排版 EPUB 翻页 滚动'},
   {id:'notes',title:'笔记',Icon:NotebookPen,keywords:'默认字号 字体 编辑模式 源码 排版 工具栏'},
   {id:'bots',title:'Note Bots',Icon:NoteBotIcon,keywords:'AI 助手 模型 指令 职责 默认 bot'},
-  {id:'sync',title:'同步',Icon:Cloud,keywords:'Google Drive 云端 多电脑 备份 恢复 冲突 授权'},
+  {id:'sync',title:'同步',Icon:Cloud,keywords:'Google Drive 云端 多电脑 备份 恢复 冲突 授权 代理 网络 HTTP HTTPS Clash'},
   {id:'keyboard',title:'快捷键',Icon:Keyboard,keywords:'键盘 按键 组合键 关闭面板 翻页'},
   {id:'sources',title:'书源',Icon:Globe,keywords:'在线 来源 导入 启用 规则'},
   {id:'data',title:'数据与关于',Icon:Database,keywords:'书库 位置 目录 路径 存储 版本'},

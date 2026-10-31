@@ -5,10 +5,23 @@ import { join } from 'node:path';
 import { ReaderService } from '../src/server/service.js';
 import { ReaderStore } from '../src/server/store.js';
 import { WorkspaceStore } from '../src/server/workspace-store.js';
-import { defaultAppearance } from '../src/shared/workspace.js';
+import { defaultAppearance,type SearchHit } from '../src/shared/workspace.js';
 const using=async(work:(service:ReaderService,dir:string)=>Promise<void>)=>{const dir=await mkdtemp(join(tmpdir(),'Reader workspace '));try{await work(new ReaderService(new ReaderStore(dir)),dir);}finally{await rm(dir,{recursive:true,force:true});}};
 const noteInput={title:'阅读记录',body:'我的理解',folderId:null,tags:[],sourceIds:[],imageIds:[]};
 describe('learning workspace durability and boundaries',()=>{
+  it('filters before limiting search and keeps note matches ahead of repeated passages',()=>using(async(s)=>{
+    const folder=(await s.workspace.store.folderSave({name:'搜索课程',parentId:null})).value,child=(await s.workspace.store.folderSave({name:'子目录',parentId:folder.id})).value;
+    const book=await s.store.importBook('原创检索.txt',Buffer.from('第一章\n\n'+Array.from({length:90},(_,i)=>`关键词 原创段落 ${i}`).join('\n\n')));
+    await s.workspace.store.bookSave(book.summary.id,0,{folderId:child.id,tags:[]});
+    const note=(await s.workspace.store.createNote({...noteInput,title:'关键词',body:'有关键词的笔记',folderId:child.id})).value;
+    const outside=(await s.workspace.store.createNote({...noteInput,title:'范围之外的关键词'})).value;
+    const all=await s.call('reader_workspace_search',{query:'关键词',limit:3}) as SearchHit[];expect(all[0]).toMatchObject({kind:'note',id:note.id});expect(all).toHaveLength(3);
+    const filtered=await s.call('reader_workspace_search',{query:'关键词',kind:'note',folderId:folder.id,limit:1});expect(filtered).toMatchObject([{id:note.id}]);
+    const root=await s.call('reader_workspace_search',{query:'关键词',kind:'note',folderId:null});expect(root).toMatchObject([{id:outside.id}]);
+    const passages=await s.call('reader_workspace_search',{query:'关键词',kind:'passage',folderId:folder.id,limit:22}) as SearchHit[];expect(passages).toHaveLength(22);expect(passages.every(hit=>hit.kind==='passage'&&hit.locator)).toBe(true);
+    await s.workspace.store.trash('notes',note.id,note.revision);expect(await s.call('reader_workspace_search',{query:'关键词',kind:'note',folderId:folder.id})).toEqual([]);
+    expect(await s.call('reader_study_search',{query:'关键词',bookId:book.summary.id})).toEqual([]);
+  }));
   it('persists partial workspace preferences without resetting unrelated choices',()=>using(async(s,dir)=>{
     await s.workspace.store.preferences({noteMode:'source',noteToolbar:true});await s.workspace.store.preferences({librarySort:'name'});
     const restarted=new WorkspaceStore(new ReaderStore(dir));expect((await restarted.snapshot()).preferences).toEqual({noteMode:'source',noteToolbar:true,librarySort:'name'});

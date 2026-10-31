@@ -6,7 +6,7 @@ import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from '@model
 import { OpenAIExtensions, OpenAIFileEntrypointInputSchema, type OpenAIUiToolMetadata, type OpenAIUiResourceMetadata } from '@openai/mcp-extensions/server';
 import { actionSchemas, type ReaderService } from './service.js';
 import { IncompleteLoadError } from '../shared/online.js';
-export const VERSION = '0.3.5';
+export const VERSION = '0.3.6';
 export const UI_URI = `ui://reader/v${VERSION}/bookshelf.html`;
 function isPreviousUiVersion(value: string): boolean {
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value)) return false;
@@ -42,7 +42,7 @@ export function createMcpServer(service: ReaderService, htmlPath: string): McpSe
   for (const [name, schema] of Object.entries(actionSchemas)) {
     server.registerTool(name, {
       title: names[name] ?? name, description: agentDescriptions[name] ?? (agentTools.has(name)?'Reader 笔记、批注与文件夹操作。修改前读取当前标识与 revision。':'Private Reader UI operation. Not intended for model invocation.'), inputSchema: schema,
-      annotations: { readOnlyHint: ['reader_list','reader_online_sources','reader_keyboard','reader_trash_list','reader_books_search','reader_book_toc','reader_read_passage','reader_note_list','reader_note_get','reader_source_get','reader_annotation_list','reader_folder_list','reader_study_search','reader_workspace_search','reader_pdf_text','reader_image_get','reader_chat_get','reader_chat_list','reader_chat_models','reader_sync_status','reader_sync_vaults','reader_sync_conflict','reader_sync_positions','reader_sync_recovery_key'].includes(name), destructiveHint: ['reader_bookmark_remove','reader_online_remove','reader_trash','reader_study_trash','reader_study_purge','reader_book_purge'].includes(name), openWorldHint: name.startsWith('reader_sync_') || name==='reader_image_get' || name.startsWith('reader_online_') || name === 'reader_get' || name === 'reader_read_passage' || name === 'reader_book_toc' },
+      annotations: { readOnlyHint: ['reader_list','reader_online_sources','reader_keyboard','reader_trash_list','reader_books_search','reader_book_toc','reader_read_passage','reader_note_list','reader_note_get','reader_source_get','reader_annotation_list','reader_folder_list','reader_study_search','reader_workspace_search','reader_pdf_text','reader_image_get','reader_chat_get','reader_chat_list','reader_chat_models','reader_sync_status','reader_sync_network_test','reader_sync_vaults','reader_sync_conflict','reader_sync_positions','reader_sync_recovery_key'].includes(name), destructiveHint: ['reader_bookmark_remove','reader_online_remove','reader_trash','reader_study_trash','reader_study_purge','reader_book_purge'].includes(name), openWorldHint: name.startsWith('reader_sync_') || name==='reader_image_get' || name.startsWith('reader_online_') || name === 'reader_get' || name === 'reader_read_passage' || name === 'reader_book_toc' },
       _meta: { ui: { visibility: ['app'] } },
     }, async (args: unknown): Promise<CallToolResult> => {
       try { const data=await service.call(name,args);return {content:[],_meta:{reader:data,readerVersion:VERSION}}; }

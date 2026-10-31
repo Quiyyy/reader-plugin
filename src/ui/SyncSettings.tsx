@@ -5,6 +5,7 @@ import {defaultSyncOptions,type SyncConflictDetail,type SyncStatus} from '../sha
 import {IconButton} from './IconButton';
 import {errorText} from './study-ui';
 import './sync.css';
+import {SyncNetworkSettings} from './SyncNetworkSettings';
 
 interface Position {key:string;versionId:string;deviceName:string;updatedAt:string;format:string;locator?:{chapter:number};pdf?:{page:number};thisDevice:boolean;}
 interface Props {api:ReaderApi;active:boolean;status?:SyncStatus;books:BookSummary[];onRefresh:()=>Promise<unknown>;onRun:()=>Promise<unknown>;onChanged:()=>Promise<unknown>;}
@@ -31,6 +32,7 @@ export function SyncSettings({api,active,status,books,onRefresh,onRun,onChanged}
     {authUrl&&status?.phase==='authorizing'&&<div className="sync-auth"><p>在系统浏览器中登录，完成后返回 Reader。</p><a href={authUrl} target="_blank" rel="noreferrer">打开授权页</a></div>}
     </div></section>
     {(error||status?.error)&&<div className="settings-error" role="alert"><span>{error||status?.error}</span><button disabled={busy} onClick={()=>void work(()=>status?.connected&&status.vaultId?onRun():onRefresh())}>重试</button>{status?.connected&&/授权|账户|凭据/.test(error||status.error||'')&&<button disabled={busy} onClick={()=>void work(async()=>{const result=await call<{url:string}>('reader_sync_authorize');setAuthUrl(result.url);})}>重新授权</button>}</div>}
+    <SyncNetworkSettings api={api} status={status} onRefresh={onRefresh}/>
     {status?.connected&&(!status.vaultId||status.error?.includes('恢复密钥'))&&<section className="settings-group"><h3>加密书库</h3><div className="settings-card sync-form"><div className="settings-segments"><button type="button" aria-pressed={mode==='create'} onClick={()=>setMode('create')}>创建书库</button><button type="button" aria-pressed={mode==='join'} onClick={()=>setMode('join')}>连接已有书库</button></div>
       {mode==='create'?<label>书库名称<input aria-label="同步书库名称" value={vaultName} maxLength={80} onChange={event=>setVaultName(event.target.value)}/></label>:<label>恢复密钥<input type="password" autoComplete="off" aria-label="书库恢复密钥" value={keyInput} maxLength={160} onChange={event=>setKeyInput(event.target.value)}/></label>}
       <label>此电脑名称<input aria-label="同步设备名称" value={deviceName} maxLength={80} onChange={event=>setDeviceName(event.target.value)}/></label>

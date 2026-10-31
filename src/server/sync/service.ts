@@ -6,7 +6,8 @@ import {z} from 'zod';
 import type {ReaderService} from '../service.js';
 import {atomicWrite} from '../store.js';
 import type {BookSummary,TrashEntry} from '../../shared/types.js';
-import {defaultSyncOptions,syncOptionsSchema,type CloudVault,type GoogleClient,type SyncConflictDetail,type SyncOptions,type SyncStatus} from '../../shared/sync.js';
+import {defaultSyncOptions,syncOptionsSchema,syncNetworkSchema,type SyncNetwork,type CloudVault,type GoogleClient,type SyncConflictDetail,type SyncOptions,type SyncStatus} from '../../shared/sync.js';
+import {SyncNetworkClient,testSyncNetwork} from './network.js';
 import {GoogleAuth,openSystemBrowser} from './google-auth.js';
 import {SystemCredentialStore,type CredentialStore} from './credential-store.js';
 import {GoogleDrive,type CloudProvider} from './google-drive.js';
@@ -29,33 +30,36 @@ export class SyncService {
   private readonly directory:string;
   private readonly configPath:string;
   private readonly provider:CloudProvider;
+  private readonly network:SyncNetworkClient;
   private readonly openBrowser:(url:string)=>Promise<void>;
   private job?:Promise<void>;
   private launch?:Promise<SyncStatus>;
   private controller?:AbortController;
   private downloads=new Set<AbortController>();
   constructor(private reader:ReaderService,dependencies:SyncDependencies={}){
-    this.directory=join(reader.store.dataDir,'sync-v1');this.configPath=join(this.directory,'config.json');this.auth=new GoogleAuth(reader.store,dependencies.credentials??new SystemCredentialStore(reader.store.dataDir),dependencies.fetch);this.replica=new ReaderReplica(reader);this.provider=dependencies.provider?.(this.auth)??new GoogleDrive(()=>this.auth.token(),dependencies.fetch,new EncryptedUploadSessions(join(this.directory,'uploads'),id=>this.auth.key(id)));this.openBrowser=dependencies.openBrowser??openSystemBrowser;
+    this.directory=join(reader.store.dataDir,'sync-v1');this.configPath=join(this.directory,'config.json');this.network=new SyncNetworkClient(()=>this.networkConfig(),dependencies.fetch);this.auth=new GoogleAuth(reader.store,dependencies.credentials??new SystemCredentialStore(reader.store.dataDir),this.network.fetch);this.replica=new ReaderReplica(reader);this.provider=dependencies.provider?.(this.auth)??new GoogleDrive(()=>this.auth.token(),this.network.fetch,new EncryptedUploadSessions(join(this.directory,'uploads'),id=>this.auth.key(id)));this.openBrowser=dependencies.openBrowser??openSystemBrowser;
   }
+  private async networkConfig():Promise<SyncNetwork>{try{return syncNetworkSchema.parse(JSON.parse(await fs.readFile(join(this.directory,'network.json'),'utf8')));}catch(error){if(missing(error))return {mode:'direct'};throw Error('本机代理配置无法读取，请重新设置网络连接');}}
   private async config():Promise<Config>{try{return configSchema.parse(JSON.parse(await fs.readFile(this.configPath,'utf8')));}catch(e){if(!missing(e))throw e;return {version:1,enabled:false,options:{...defaultSyncOptions},deviceName:hostname().slice(0,80)||'此电脑'};}}
   private async write(patch:Partial<Config>){return this.reader.store.locked('sync-config',async()=>{const next=configSchema.parse({...await this.config(),...patch});await fs.mkdir(this.directory,{recursive:true,mode:0o700});await atomicWrite(this.configPath,JSON.stringify(next));return next;});}
   private async engine(connected=false){const config=await this.config(),secrets=await this.auth.read();if(!config.vault)return;if(!secrets)throw Error('本机安全凭据不可用，请重新配置');if(connected&&!secrets.tokens)throw Error('请连接 Google Drive');if(secrets.tokens&&secrets.tokens.accountId!==config.vault.accountId)throw Error('Google 账户已变化，请重新授权原账户，或选择更换书库');const encoded=secrets.vaultKeys[config.vault.id];if(!encoded)throw Error('缺少书库恢复密钥');const key=Buffer.from(encoded,'base64url');if(key.length!==32)throw Error('书库恢复密钥损坏');return new SyncEngine(join(this.directory,config.vault.id,secrets.deviceId),this.provider,this.replica,{vaultId:config.vault.id,key,deviceId:secrets.deviceId,deviceName:config.deviceName,options:config.options});}
   private chosen(versions:SyncVersion[],state:SyncEngineState){const local=state.base[versions[0]!.key];return versions.find(v=>local?.heads.includes(v.id))??versions.find(v=>v.value!==null)??versions[0]!;}
   private title(version:SyncVersion){const value=version.value as any;return String(value?.title??value?.name??(version.key.startsWith('preferences:')?'偏好设置':version.key.startsWith('position:')?'阅读位置':'同步条目')).slice(0,240);}
   async status():Promise<SyncStatus>{
-    const config=await this.config();let secrets:Awaited<ReturnType<GoogleAuth['read']>>,state:SyncEngineState|undefined,error=config.error??this.auth.error;
+    const config=await this.config();let secrets:Awaited<ReturnType<GoogleAuth['read']>>,state:SyncEngineState|undefined,error=config.error??this.auth.error,network:SyncNetwork={mode:'direct'};
+    try{network=await this.networkConfig();}catch(reason){error=errorText(reason);}
     try{secrets=await this.auth.read();state=await(await this.engine())?.read();}catch(e){error=errorText(e);}
     const conflicts=state?[...heads(state.versions)].filter(([,versions])=>new Set(versions.map(v=>v.hash)).size>1).map(([key,versions])=>({key,title:this.title(this.chosen(versions,state!)),kind:key.split(':')[0]!,versions:versions.length})):[];
     const connected=!!secrets?.tokens,configured=!!secrets?.client;
     const phase=this.auth.authorizing?'authorizing':this.job||this.downloads.size?'syncing':error?'error':!configured?'unconfigured':!connected?'disconnected':!config.vault?'connected':!config.enabled?'paused':'ready';
     const localIds=new Set([...(await this.reader.store.list()).books,...await this.reader.pdf.list(),...await this.reader.online.listBooks()].map(book=>book.id));
     const cloud=state?[...heads(state.versions)].filter(([key,versions])=>key.startsWith('book:')&&this.chosen(versions,state!).value!==null).length:0;
-    return {phase,configured,connected,email:secrets?.tokens?.email,vaultId:config.vault?.id,vaultName:config.vault?.name,deviceName:config.deviceName,enabled:config.enabled,options:config.options,lastSyncedAt:state?.lastSyncedAt,error,pending:state?.pending.length??0,conflicts,downloadedBooks:localIds.size,cloudBooks:cloud};
+    return {phase,configured,connected,email:secrets?.tokens?.email,vaultId:config.vault?.id,vaultName:config.vault?.name,deviceName:config.deviceName,enabled:config.enabled,options:config.options,network,lastSyncedAt:state?.lastSyncedAt,error,pending:state?.pending.length??0,conflicts,downloadedBooks:localIds.size,cloudBooks:cloud};
   }
   async configure(client:GoogleClient){await this.auth.configure(client);await this.write({error:undefined});return this.status();}
   async authorize(){await this.write({error:undefined});const result=await this.auth.authorize();let opened=true;try{await this.openBrowser(result.url);}catch{opened=false;}return {...result,opened};}
   async cancel(){await this.launch?.catch(()=>{});this.controller?.abort();for(const controller of this.downloads)controller.abort();await this.job?.catch(()=>{});}
-  async close(){await this.cancel();await this.auth.cancel();}
+  async close(){await this.cancel();await this.auth.cancel();await this.network.close();}
   async disconnect(){await this.cancel();await this.auth.disconnect();await this.write({enabled:false,error:undefined});return this.status();}
   async leave(){await this.cancel();await this.write({enabled:false,vault:undefined,pendingVault:undefined,error:undefined});return this.status();}
   async vaults():Promise<CloudVault[]>{return (await this.provider.vaults()).filter(file=>z.string().uuid().safeParse(file.appProperties?.vaultId).success).map(file=>({id:file.appProperties!.vaultId!,fileId:file.id,name:'加密书库 · '+file.appProperties!.vaultId!.slice(0,8)}));}
@@ -68,7 +72,12 @@ export class SyncService {
     });
   }
   async join(keyText:string,deviceName:string,options:SyncOptions){return this.reader.store.locked('sync-cycle',async()=>{const config=await this.config(),secrets=await this.auth.read();const {vaultId,key}=parseRecoveryKey(keyText);if(config.vault&&config.vault.id!==vaultId)throw Error('请先选择更换书库');if(!secrets?.tokens)throw Error('请先连接 Google Drive');const file=(await this.provider.vaults()).find(file=>file.appProperties?.vaultId===vaultId);if(!file)throw Error('当前 Google 账户中未找到此书库');const bytes=await this.provider.get(file.id),vault=vaultSchema.parse(JSON.parse(unseal(key,vaultId+':vault:'+vaultId,bytes).toString('utf8')));if(vault.id!==vaultId||file.appProperties?.kind!=='vault')throw Error('云端书库标识无效');await this.auth.saveKey(vaultId,key.toString('base64url'));await this.write({vault:{id:vaultId,fileId:file.id,name:vault.name,accountId:secrets.tokens.accountId},pendingVault:undefined,deviceName,options,enabled:true,error:undefined});return this.status();});}
-  async settings(patch:{enabled?:boolean;options?:SyncOptions;deviceName?:string}){if(patch.enabled===false)await this.cancel();if(patch.options){const state=await(await this.engine())?.read();if(state?.pending.length)throw Error('仍有待同步修改，请完成同步后再更改范围；可以随时暂停或断开连接');}await this.write({...patch,error:undefined});return this.status();}
+  async settings(patch:{enabled?:boolean;options?:SyncOptions;deviceName?:string;network?:SyncNetwork}){
+    const {network,...config}=patch;if(network)syncNetworkSchema.parse(network);if(patch.enabled===false||network)await this.cancel();
+    if(patch.options){const state=await(await this.engine())?.read();if(state?.pending.length)throw Error('仍有待同步修改，请完成同步后再更改范围；可以随时暂停或断开连接');}
+    if(network)await this.reader.store.locked('sync-network',async()=>{await fs.mkdir(this.directory,{recursive:true,mode:0o700});await atomicWrite(join(this.directory,'network.json'),JSON.stringify(network));});
+    await this.write({...config,error:undefined});return this.status();
+  }
   async run(){if(this.launch)return this.launch;this.launch=this.startRun().finally(()=>{this.launch=undefined;});return this.launch;}
   private async startRun(){
     if(this.job||this.downloads.size)return this.status();const engine=await this.engine(true);if(!engine)throw Error('请先创建或连接云端书库');const controller=new AbortController();this.controller=controller;
@@ -100,6 +109,7 @@ export class SyncService {
   }
   async ensureImage(id:string){try{await this.reader.workspace.store.image(id);return;}catch(e){if(!missing(e))throw e;}const engine=await this.engine(true);if(!engine)throw Error('图片不存在');const controller=new AbortController();this.downloads.add(controller);try{const {ref,bytes}=await engine.asset('image',id,controller.signal);await this.replica.installAsset(ref,bytes);}finally{this.downloads.delete(controller);}}
   async call(name:string,args:any):Promise<unknown>{switch(name){
+    case 'reader_sync_network_test':return testSyncNetwork(args.network);
     case 'reader_sync_download':await this.ensureBook(args.id,args.password);return {downloaded:true};case 'reader_sync_status':return this.status();case 'reader_sync_configure':return this.configure(args);case 'reader_sync_authorize':return this.authorize();case 'reader_sync_auth_cancel':await this.auth.cancel();return this.status();case 'reader_sync_disconnect':return this.disconnect();case 'reader_sync_leave':return this.leave();case 'reader_sync_vaults':return this.vaults();case 'reader_sync_create':return this.create(args.name,args.deviceName,args.options);case 'reader_sync_join':return this.join(args.recoveryKey,args.deviceName,args.options);case 'reader_sync_settings':return this.settings(args);case 'reader_sync_run':return this.run();case 'reader_sync_cancel':await this.cancel();return this.status();case 'reader_sync_recovery_key':return this.key();case 'reader_sync_conflict':return this.conflict(args.key);case 'reader_sync_resolve':return this.resolve(args);case 'reader_sync_positions':return this.positions(args.bookId);case 'reader_sync_resume':return this.resume(args.key,args.versionId);default:throw Error('未知同步操作');}
   }
 }
