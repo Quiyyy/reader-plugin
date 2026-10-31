@@ -1,6 +1,6 @@
 {
   "kind": "reader-bundled-runtime",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "goos": "windows",
   "goarch": "amd64",
   "nodeVersion": "24.21.0",
@@ -9,10 +9,10 @@
   "compressedSha256": "83121e51f1810c396f42bc42ac22f32a1385a907c7ffd61d70cf3de83bfa5a94",
   "files": {
     "app/LICENSE": "525a37b47d9bcab43c8f07fe4e45ec6579b27b5f655a8dd5ec32890549fd8b02",
-    "app/dist/server/index.js": "003c08bc89db958b2baef0aac9231df130c9b4f194e4e1e685d2e8e837b50b28",
+    "app/dist/server/index.js": "7bdf7272dfcc2708ffca06476a0a42fa0118d256aa91aa3063466164ed9f30d3",
     "app/dist/server/pdf-worker.js": "b494b3d69f21727783977124fccc3bc3a69d21efdcdf5160549174a91185e40f",
     "app/dist/server/script-worker.js": "4bf3bb90578b56ea0359bc8fa10fc08837847b14d58257f008952d218f99f335",
-    "app/dist/ui/index.html": "a01ee2e134b5cf65bd64ff63a4e5a331a3bf428e6656763c1b0d17e83b2eaad7",
+    "app/dist/ui/index.html": "339da143cac593ed1d0d348f1c12fb9ede59585847ac2ea42ba602b3bedce47e",
     "app/node_modules/@jitl/quickjs-ffi-types/LICENSE": "3c6040aa318612a234cc951609b640c0c63d85ae5a98a9330d3116f1553a79db",
     "app/node_modules/@jitl/quickjs-ffi-types/README.md": "808124bff16606acac21b74e72017c201200b370f62064dcd61baefbaa5470d6",
     "app/node_modules/@jitl/quickjs-ffi-types/dist/index.d.mts": "89d6886dc16653c9e3372b255d3967ca756babe1f82ba07ed7d32af269c1b21e",
@@ -706,11 +706,11 @@
     "app/node_modules/quickjs-emscripten/dist/variants.mjs": "e3f70bc7cb4591c875997b8d1b570d1f2c03531f4b2f59c046b2965672e8209c",
     "app/node_modules/quickjs-emscripten/dist/variants.mjs.map": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3",
     "app/node_modules/quickjs-emscripten/package.json": "0feb2558c02e41fc9b8ab20c674edfa84af70d21d1189b55ec6455fe133ad9f6",
-    "app/package.json": "a09913de310b00f2c1f5aa6461505eba62f3bd3e81844b90ee59e8b9f31b6199",
+    "app/package.json": "dd0ba924ae2f4101f5519f22710bc96d4bd075a440dee3a7b8019acecc58be88",
     "payload/node.gz": "83121e51f1810c396f42bc42ac22f32a1385a907c7ffd61d70cf3de83bfa5a94"
   },
   "source": {
-    "commit": "3cd9bef0910789ec7fca091cea90e44a3b3df31f",
+    "commit": "56de7c7adbc1115a70ee7b4e2dbdd63ddb90f4c6",
     "dirty": false
   },
   "testFixture": false,
@@ -720,5 +720,5 @@
     "sha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541"
   },
   "goVersion": "go version go1.27.1 windows/amd64",
-  "dependencyLockSha256": "144c322094c43ff54c75a236b5fb410890a8e93c04e98c2cf73249d96b1d9a42"
+  "dependencyLockSha256": "92a6fff96b11681691e9fdaad5a13ed8ffd5ebe78109c075538918f0fdd9f436"
 }
