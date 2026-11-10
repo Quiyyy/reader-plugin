@@ -6,19 +6,19 @@ async function rpc(request:APIRequestContext,name:string,args:object={}){const r
 for(const width of [1280,390,320])test(`note fills the editor, keeps its outline closed and supports screenshot collaboration at ${width}`,async({page,request})=>{
   test.setTimeout(60000);await page.setViewportSize({width,height:1320});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   const note=(await rpc(request,'reader_note_create',{title:'协作笔记 '+width,body:'已有正文。',folderId:null,tags:['保留'],sourceIds:[],imageIds:[]})).value;
-  await page.goto('/');await page.getByRole('button',{name:'笔记',exact:true}).click();await page.locator('.study-notes-list').getByRole('button',{name:'协作笔记 '+width+' 已有正文。',exact:true}).click();
-  const editor=page.getByLabel('笔记正文'),body=page.locator('.study-editor-body');await expect(editor).toBeVisible();
-  const before=(await editor.boundingBox())!,footer=(await page.locator('.study-note-status').boundingBox())!;
+  await page.goto('/');await page.getByRole('button',{name:'笔记',exact:true}).click();await page.locator('[data-workspace-page][data-visible=true] .study-notes-list').getByRole('button',{name:'协作笔记 '+width+' 已有正文。',exact:true}).click();
+  const editor=page.getByLabel('笔记正文'),body=page.locator('[data-workspace-page][data-visible=true] .study-editor-body');await expect(editor).toBeVisible();
+  const before=(await editor.boundingBox())!,footer=(await page.locator('[data-workspace-page][data-visible=true] .study-note-status').boundingBox())!;
   expect(before.height).toBeGreaterThan(700);expect(footer.y-(before.y+before.height)).toBeLessThan(50);
   await page.mouse.click(before.x+20,before.y+before.height-20);await expect(editor).toBeFocused();
   await editor.fill(Array.from({length:100},(_,i)=>`第 ${i+1} 行：原有笔记内容。`).join('\n'));
   expect(await editor.evaluate(el=>el.scrollHeight-el.clientHeight)).toBeLessThanOrEqual(2);expect(await body.evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
-  await editor.fill('已有正文。');await expect(page.locator('.study-note-status')).toContainText('已保存到 Reader');
-  await expect(page.locator('.study-notes-list')).toHaveCount(0);await expect(page.getByRole('dialog',{name:'笔记目录',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'目录（T）',exact:true}).click();await expect(page.getByRole('dialog',{name:'笔记目录',exact:true})).toContainText('暂无目录');await page.getByRole('button',{name:'关闭目录',exact:true}).click();
+  await editor.fill('已有正文。');await expect(page.locator('[data-workspace-page][data-visible=true] .study-note-status')).toContainText('已保存到 Reader');
+  await expect(page.locator('[data-workspace-page][data-visible=true] .study-notes-list')).toHaveCount(0);await expect(page.getByRole('dialog',{name:'笔记目录',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'目录（T）',exact:true}).click();await expect(page.getByRole('dialog',{name:'笔记目录',exact:true})).toContainText('暂无目录');await page.getByRole('button',{name:'关闭目录',exact:true}).click();
   await page.screenshot({path:`artifacts/note-full-editor-${width}.png`,animations:'disabled'});
   const png=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=480;canvas.height=260;const ctx=canvas.getContext('2d')!;ctx.fillStyle='#f9faf7';ctx.fillRect(0,0,480,260);ctx.fillStyle='#629778';ctx.fillRect(40,70,150,110);ctx.fillStyle='#5b7eaa';ctx.fillRect(290,70,150,110);ctx.fillStyle='#222';ctx.font='22px sans-serif';ctx.fillText('A',100,40);ctx.fillText('B',350,40);return canvas.toDataURL('image/png').split(',')[1]!;});
   await editor.evaluate((element,png)=>{const bytes=Uint8Array.from(atob(png),c=>c.charCodeAt(0)),clipboard=new DataTransfer();clipboard.items.add(new File([bytes],'截图.png',{type:'image/png'}));element.dispatchEvent(new ClipboardEvent('paste',{clipboardData:clipboard,bubbles:true,cancelable:true}));},png);
-  await expect(page.locator('.note-image-stage img')).toBeVisible();await expect(page.locator('.study-note-status')).toContainText('已保存到 Reader');
+  await expect(page.locator('[data-workspace-page][data-visible=true] .note-image-stage img')).toBeVisible();await expect(page.locator('[data-workspace-page][data-visible=true] .study-note-status')).toContainText('已保存到 Reader');
   const initial=await rpc(request,'reader_note_get',{id:note.id}),imageId=initial.imageIds[0];expect(imageId).toMatch(/^[a-f0-9]{64}$/);
   await page.getByRole('button',{name:'请 Codex 标注截图',exact:true}).click();const chat=page.getByRole('dialog',{name:'笔记协作',exact:true});await expect(chat).toBeVisible();await expect(chat.locator('.study-chat-images img')).toHaveCount(1);
   let sent:any;
@@ -31,15 +31,15 @@ for(const width of [1280,390,320])test(`note fills the editor, keeps its outline
   });
   await page.getByLabel('阅读问题',{exact:true}).fill('补充说明，并标出 A 节点。');await page.getByRole('button',{name:'发送阅读问题',exact:true}).click();await expect(chat).toContainText('已补充说明');
   await page.getByRole('button',{name:'关闭对话',exact:true}).click();await expect(editor).toContainText('补充：A 与 B');await expect(page.getByRole('img',{name:'截图标注',exact:true})).toBeVisible();
-  await page.locator('.note-image').scrollIntoViewIfNeeded();await page.screenshot({path:`artifacts/note-collaboration-${width}.png`,animations:'disabled'});
+  await page.locator('[data-workspace-page][data-visible=true] .note-image').scrollIntoViewIfNeeded();await page.screenshot({path:`artifacts/note-collaboration-${width}.png`,animations:'disabled'});
   await page.getByRole('button',{name:'笔记操作',exact:true}).click();const downloading=page.waitForEvent('download');await page.getByRole('button',{name:'导出 Markdown',exact:true}).click();const download=await downloading,files=unzipSync(await readFile((await download.path())!));expect(files['images/annotated-'+imageId+'.png']).toBeDefined();expect(new TextDecoder().decode(files['note.md'])).toContain('annotated-'+imageId);
-  await page.reload();await page.getByRole('button',{name:'笔记',exact:true}).click();await page.locator('.study-notes-list').getByRole('button',{name:new RegExp('协作笔记 '+width)}).click();await expect(page.getByRole('img',{name:'截图标注',exact:true})).toBeVisible();expect((await rpc(request,'reader_note_get',{id:note.id})).tags).toEqual(['保留']);
+  await page.reload();await expect(page.getByRole('img',{name:'截图标注',exact:true})).toBeVisible();expect((await rpc(request,'reader_note_get',{id:note.id})).tags).toEqual(['保留']);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);expect(errors).toEqual([]);
 });
 
 test('a screenshot attached while the previous message is sending remains in the next draft',async({page,request})=>{
   const note=(await rpc(request,'reader_note_create',{title:'附图草稿并发',body:'正文',folderId:null,tags:[],sourceIds:[],imageIds:[]})).value;
-  await page.goto('/');await page.getByRole('button',{name:'笔记',exact:true}).click();await page.locator('.study-notes-list').getByRole('button',{name:'附图草稿并发 正文',exact:true}).click();await page.getByRole('button',{name:'Codex 辅助编写',exact:true}).click();
+  await page.goto('/');await page.getByRole('button',{name:'笔记',exact:true}).click();await page.locator('[data-workspace-page][data-visible=true] .study-notes-list').getByRole('button',{name:'附图草稿并发 正文',exact:true}).click();await page.getByRole('button',{name:'Codex 辅助编写',exact:true}).click();
   const chat=page.getByRole('dialog',{name:'笔记协作',exact:true}),draftImages=chat.locator('.study-chat-compose .study-chat-images img');await expect(chat).toBeVisible();
   const png=async(color:string)=>page.evaluate(color=>{const canvas=document.createElement('canvas');canvas.width=40;canvas.height=30;const ctx=canvas.getContext('2d')!;ctx.fillStyle=color;ctx.fillRect(0,0,40,30);return canvas.toDataURL('image/png').split(',')[1]!;},color);
   const attachScreenshot=async(name:string,color:string)=>{

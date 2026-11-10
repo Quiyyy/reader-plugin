@@ -104,7 +104,6 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
   const bookRef = useRef<BookDetail | null>(null);
   const settingsRef = useRef(settings);
   const settingsEditVersionRef = useRef(0);
-  const progressDelegatedRef = useRef(false);
   const currentLocatorRef = useRef<Locator>(locator);
   const restoreRef = useRef(false);
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -213,7 +212,7 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
 
   useEffect(() => {
     mountedRef.current = true;
-    void loadLibrary();
+    if (!initialBook || !initialSettings) void loadLibrary();
     void api.keyboard().then(setKeyboard).catch(reason => setKeyboardError(messageOf(reason)));
     const onVisibility = () => { if (document.visibilityState === 'hidden') { void flushProgress(); flushSettings(); } };
     const onPageHide = () => { void flushProgress(); flushSettings(); };
@@ -222,7 +221,7 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
     return () => {
       // A completed return hands failed progress to the workspace retry UI.
       // Do not start a second background save after that handoff.
-      if (!progressDelegatedRef.current) { void flushProgress(); flushSettings(); }
+      void flushProgress(); flushSettings();
       mountedRef.current = false;
       if (onlineRequestRef.current) void api.online?.cancel(onlineRequestRef.current);
       if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
@@ -257,7 +256,7 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
     setNavigation({ locator: nextLocator, token: ++navTokenRef.current });
     setPanel(null); setSaveState(failedProgressRef.current.has(next.document.id) ? 'error' : 'saved'); if (!failedProgressRef.current.size) setSaveError(''); setBookmarkError(''); setBookQuery('');
     updateSummary(next.summary);
-    requestAnimationFrame(() => readingRef.current?.focus());
+    requestAnimationFrame(() => { if (!readingRef.current?.closest('[data-workspace-page][data-focused="false"]')) readingRef.current?.focus(); });
   }, [updateSummary]);
 
   useEffect(()=>{if(initialBook)showBook(initialBook);},[initialBook,showBook]);
@@ -382,7 +381,7 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
     restoreRef.current = true;
     const restore = () => {
       const container = readingRef.current;
-      const target = document.getElementById(`reader-paragraph-${navigation.locator.chapter}-${navigation.locator.paragraph}`);
+      const target = container?.querySelector(`[data-chapter="${navigation.locator.chapter}"][data-reader-paragraph="${navigation.locator.paragraph}"]`);
       if (container && target) {
         container.scrollTo({ top: navigation.locator.paragraph === 0 ? 0 : container.scrollTop + target.getBoundingClientRect().top - container.getBoundingClientRect().top - 42, behavior: 'instant' });
       } else if (container) container.scrollTo({ top: 0, behavior: 'instant' });
@@ -398,7 +397,7 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
       scrollFrameRef.current = null;
       if (restoreRef.current) return;
       const container = readingRef.current; const activeBook = bookRef.current;
-      if (!container || !activeBook) return;
+      if (!container || !activeBook || container.closest('[aria-hidden="true"]')) return;
       const threshold = container.getBoundingClientRect().top + 55;
       const paragraphs = container.querySelectorAll('[data-reader-paragraph]');
       if (!paragraphs?.length) return;
@@ -428,8 +427,10 @@ export function App({ api,initialBook,initialSettings,onReturn,source,annotation
       await Promise.all([flushProgress(), flushSettings()]);
       if (settingsDirtyRef.current) return;
       if (mountedRef.current && request === openRequestRef.current) {
-        progressDelegatedRef.current = !!onReturn;
-        bookRef.current = null; setBook(null); setPanel(null); setBookmarkError('');onReturn?.();
+        setPanel(null); setBookmarkError('');
+        // The tab workspace keeps this reader mounted when showing the shelf.
+        if (onReturn) { onReturn(); return; }
+        bookRef.current = null; setBook(null);
         requestAnimationFrame(() => rootRef.current?.querySelector<HTMLElement>('.book-card')?.focus());
       }
     } finally { returningRef.current = false; if (mountedRef.current) setReturning(false); }

@@ -37,7 +37,7 @@ export function EpubReader({book,api,settings,keyboard,onBack,onLegacy,onProgres
     });chain.current=work;return work;
   },[epub,book.summary.id]);
   const capture=useCallback(()=>{
-    if(restoring.current)return;
+    if(restoring.current||!host.current?.clientWidth||host.current.closest('[aria-hidden="true"]'))return;
     const value=dom.current?.location();if(!value)return;location.current=value;
     if(intent.current&&!notes.current.length){pending.current=value;clearTimeout(timer.current);timer.current=setTimeout(()=>{void flush().catch(()=>{});},400);}
   },[flush]);
@@ -54,7 +54,7 @@ export function EpubReader({book,api,settings,keyboard,onBack,onLegacy,onProgres
       location.current=matched?(restore??dom.current!.location()):undefined;
       setResource(target.resource);setFragment(target.fragment);setUnmatched(!matched);restoring.current=false;setLoading(false);
       if(intent.current&&matched&&!notes.current.length)capture();
-      host.current?.focus({preventScroll:true});
+      if(!host.current?.closest('[data-workspace-page][data-focused="false"]'))host.current?.focus({preventScroll:true});
     }catch(e){if(active.current&&token===request.current){setError(message(e));setLoading(false);restoring.current=false;}}
   },[epub,book.summary.id,flush,capture]);
   navigateRef.current=navigate;
