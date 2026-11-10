@@ -12,7 +12,7 @@ for (const width of [320, 390, 1280]) {
     const raw = { ...fixtureSource, bookSourceName: `原创长目录 ${width}`, bookSourceUrl: `https://reader.example.com/long-${width}`, ruleBookInfo: { ...fixtureSource.ruleBookInfo, tocUrl: '@js:"https://reader.example.com/long-toc"' } };
     const preview = await rpc('reader_online_preview', { json: JSON.stringify(raw) });
     await rpc('reader_online_commit', { token: preview.token }); await rpc('reader_online_enable', { id: preview.sources[0].id, enabled: true });
-    await page.goto('/'); await openDiscovery(page);
+    await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click(); await openDiscovery(page);
     await page.getByLabel('搜索书源').selectOption(preview.sources[0].id);
     await page.getByLabel('在线搜索关键词').fill('原创'); await page.getByRole('button', { name: '搜索', exact: true }).click();
     await page.getByRole('button', { name: /^原创河岸故事 Reader 测试作者/ }).click();
@@ -36,7 +36,7 @@ test('a paginated next chapter retains the current chapter until complete and ca
   const raw = { ...fixtureSource, bookSourceName: '原创长章测试', bookSourceUrl: 'https://reader.example.com/long-content-source', ruleBookInfo: { ...fixtureSource.ruleBookInfo, tocUrl: '@js:"https://reader.example.com/long-content-toc"' } };
   const preview = await rpc('reader_online_preview', { json: JSON.stringify(raw) });
   await rpc('reader_online_commit', { token: preview.token }); await rpc('reader_online_enable', { id: preview.sources[0].id, enabled: true });
-  await page.goto('/'); await openDiscovery(page);
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click(); await openDiscovery(page);
   await page.getByLabel('搜索书源').selectOption(preview.sources[0].id);
   await page.getByLabel('在线搜索关键词').fill('原创'); await page.getByRole('button', { name: '搜索', exact: true }).click();
   await page.getByRole('button', { name: /^原创河岸故事 Reader 测试作者/ }).click();
@@ -47,11 +47,11 @@ test('a paginated next chapter retains the current chapter until complete and ca
     const resume = page.getByRole('button', { name: '继续加载章节', exact: true });
     await expect(resume).toBeVisible(); await expect(page.locator('.pagination-notice')).toContainText(`已加载 ${count} 页`);
     await expect(page.getByRole('heading', { name: '第一章 河岸', exact: true })).toBeVisible();
-    await expect(page.locator('.reading-paragraphs')).not.toContainText('原创长章第');
+    await expect(page.locator('[data-visible=true] .reading-paragraphs')).not.toContainText('原创长章第');
     await resume.focus(); await page.keyboard.press('Enter');
   }
   await expect(page.getByRole('heading', { name: '原创长章', exact: true })).toBeVisible();
-  await expect(page.locator('.reading-paragraphs')).toContainText('原创长章第 17 页');
+  await expect(page.locator('[data-visible=true] .reading-paragraphs')).toContainText('原创长章第 17 页');
 });
 
 
@@ -71,7 +71,7 @@ test('neighbor cache returns immediately while progress saves are slow, and pref
     if (request.name === 'reader_progress') { saves++; await blockedSave; }
     await route.continue();
   });
-  await page.goto('/'); await page.getByRole('button', { name: /^打开 原创河岸故事/ }).first().click();
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click(); await page.getByRole('button', { name: /^打开 原创河岸故事/ }).first().click();
   await expect(page.getByRole('heading', { name: '第一章 河岸', exact: true })).toBeVisible();
   // Only one speculative next chapter, then no further crawl while idle.
   await expect.poll(() => chapterCalls.length).toBe(1);

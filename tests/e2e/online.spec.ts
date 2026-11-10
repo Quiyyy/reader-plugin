@@ -11,7 +11,7 @@ for (const width of [320, 390, 1280]) {
       if (req.url().endsWith('/api/tool') && req.method() === 'POST' && req.postDataJSON().name?.startsWith('reader_online_')) onlineCalls.push(req.postDataJSON().name);
     });
     page.on('pageerror', error => errors.push(error.message));
-    await page.goto('/');
+    await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click();
     await openDiscovery(page);
     const dialog = page.getByRole('main', { name: '找书与书源', exact: true });
     await dialog.getByRole('button', { name: '管理书源' }).click();
@@ -50,7 +50,7 @@ for (const width of [320, 390, 1280]) {
     await dialog.getByRole('button', { name: '开始阅读' }).click();
     const bookId=(await (await added).json())._meta.reader.summary.id;
     await expect(page.getByRole('heading', { name: '第一章 河岸', exact: true })).toBeVisible();
-    await expect(page.locator('.reading-paragraphs')).toContainText('河水缓慢流过石桥');
+    await expect(page.locator('[data-visible=true] .reading-paragraphs')).toContainText('河水缓慢流过石桥');
     // Retain an earlier chapter in the response to verify the UI's explicit
     // current-chapter scope, independent of today's one-chapter payload shape.
     let retainedEarlierChapter = false;
@@ -80,7 +80,7 @@ for (const width of [320, 390, 1280]) {
     await search.getByRole('button', { name: '关闭搜索当前章节' }).click();
     await page.getByRole('button', { name: '收藏当前段落（B）' }).click();
     await expect(page.locator('.save-indicator')).toContainText('已保存');
-    await expect(page.locator('.reading-paragraphs img, .reading-paragraphs script')).toHaveCount(0);
+    await expect(page.locator('[data-visible=true] .reading-paragraphs img, .reading-paragraphs script')).toHaveCount(0);
     expect(await page.evaluate(() => (window as any).PWNED)).toBeUndefined();
     await page.screenshot({ path: `artifacts/online-reading-${width}.png`, fullPage: true });
     await page.getByRole('button', { name: '返回找书', exact: true }).click();
@@ -108,7 +108,7 @@ for (const width of [320, 390, 1280]) {
 }
 
 test('blocked script source displays exact field diagnosis and cannot be enabled', async ({ page }) => {
-  await page.goto('/'); await openDiscovery(page);
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click(); await openDiscovery(page);
   const dialog = page.getByRole('main', { name: '找书与书源', exact: true });
   await dialog.getByRole('button', { name: '管理书源' }).click();
   await dialog.getByRole('button', { name: '导入书源', exact: true }).click();

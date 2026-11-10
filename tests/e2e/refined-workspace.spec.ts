@@ -20,8 +20,8 @@ for(const width of [1280,390,320])test(`minimal workspace, model choice and pres
     }
     return route.continue();
   });
-  await page.goto('/');
-  await expect(page.getByRole('button',{name:/文件夹/})).toHaveCount(0);
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click();
+  await expect(page.getByRole('button',{name:'新建文件夹',exact:true})).toHaveCount(0);
   await expect(page.getByText('留下一点阅读的想法',{exact:true})).toHaveCount(0);
   await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles({name:`精简界面-${width}.txt`,mimeType:'text/plain',buffer:Buffer.from(`第一章 界面\n\n这是用于精简界面与模型切换检查的原创文本。${width}\n\n阅读内容保持不变。`)});
   await page.getByRole('button',{name:'打开阅读对话',exact:true}).click();
@@ -39,15 +39,15 @@ for(const width of [1280,390,320])test(`minimal workspace, model choice and pres
   await page.keyboard.press('Escape');await expect(picker).toBeFocused();await expect(picker).toHaveCSS('outline-style','none');await expect(picker).not.toHaveCSS('box-shadow','none');
   await page.getByRole('button',{name:'发送阅读问题',exact:true}).click();await expect.poll(()=>sent?.model).toBe('model-b');expect(sent.allowBook).toBeUndefined();
   const saved=await rpc(request,'reader_chat_get',{id:sent.id});expect(saved.model).toBe('model-b');expect(saved.allowBook).toBe(true);
-  await expect(chat).toContainText('界面测试回复。');await chat.getByRole('button',{name:'保存回答为笔记',exact:true}).click();await expect(page.locator('.study-toast')).toContainText('已保存为笔记');await expect(chat).toBeVisible();await expect(page.locator('.reading-scroll')).toBeVisible();await input.focus();await page.keyboard.press('Escape');await expect(chat).toHaveCount(0);await page.getByRole('button',{name:'继续阅读对话',exact:true}).click();await expect(chat).toBeVisible();await page.screenshot({path:`artifacts/refined-chat-${width}.png`,animations:'disabled'});
+  await expect(chat).toContainText('界面测试回复。');await chat.getByRole('button',{name:'保存回答为笔记',exact:true}).click();await expect(page.locator('.reader-tabs-toast')).toContainText('已保存为笔记');await expect(chat).toBeVisible();await expect(page.locator('[data-visible=true] .reading-scroll')).toBeVisible();await input.focus();await page.keyboard.press('Escape');await expect(chat).toHaveCount(0);await page.getByRole('button',{name:'继续阅读对话',exact:true}).click();await expect(chat).toBeVisible();await page.screenshot({path:`artifacts/refined-chat-${width}.png`,animations:'disabled'});
   await page.getByRole('button',{name:'关闭对话',exact:true}).click();await page.getByRole('button',{name:'返回书架',exact:true}).click();
   const folder=(await rpc(request,'reader_folder_save',{name:`旧分类 ${width}`,parentId:null})).value;
   const note=(await rpc(request,'reader_note_create',{title:`保留笔记 ${width}`,body:'保留已有正文。',folderId:folder.id,tags:['历史标签'],sourceIds:[],imageIds:[]})).value;
-  await page.reload();await openNotes(page);await page.locator('.study-notes-list').getByRole('button',{name:new RegExp(`^保留笔记 ${width}`)}).click();
-  await expect(page.getByLabel('笔记正文')).toHaveValue('保留已有正文。');await expect(page.getByLabel('笔记文件夹')).toHaveCount(0);await expect(page.getByLabel('笔记标签')).toHaveCount(0);await expect(page.locator('.study-note-meta')).toHaveCount(0);await expect(page.locator('.study-notes-list').getByText(/处来源/)).toHaveCount(0);
-  await page.getByLabel('笔记正文').fill('保留已有正文，并补充新的想法。');await expect(page.locator('.study-note-status')).toContainText('已保存到 Reader');
+  await page.reload();await openNotes(page);await page.locator('[data-visible=true] .study-notes-list').getByRole('button',{name:new RegExp(`^保留笔记 ${width}`)}).click();
+  await expect(page.locator('[data-visible=true]').getByLabel('笔记正文')).toHaveValue('保留已有正文。');await expect(page.getByLabel('笔记文件夹')).toHaveCount(0);await expect(page.getByLabel('笔记标签')).toHaveCount(0);await expect(page.locator('[data-visible=true] .study-note-meta')).toHaveCount(0);await expect(page.locator('[data-visible=true] .study-notes-list').getByText(/处来源/)).toHaveCount(0);
+  await page.locator('[data-visible=true]').getByLabel('笔记正文').fill('保留已有正文，并补充新的想法。');await expect(page.locator('[data-visible=true] .study-note-status')).toContainText('已保存到 Reader');
   const updated=await rpc(request,'reader_note_get',{id:note.id});expect(updated.tags).toEqual(['历史标签']);expect(updated.folderId).toBe(folder.id);
-  await page.getByLabel('笔记正文').focus();await expect(page.getByLabel('笔记正文')).toHaveCSS('outline-style','none');await expect(page.getByLabel('笔记正文')).toHaveCSS('resize','none');
+  await page.locator('[data-visible=true]').getByLabel('笔记正文').focus();await expect(page.locator('[data-visible=true]').getByLabel('笔记正文')).toHaveCSS('outline-style','none');await expect(page.locator('[data-visible=true]').getByLabel('笔记正文')).toHaveCSS('resize','none');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:`artifacts/refined-note-${width}.png`,animations:'disabled'});
   await page.getByRole('button',{name:'主导航',exact:true}).click();await page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name:'书库',exact:true}).click();await page.getByRole('button',{name:'新建',exact:true}).click();await expect(page.getByRole('menuitem',{name:'文件夹',exact:true})).toBeVisible();await page.keyboard.press('Escape');
   if(width===1280){await openDiscovery(page);await expect(page.locator('.search-hint')).toHaveCount(0);await expect(page.getByText('输入书名或关键词，从已启用的书源查找。',{exact:true})).toHaveCount(0);}

@@ -15,7 +15,7 @@ for (const width of [320, 390, 1280]) {
     for (const source of await tool(request, 'reader_online_sources')) await tool(request, 'reader_online_remove', { id: source.id });
     await tool(request, 'reader_settings', { settings: defaultSettings });
     await page.setViewportSize({ width, height: width === 320 ? 720 : 900 });
-    await page.goto('/');
+    await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click();
     await openDiscovery(page);
     await page.getByRole('button', { name: '管理书源', exact: true }).click();
     await expect(page.getByRole('heading', { name: '还没有书源' })).toBeVisible();

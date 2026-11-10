@@ -22,20 +22,20 @@ async function selectPassage(target: Locator) {
 }
 
 async function openBook(page: Page, format: 'txt' | 'epub' | 'pdf') {
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click();
   await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles({
     name: `选区交互测试.${format}`,
     mimeType: format === 'txt' ? 'text/plain' : format === 'epub' ? 'application/epub+zip' : 'application/pdf',
     buffer: format === 'txt' ? Buffer.from(`第一章 选区\n\n${passage}\n\n点击这里，回到阅读。`) : format === 'epub' ? epub : pdfFixture(),
   });
   const target = format === 'txt' ? page.locator('[data-reader-paragraph]').filter({ hasText: passage }).first()
-    : format === 'epub' ? page.locator('.epub-document #passage')
+    : format === 'epub' ? page.locator('[data-visible=true] .epub-document #passage')
     : page.locator('.textLayer span').filter({ hasText: 'Recall a concept' }).first();
   // PDF imports start a real parser worker before the text layer can render.
   // Match the bounded loading allowance used by the other PDF UI scenarios.
   await expect(target).toBeVisible({timeout:format==='pdf'?30000:5000});
   // EPUB content appears before asset/layout restoration and its initial focus.
-  if (format === 'epub') await expect(page.locator('.epub-loading')).toHaveCount(0);
+  if (format === 'epub') await expect(page.locator('[data-visible=true] .epub-loading')).toHaveCount(0);
   return target;
 }
 

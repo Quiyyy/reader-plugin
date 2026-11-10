@@ -24,7 +24,7 @@ for (const width of [320, 390, 1280]) {
   test(`discovery onboarding, wizard focus and retained reading route at ${width}px`, async ({ page, request }) => {
     await clearSources(request);
     await page.setViewportSize({ width, height: width === 320 ? 720 : 900 });
-    await page.goto('/');
+    await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click();
     await openDiscovery(page);
     await expect(page.getByText('先添加一个找书的来源')).toBeVisible();
     await page.screenshot({ path: `artifacts/redesign-empty-${width}.png` });
@@ -110,7 +110,7 @@ for (const width of [320, 390, 1280]) {
 }
 
 for (const action of ['cancel', 'close']) test(`wizard validates errors and ${action} ignores in-flight preview without a late result`, async ({ page, request }) => {
-  await clearSources(request); await page.goto('/');
+  await clearSources(request); await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click();
   await openDiscovery(page);
   await page.getByRole('button', { name: '导入书源', exact: true }).click();
   const wizard = page.getByRole('dialog', { name: '导入书源', exact: true });
@@ -148,7 +148,7 @@ for (const action of ['cancel', 'close']) test(`wizard validates errors and ${ac
 test('failed sources stay below usable results, retry preserves results, cancel ignores late search', async ({ page, request }) => {
   await clearSources(request);
   await seed(request, [fixtureSource, { ...fixtureSource, bookSourceName: '暂时离线的来源', bookSourceUrl: 'https://reader.example.com/failing', searchUrl: '/missing' }]);
-  await page.goto('/'); await openDiscovery(page);
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click(); await openDiscovery(page);
   await page.getByLabel('在线搜索关键词').fill('原创');
   await page.getByRole('button', { name: '搜索', exact: true }).click();
   const results = page.getByRole('region', { name: '在线搜索结果' });

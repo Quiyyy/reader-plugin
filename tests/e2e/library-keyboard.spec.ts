@@ -7,10 +7,10 @@ const original = `第一章 键盘\n\n${Array.from({ length: 35 }, (_, i) => `�
 for (const width of [320, 390, 1280]) {
   test(`library keyboard, editing, trash and restoration at ${width}`, async ({ page, request }, testInfo) => {
     await request.post('/api/tool', { headers: { 'X-Reader-Client': 'preview' }, data: { name: 'reader_keyboard_reset', arguments: {} } });
-    await page.setViewportSize({ width, height: 844 }); await page.goto('/');
+    await page.setViewportSize({ width, height: 844 }); await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click();
     const title = `键盘-${width}-${testInfo.repeatEachIndex}`;
     await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(original + title) });
-    const reading = page.getByLabel('正文，向下滚动阅读'); await expect(reading).toBeVisible(); await reading.focus();
+    const reading = page.locator('[data-visible=true]').getByLabel('正文，向下滚动阅读'); await expect(reading).toBeVisible(); await reading.focus();
     await page.keyboard.press('ArrowDown'); await expect.poll(() => reading.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
     await page.keyboard.press('ArrowRight'); await expect(page.getByRole('heading', { name: '第二章 回收', exact: true })).toBeVisible();
     await reading.evaluate(el => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', code: 'ArrowLeft', bubbles: true, cancelable: true, isComposing: true })));
@@ -53,10 +53,10 @@ for (const width of [320, 390, 1280]) {
     await page.route('**/api/tool', async route => { if (route.request().postDataJSON()?.name === 'reader_trash') await gate; await route.continue(); });
     await page.getByLabel(`管理 ${title}`, { exact: true }).click(); await page.getByRole('menuitem', { name: '书籍信息', exact: true }).click(); await page.getByRole('button', { name: '移到回收站', exact: true }).click();
     try { await expect(page.getByRole('button', { name: '移到回收站', exact: true })).toBeDisabled(); } finally { releaseTrash(); }
-    await expect(page.getByRole('dialog',{name:'书籍信息'})).toHaveCount(0);if(width<720)await page.getByRole('button',{name:'更多导航',exact:true}).click();
-    await page.getByRole('button', { name: '回收站', exact: true }).click(); await expect(page.locator('.study-trash')).toContainText(title);
+    await expect(page.getByRole('dialog',{name:'书籍信息'})).toHaveCount(0);if(!await page.getByRole('button',{name:'回收站',exact:true}).isVisible())await page.getByRole('button',{name:'更多导航',exact:true}).click();
+    await page.getByRole('button', { name: '回收站', exact: true }).click(); await expect(page.locator('[data-visible=true] .study-trash')).toContainText(title);
     await page.screenshot({ path: `artifacts/candidate-trash-${width}.png`, fullPage: true });
-    await page.locator('.study-trash-row').filter({ hasText: title }).getByRole('button', { name: '恢复', exact: true }).click(); await page.getByRole('button', { name: '书库', exact: true }).click();
+    await page.locator('[data-visible=true] .study-trash-row').filter({ hasText: title }).getByRole('button', { name: '恢复', exact: true }).click(); await page.getByRole('button', { name: '书库', exact: true }).click();
     await page.getByRole('button',{name:'列表视图' }).click(); await expect(card).toBeEnabled(); await card.focus(); await page.keyboard.press('ArrowDown'); await expect(card).toBeFocused();
     await page.screenshot({ path: `artifacts/candidate-list-${width}.png`, fullPage: true });
     await page.getByRole('button',{name:'网格视图' }).click(); await page.screenshot({ path: `artifacts/candidate-cards-${width}.png`, fullPage: true });
@@ -101,7 +101,7 @@ test('MCP AppBridge catalog UI and declined teardown keep the actual UI visible'
 });
 
 test('editable content and focus outside Reader never dispatch reading shortcuts', async ({ page }) => {
-  await page.goto('/'); await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles({ name: '焦点边界.txt', mimeType: 'text/plain', buffer: Buffer.from(original + 'boundary') });
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click(); await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles({ name: '焦点边界.txt', mimeType: 'text/plain', buffer: Buffer.from(original + 'boundary') });
   await expect(page.getByRole('heading', { name: '第一章 键盘', exact: true })).toBeVisible();
   const prevented = await page.evaluate(() => {
     const root = document.querySelector('.reader-app')!;
@@ -115,11 +115,11 @@ test('editable content and focus outside Reader never dispatch reading shortcuts
 });
 
 test('shelf arrows move between cards and Enter opens the focused title', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click();
   await page.getByLabel('选择 TXT、EPUB 或 PDF 书籍').setInputFiles(['书架焦点甲', '书架焦点乙'].map(title => ({ name: `${title}.txt`, mimeType: 'text/plain', buffer: Buffer.from(`第一章 ${title}\n\n原创焦点测试。`) })));
   const query = page.getByRole('searchbox', { name: '搜索书籍、笔记和文件夹' }); await query.fill('书架焦点');
   const cards = page.locator('.book-card'); await expect(cards).toHaveCount(2);
   await cards.first().focus(); await page.keyboard.press('ArrowRight'); await expect(cards.nth(1)).toBeFocused();
   const name = await cards.nth(1).getAttribute('aria-label'); await page.keyboard.press('Enter');
-  await expect(page.locator('.reading-title')).toHaveText(name!.split('，')[0].slice(3));
+  await expect(page.locator('[data-visible=true] .reading-title')).toHaveText(name!.split('，')[0].slice(3));
 });

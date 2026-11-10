@@ -13,7 +13,7 @@ for (const width of [320, 390, 1280]) test(`declarative source shows stage limit
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', req => { if (!req.url().startsWith('http://127.0.0.1:4178/')) external.push(req.url()); });
   await page.setViewportSize({ width, height: 844 });
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click();
   await openDiscovery(page);
   const panel = page.getByRole('main', { name: '找书与书源' });
   await panel.getByRole('button', { name: '管理书源' }).click();
@@ -45,9 +45,9 @@ for (const width of [320, 390, 1280]) test(`declarative source shows stage limit
   await panel.getByRole('button', { name: /^原创纸桥 样例作者/ }).click();
   await expect(panel.getByRole('region', { name: '在线书籍详情' })).toContainText('原创的两章短文');
   await panel.getByRole('button', { name: '开始阅读' }).click();
-  await expect(page.locator('.reading-paragraphs')).toContainText('纸桥的另一端留着一片叶子。');
-  await expect(page.locator('.reading-paragraphs')).not.toContainText('本章完');
-  await expect(page.locator('.reading-paragraphs img, .reading-paragraphs script')).toHaveCount(0);
+  await expect(page.locator('[data-visible=true] .reading-paragraphs')).toContainText('纸桥的另一端留着一片叶子。');
+  await expect(page.locator('[data-visible=true] .reading-paragraphs')).not.toContainText('本章完');
+  await expect(page.locator('[data-visible=true] .reading-paragraphs img, .reading-paragraphs script')).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).GRAMMAR_EXECUTED)).toBeUndefined();
   await page.screenshot({ path: `artifacts/declarative-reading-${width}.png`, fullPage: true });
   await expect(page.getByRole('button', { name: /加载更多章节/ })).toBeVisible();

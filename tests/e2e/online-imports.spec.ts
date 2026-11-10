@@ -8,7 +8,7 @@ test('sample source imports through file and URL UI, paginates, restarts and rea
   const suffix = publicMode ? 'public' : 'fixture';
   const base = 'https://raw.githubusercontent.com/Quiyyy/reader-plugin/refs/heads/main/examples/online/';
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click();
   await openDiscovery(page);
   const dialog = page.getByRole('main', { name: '找书与书源', exact: true });
   await dialog.getByRole('button', { name: '管理书源' }).click();
@@ -41,7 +41,7 @@ test('sample source imports through file and URL UI, paginates, restarts and rea
   await expect(dialog.getByRole('region', { name: '在线书籍详情' })).toContainText('为 Reader 验收创作的原创短篇');
   await dialog.getByRole('button', { name: '开始阅读' }).click();
   await expect(page.getByRole('heading', { name: '第一章 河岸来信', exact: true })).toBeVisible();
-  await expect(page.locator('.reading-paragraphs')).toContainText('这是第一章的第二页');
+  await expect(page.locator('[data-visible=true] .reading-paragraphs')).toContainText('这是第一章的第二页');
   await page.getByRole('button', { name: /加载更多章节/ }).click();
   await page.getByRole('button', { name: '目录（T）' }).click();
   await expect(page.getByRole('navigation', { name: '章节目录' }).getByRole('button')).toHaveCount(2);
@@ -61,13 +61,13 @@ test('sample source imports through file and URL UI, paginates, restarts and rea
   await page.getByRole('button', { name: /^打开 【在线样例】河岸的两封信/ }).click();
   await expect(page.getByRole('heading', { name: '第二章 灯下回信', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '移除当前段落书签（B）' })).toBeVisible();
-  await expect(page.locator('.reading-percent')).toContainText('100%');
+  await expect(page.locator('[data-visible=true] .reading-percent')).toContainText('100%');
   if (!publicMode) {
     expect((await (await request.post('http://127.0.0.1:4179/offline')).json()).fixture).toBe(true);
     const before = await (await request.post('http://127.0.0.1:4179/requests')).json();
     try {
       await page.getByRole('button', { name: /上一章 第一章 河岸来信/ }).click();
-      await expect(page.locator('.reading-paragraphs')).toContainText('这是第一章的第二页');
+      await expect(page.locator('[data-visible=true] .reading-paragraphs')).toContainText('这是第一章的第二页');
       await page.getByRole('button', { name: /下一章 第二章 灯下回信/ }).click();
       await expect(page.getByRole('heading', { name: '第二章 灯下回信', exact: true })).toBeVisible();
       expect(await (await request.post('http://127.0.0.1:4179/requests')).json()).toEqual(before);

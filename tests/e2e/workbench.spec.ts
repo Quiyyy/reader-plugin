@@ -16,7 +16,7 @@ test('workbench layout is independent of appearance, responsive and preserves re
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await call(request,'reader_appearance',{appearance:{...defaultAppearance,mode:'light'}});
   await call(request,'reader_library_layout',{layout:'list'});
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click();
   const titles=['慢读的方法','山河小记','日常设计札记','长夜里的灯塔','时间的形状','缓慢的观察'];
   await importBooks(page,titles.map((title,i)=>({name:title+'.txt',mimeType:'text/plain',buffer:Buffer.from(original+'\n\n'+title+' · 原创验收 '+i)})));
   for(const title of titles)await expect(page.getByRole('button',{name:new RegExp('^打开 '+title+'，')})).toBeVisible();
@@ -33,15 +33,15 @@ test('workbench layout is independent of appearance, responsive and preserves re
   for(const [title,body] of [['把阅读变成自己的经验','理解不只是记住原句，而是能够用自己的话解释，再放进新的情境。'],['给问题留一个位置','先记录一个疑问，下次阅读时再回来，看看它是否连接起了新的线索。']])await call(request,'reader_note_create',{title,body,folderId:folder.id,tags:[],sourceIds:[source.id],imageIds:[],relatedBookId:books[0]!.id});
   await page.reload();await openShelf();
   await expect(page.locator('.book-card')).toHaveCount(6);
-  await expect(page.locator('.study-continue,.study-library-notes')).toHaveCount(0);
-  const geometry=()=>page.locator('.library-shelf,.library-grid').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};}));
+  await expect(page.locator('[data-visible=true] .study-continue,.study-library-notes')).toHaveCount(0);
+  const geometry=()=>page.locator('[data-visible=true] .library-shelf,.library-grid').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};}));
   let baseline:Awaited<ReturnType<typeof geometry>>|undefined;
   for(const mode of ['light','dark'] as const){
     await openSettings(page,'外观');
     await page.getByRole('button',{name:mode==='light'?'浅色':'深色',exact:true}).click();
     await closeSettings(page);
     await expect(page.getByRole('region',{name:'设置',exact:true})).toBeHidden();
-    await expect(page.locator('.study-workspace')).toHaveClass(new RegExp(mode));
+    await expect(page.locator('[data-visible=true] .study-workspace')).toHaveClass(new RegExp(mode));
     const current=await geometry();if(baseline)expect(current).toEqual(baseline);else baseline=current;
     await page.screenshot({animations:'disabled',path:`artifacts/workbench-library-${mode}-1280.png`});
   }
@@ -50,21 +50,21 @@ test('workbench layout is independent of appearance, responsive and preserves re
   await page.getByLabel('强调色十六进制值').fill('#8551B2');await closeSettings(page);
   await expect(page.getByRole('region',{name:'设置',exact:true})).toBeHidden();
   expect(await geometry()).toEqual(baseline);await page.screenshot({animations:'disabled',path:'artifacts/workbench-library-cream-1280.png'});
-  await page.reload();await openShelf();await expect(page.locator('.study-workspace')).toHaveCSS('--study-accent','#8551B2');await expect(page.locator('.study-workspace')).toHaveAttribute('data-layout','workbench');
+  await page.reload();await openShelf();await expect(page.locator('[data-visible=true] .study-workspace')).toHaveCSS('--study-accent','#8551B2');await expect(page.locator('[data-visible=true] .study-workspace')).toHaveAttribute('data-layout','workbench');
   await page.getByRole('searchbox',{name:'搜索书籍、笔记和文件夹'}).fill('山河');await expect(page.locator('.book-card')).toHaveCount(1);
   await page.getByRole('searchbox',{name:'搜索书籍、笔记和文件夹'}).fill('界面验收');
-  await page.getByRole('button',{name:'网格视图',exact:true}).click();await expect(page.locator('.library-grid.cards')).toHaveCount(1);
-  await page.getByRole('button',{name:'列表视图',exact:true}).click();await expect(page.locator('.library-grid.list')).toHaveCount(1);
+  await page.getByRole('button',{name:'网格视图',exact:true}).click();await expect(page.locator('[data-visible=true] .library-grid.cards')).toHaveCount(1);
+  await page.getByRole('button',{name:'列表视图',exact:true}).click();await expect(page.locator('[data-visible=true] .library-grid.list')).toHaveCount(1);
   for(const width of [390,320]){
     await page.setViewportSize({width,height:844});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    expect(await page.locator('.library-shelf').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
+    expect(await page.locator('[data-visible=true] .library-shelf').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
     await expect(page.getByRole('group',{name:'书库视图',exact:true})).toBeInViewport();
     await page.screenshot({animations:'disabled',path:`artifacts/workbench-library-${width}.png`});
   }
   await page.setViewportSize({width:1280,height:900});
   await page.getByRole('button',{name:/^打开 慢读的方法，/}).click();
-  await page.locator('[data-reader-paragraph]').filter({hasText:quote}).first().evaluate(el=>{const range=document.createRange();range.selectNodeContents(el);const selection=window.getSelection()!;selection.removeAllRanges();selection.addRange(range);el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));});
+  await page.locator('[data-workspace-page][data-visible=true] [data-reader-paragraph]').filter({hasText:quote}).first().evaluate(el=>{const range=document.createRange();range.selectNodeContents(el);const selection=window.getSelection()!;selection.removeAllRanges();selection.addRange(range);el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));});
   // Fixture replies exercise the production message UI without calling a model.
   await page.route('**/api/tool',async route=>{
     const name=route.request().postDataJSON()?.name;
@@ -73,20 +73,20 @@ test('workbench layout is independent of appearance, responsive and preserves re
     session.title='从读懂，到真正理解';session.messages=[{id:'fixture-question',role:'user',text:'这段话里的“自己的经验”，应该怎么理解？',sourceIds:[source.id],createdAt:new Date().toISOString()},{id:'fixture-answer',role:'assistant',text:'关键是从**记住作者说了什么**，走到**我能用它解释什么**。\n\n可以试着做两件小事：\n\n1. **换一种说法。** 合上书，用自己的话向朋友解释。\n2. **放进一个新例子。** 找一件生活中的事，看看这个观点是否适用。',sourceIds:[source.id],createdAt:new Date().toISOString()}];
     await route.fulfill({response,json:body});
   });
-  const before=await page.locator('.study-book-view').boundingBox();
+  const before=await page.locator('[data-workspace-page][data-visible=true] .study-book-view').boundingBox();
   await page.getByRole('toolbar',{name:'选区操作'}).getByRole('button',{name:'问 Codex',exact:true}).click();
   const chat=page.getByRole('dialog',{name:'阅读对话',exact:true});await expect(chat).toBeVisible();await expect(chat).toContainText('我能用它解释什么');
-  expect((await page.locator('.study-book-view').boundingBox())!.width).toBe(before!.width);
-  await page.getByRole('button',{name:'查看提问来源',exact:true}).click();await expect(page.locator('.study-chat-compose .study-source')).toContainText(quote);
+  expect((await page.locator('[data-workspace-page][data-visible=true] .study-book-view').boundingBox())!.width).toBe(before!.width);
+  await page.getByRole('button',{name:'查看提问来源',exact:true}).click();await expect(page.locator('[data-workspace-page][data-visible=true] .study-chat-compose .study-source')).toContainText(quote);
   await page.getByRole('button',{name:'查看提问来源',exact:true}).click();
   await page.getByLabel('阅读问题',{exact:true}).fill('用一个日常例子继续解释。');await page.getByRole('button',{name:'收起对话',exact:true}).click();await page.getByRole('button',{name:'继续阅读对话',exact:true}).click();await expect(page.getByLabel('阅读问题',{exact:true})).toHaveValue('用一个日常例子继续解释。');
   for(const mode of ['light','dark'] as const){
     await setReaderTheme(page,mode);await closeSettings(page);
-    await expect(page.locator('.study-workspace')).toHaveClass(new RegExp(mode));
+    await expect(page.locator('[data-visible=true] .study-workspace')).toHaveClass(new RegExp(mode));
     await page.screenshot({animations:'disabled',path:`artifacts/workbench-chat-${mode}-1280.png`});
   }
   // A dragged window must remain inside the viewport after its width changes.
-  const head=(await page.locator('.study-chat-head').boundingBox())!;await page.mouse.move(head.x+180,head.y+15);await page.mouse.down();await page.mouse.move(700,110,{steps:5});await page.mouse.up();await page.setViewportSize({width:800,height:700});
+  const head=(await page.locator('[data-workspace-page][data-visible=true] .study-chat-head').boundingBox())!;await page.mouse.move(head.x+180,head.y+15);await page.mouse.down();await page.mouse.move(700,110,{steps:5});await page.mouse.up();await page.setViewportSize({width:800,height:700});
   let box=(await chat.boundingBox())!;expect(box.x+box.width).toBeLessThanOrEqual(800);expect(box.y+box.height).toBeLessThanOrEqual(700);
   for(const width of [390,320]){await page.setViewportSize({width,height:844});box=(await chat.boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);expect(box.y+box.height).toBeLessThanOrEqual(844);await expect(page.getByLabel('阅读问题',{exact:true})).toBeInViewport();await expect(page.getByRole('button',{name:'交给原生对话',exact:true})).toBeInViewport();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({animations:'disabled',path:`artifacts/workbench-chat-${width}.png`});}
   expect(errors).toEqual([]);

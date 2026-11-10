@@ -21,7 +21,7 @@ async function fixture(request: APIRequestContext, label: string) {
   return { root, folder, second, book, note };
 }
 async function enter(page: Page, name: string) {
-  await page.goto('/'); await page.getByRole('button', { name: '打开文件夹 ' + name, exact: true }).click();
+  await page.goto('/');await page.getByRole('tab',{name:'书库',exact:true}).click(); await page.getByRole('button', { name: '打开文件夹 ' + name, exact: true }).click();
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
 }
 
@@ -36,7 +36,7 @@ test('drag books and mixed selections into folders, undo, and drag back through 
   expect((await call(request, 'reader_workspace')).visits).toEqual(visits);
   await page.getByRole('button', { name: '撤销', exact: true }).click(); await expect(book).toBeVisible();
   await page.getByRole('button', { name: '选择', exact: true }).click(); await book.click(); await note.click();
-  await expect(page.locator('.library-entry.selected')).toHaveCount(2);
+  await expect(page.locator('[data-visible=true] .library-entry.selected')).toHaveCount(2);
   await book.dragTo(target); await expect(book).toHaveCount(0); await expect(note).toHaveCount(0);
   expect(await call(request, 'reader_note_get', { id: f.note.id })).toMatchObject({ body: f.note.body, folderId: f.folder.id, tags: ['保留'] });
   await page.getByRole('button', { name: '打开文件夹 参考资料', exact: true }).click();
@@ -68,7 +68,7 @@ test('invalid, cancelled, foreign and stale drags cannot partially move library 
   const files = await page.evaluateHandle(() => {
     const transfer = new DataTransfer(); transfer.items.add(new File(['第一章 外部导入\n\n外部文件仍使用导入流程。'], '拖入原文件.txt', { type: 'text/plain' })); return transfer;
   });
-  await page.locator('.library-shelf').dispatchEvent('drop', { dataTransfer: files });
+  await page.locator('[data-visible=true] .library-shelf').dispatchEvent('drop', { dataTransfer: files });
   await expect(page.getByRole('heading', { name: '第一章 外部导入', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '返回书架', exact: true }).click();
   await expect(page.getByRole('heading', { name: f.root.name, exact: true })).toBeVisible();
@@ -85,11 +85,11 @@ test('refined library toolbar, menus, empty state and drag targets fit light, da
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await expect(page.getByRole('button', { name: '新建', exact: true })).toBeInViewport();
     await expect(page.getByRole('group', { name: '书库视图' })).toBeInViewport();
-    expect(await page.locator('.library-heading h1').evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(22);
+    expect(await page.locator('[data-visible=true] .library-heading h1').evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(22);
     await page.getByRole('heading', { name: 'Agent', exact: true }).click(); await page.mouse.move(3, 3);
     await page.screenshot({ path: `artifacts/refined-library-${width}.png`, animations: 'disabled' });
     await page.getByRole('button', { name: '管理 阅读清单', exact: true }).click(); await expect(page.getByRole('menu', { name: '整理菜单' })).toBeInViewport();
-    await page.locator('.library-shelf').dispatchEvent('scroll');await expect(page.getByRole('menu',{name:'整理菜单'})).toBeInViewport();await page.keyboard.press('Escape');
+    await page.locator('[data-visible=true] .library-shelf').dispatchEvent('scroll');await expect(page.getByRole('menu',{name:'整理菜单'})).toBeInViewport();await page.keyboard.press('Escape');
   }
   await page.getByRole('button', { name: '打开文件夹 项目笔记', exact: true }).click();
   await expect(page.getByRole('button', { name: '添加内容', exact: true })).toBeVisible();
@@ -97,7 +97,7 @@ test('refined library toolbar, menus, empty state and drag targets fit light, da
   await page.getByRole('button', { name: '返回上一级', exact: true }).click();
   await call(request, 'reader_appearance', { appearance: { ...defaultAppearance, mode: 'dark' } }); await page.reload();
   await page.getByRole('button', { name: '打开文件夹 Agent', exact: true }).click();
-  await expect(page.locator('.study-workspace')).toHaveClass(/dark/); await page.screenshot({ path: 'artifacts/refined-library-dark.png', animations: 'disabled' });
+  await expect(page.locator('[data-visible=true] .study-workspace')).toHaveClass(/dark/); await page.screenshot({ path: 'artifacts/refined-library-dark.png', animations: 'disabled' });
   const data = await page.evaluateHandle(() => new DataTransfer());
   await page.locator(`[data-note-id="${f.note.id}"] .library-open`).dispatchEvent('dragstart', { dataTransfer: data });
   await page.locator(`[data-folder-id="${f.folder.id}"]`).dispatchEvent('dragover', { dataTransfer: data });
