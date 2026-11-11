@@ -16,11 +16,11 @@ const icon=(tab:WorkspaceTab)=>tab.target.kind==='book'?<BookOpen size={14}/>:ta
 
 // Page components stay in a flat, keyed layer. Moving a tab changes its bounds,
 // never its React parent, so editor selection, undo history and scroll survive.
-function Page({tab,api,rect,visible,focused,snapshot,setSnapshot,onOpen,onTitle,registerFlush,onFocus,onNotice,libraryVersion,cloudSync}:{
+function Page({tab,api,rect,visible,focused,snapshot,setSnapshot,onOpen,onTitle,registerFlush,onFocus,onNotice,libraryVersion,cloudSync,tabsHidden}:{
   tab:WorkspaceTab;api:ReaderApi;rect:Rect;visible:boolean;focused:boolean;snapshot:WorkspaceSnapshot;
   setSnapshot:(value:WorkspaceSnapshot)=>void;onOpen:(page:OpenPage,from:string)=>void;onTitle:(id:string,title:string)=>void;
   registerFlush:(id:string,fn:(()=>Promise<void>)|null)=>void;onFocus:(id:string)=>void;
-  onNotice:(value:WorkspaceNotice|undefined)=>void;libraryVersion:number;cloudSync:ReturnType<typeof useCloudSync>;
+  onNotice:(value:WorkspaceNotice|undefined)=>void;libraryVersion:number;cloudSync:ReturnType<typeof useCloudSync>;tabsHidden:boolean;
 }) {
   const [ready,setReady]=useState(visible);
   useEffect(()=>{if(visible)setReady(true);},[visible]);
@@ -29,7 +29,7 @@ function Page({tab,api,rect,visible,focused,snapshot,setSnapshot,onOpen,onTitle,
   useEffect(()=>{registerFlush(tab.id,async()=>{for(const listener of [...listeners.current])await listener();});return()=>registerFlush(tab.id,null);},[tab.id,registerFlush]);
   const open=useCallback((page:OpenPage)=>onOpen(page,tab.id),[tab.id,onOpen]);
   const title=useCallback((value:string)=>onTitle(tab.id,value),[tab.id,onTitle]);
-  return <section id={'reader-page-'+tab.id} role="tabpanel" aria-labelledby={'reader-tab-'+tab.id} aria-hidden={!visible} inert={!visible} data-workspace-page={tab.id} data-visible={visible} data-focused={focused} className="reader-tab-page" style={{...position({...rect,y:rect.y+workspaceChrome.tabHeight,height:rect.height-workspaceChrome.tabHeight}),visibility:visible?'visible':'hidden'}} onPointerDownCapture={()=>onFocus(tab.id)} onFocusCapture={()=>onFocus(tab.id)}>
+  return <section id={'reader-page-'+tab.id} role="tabpanel" aria-labelledby={tabsHidden?undefined:'reader-tab-'+tab.id} aria-label={tabsHidden?tab.title:undefined} aria-hidden={!visible} inert={!visible} data-workspace-page={tab.id} data-visible={visible} data-focused={focused} data-tabs-hidden={tabsHidden} className="reader-tab-page" style={{...position({...rect,y:rect.y+(tabsHidden?0:workspaceChrome.tabHeight),height:rect.height-(tabsHidden?0:workspaceChrome.tabHeight)}),visibility:visible?'visible':'hidden'}} onPointerDownCapture={()=>onFocus(tab.id)} onFocusCapture={()=>onFocus(tab.id)}>
     {ready&&<WorkspacePage api={scopedApi} page={tab} visible={visible} focused={focused} snapshot={snapshot} setSnapshot={setSnapshot} onOpenPage={open} onTitle={title} onNotice={onNotice} libraryVersion={libraryVersion} cloudSync={cloudSync}/>}
   </section>;
 }
@@ -40,8 +40,10 @@ export function Workspace({api}:{api:ReaderApi}) {
 }
 function TabbedWorkspace({api}:{api:ReaderApi}) {
   const [layout,setLayout]=useState<TabLayout>(()=>{try{return restoreLayout(sessionStorage.getItem(layoutStorageKey))??initialLayout();}catch{return initialLayout();}});
+  const [tabsHidden,setTabsHidden]=useState(()=>{try{return localStorage.getItem('reader-tabs-hidden')==='true';}catch{return false;}});
+  useEffect(()=>{try{localStorage.setItem('reader-tabs-hidden',String(tabsHidden));}catch{}},[tabsHidden]);
   const current=useRef(layout);current.current=layout;
-  const [snapshot,setSnapshot]=useState(empty),[error,setError]=useState(''),[size,setSize]=useState({width:0,height:0}),[dragging,setDragging]=useState<string>(),[drop,setDrop]=useState<{group:string;edge:DropEdge}>(),[menu,setMenu]=useState<{group:string;kind:'new'|'layout'}>(),[dark,setDark]=useState(false);
+  const [snapshot,setSnapshot]=useState(empty),[error,setError]=useState(''),[size,setSize]=useState({width:0,height:0}),[dragging,setDragging]=useState<string>(),[drop,setDrop]=useState<{group:string;edge:DropEdge}>(),[menu,setMenu]=useState<{group:string;kind:'new'|'layout'|'tabs'}>(),[dark,setDark]=useState(false);
   const viewport=useRef<HTMLDivElement>(null),canvas=useRef<HTMLDivElement>(null),drag=useRef<string|undefined>(undefined),flushes=useRef(new Map<string,()=>Promise<void>>()),closing=useRef(new Set<string>()),navigationSeen=useRef('');
   const commit=useCallback((update:(value:TabLayout)=>TabLayout)=>{const next=update(current.current);current.current=next;setLayout(next);},[]);
   const [libraryVersion,setLibraryVersion]=useState(0);
@@ -78,7 +80,7 @@ function TabbedWorkspace({api}:{api:ReaderApi}) {
   const registerFlush=useCallback((id:string,fn:(()=>Promise<void>)|null)=>{if(fn)flushes.current.set(id,fn);else flushes.current.delete(id);},[]);
   const close=async(id:string)=>{
     if(closing.current.has(id))return;closing.current.add(id);
-    try{await flushes.current.get(id)?.();commit(value=>closeTab(value,id));setError('');const group=groups(current.current.root).find(g=>g.id===current.current.focused)!;requestAnimationFrame(()=>document.getElementById('reader-tab-'+group.active)?.focus());}
+    try{await flushes.current.get(id)?.();commit(value=>closeTab(value,id));setError('');const group=groups(current.current.root).find(g=>g.id===current.current.focused)!;requestAnimationFrame(()=>(document.getElementById('reader-tab-'+group.active)??canvas.current?.querySelector<HTMLElement>(`[data-tab-group="${group.id}"] [aria-label="页面菜单"]`))?.focus());}
     catch(e){activate(id);setError('页面尚未关闭：'+(e instanceof Error?e.message:String(e)));}
     finally{closing.current.delete(id);}
   };
@@ -99,6 +101,7 @@ function TabbedWorkspace({api}:{api:ReaderApi}) {
   const min=minimumSize(layout.root),width=Math.max(size.width,min.width),height=Math.max(size.height,min.height),{panes,dividers}=layoutRects(layout.root,width,height);
   const finishDrag=()=>{drag.current=undefined;setDragging(undefined);setDrop(undefined);};
   const move=(id:string,group:string,edge:DropEdge,before?:string)=>{commit(value=>moveTab(value,id,group,edge,before));finishDrag();setMenu(undefined);};
+  const setTabVisibility=(hidden:boolean,groupId:string)=>{setTabsHidden(hidden);setMenu(undefined);commit(value=>({...value,focused:groupId}));requestAnimationFrame(()=>{const group=groups(current.current.root).find(value=>value.id===groupId);if(group)(hidden?canvas.current?.querySelector<HTMLElement>(`[data-tab-group="${groupId}"] [aria-label="页面菜单"]`):document.getElementById('reader-tab-'+group.active))?.focus();});};
   const progressFailure=Object.entries(progressFailures)[0];
   return <div className={'reader-tabs-workspace '+(dark?'dark':'light')} style={{...appearanceVariables(snapshot.appearance,dark),'--reader-tab-height':workspaceChrome.tabHeight+'px','--reader-toolbar-height':workspaceChrome.toolbarHeight+'px','--reader-status-height':workspaceChrome.statusHeight+'px'} as CSSProperties} onKeyDown={e=>{
     if(e.key==='Escape'){finishDrag();setMenu(undefined);}
@@ -106,19 +109,21 @@ function TabbedWorkspace({api}:{api:ReaderApi}) {
   }}>
     {(error||progressFailure)&&<div className="reader-tabs-error" role="alert"><span>{error||progressFailure?.[1]}</span>{progressFailure&&<button onClick={()=>{const tab=current.current.tabs.find(tab=>tab.target.kind==='book'&&tab.target.bookId===progressFailure[0]&&!tab.target.sourceId);if(tab)void flushes.current.get(tab.id)?.().then(()=>setError('')).catch(()=>{});}}>重试</button>}{error&&<button aria-label="关闭工作区提示" onClick={()=>setError('')}><X size={16}/></button>}</div>}
     <div className="reader-tabs-viewport" ref={viewport}><div className="reader-tabs-canvas" ref={canvas} style={{width,height}}>
-      {layout.tabs.map(tab=>{const pane=panes.find(p=>p.group.tabs.includes(tab.id))!;return <Page key={tab.id} tab={tab} api={pageApi} rect={pane.rect} visible={pane.group.active===tab.id} focused={pane.group.id===layout.focused&&pane.group.active===tab.id} snapshot={snapshot} setSnapshot={updateSnapshot} onOpen={open} onTitle={title} registerFlush={registerFlush} onFocus={activate} onNotice={showNotice} libraryVersion={libraryVersion} cloudSync={cloudSync}/>;})}
-      {panes.map(({group,rect},index)=><div key={group.id} className={'reader-tab-group'+(group.id===layout.focused?' is-focused':'')} data-tab-group={group.id} style={position({...rect,height:workspaceChrome.tabHeight})}>
-        <div role="tablist" aria-label={'页面标签组 '+(index+1)} className="reader-tab-list" onDragOver={e=>{if(drag.current){e.preventDefault();e.dataTransfer.dropEffect='move';}}} onDrop={e=>{if(drag.current){e.preventDefault();move(drag.current,group.id,'center');}}}>
+      {layout.tabs.map(tab=>{const pane=panes.find(p=>p.group.tabs.includes(tab.id))!;return <Page key={tab.id} tab={tab} api={pageApi} rect={pane.rect} visible={pane.group.active===tab.id} focused={pane.group.id===layout.focused&&pane.group.active===tab.id} snapshot={snapshot} setSnapshot={updateSnapshot} onOpen={open} onTitle={title} registerFlush={registerFlush} onFocus={activate} onNotice={showNotice} libraryVersion={libraryVersion} cloudSync={cloudSync} tabsHidden={tabsHidden}/>;})}
+      {panes.map(({group,rect},index)=><div key={group.id} className={'reader-tab-group'+(tabsHidden?' is-collapsed':'')+(group.id===layout.focused?' is-focused':'')} data-tab-group={group.id} style={position(tabsHidden?{...rect,x:rect.x+rect.width-34,width:34,height:workspaceChrome.toolbarHeight}:{...rect,height:workspaceChrome.tabHeight})}>
+        {!tabsHidden&&<div role="tablist" aria-label={'页面标签组 '+(index+1)} className="reader-tab-list" onDragOver={e=>{if(drag.current){e.preventDefault();e.dataTransfer.dropEffect='move';}}} onDrop={e=>{if(drag.current){e.preventDefault();move(drag.current,group.id,'center');}}}>
           {group.tabs.map(id=>{const tab=layout.tabs.find(t=>t.id===id)!;return <div key={id} className={'reader-tab'+(group.active===id?' is-active':'')} draggable onDragStart={e=>{drag.current=id;setDragging(id);e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',tab.title);setMenu(undefined);}} onDragEnd={finishDrag} onDragOver={e=>{if(drag.current){e.preventDefault();e.stopPropagation();e.currentTarget.dataset.drop='true';}}} onDragLeave={e=>{delete e.currentTarget.dataset.drop;}} onDrop={e=>{delete e.currentTarget.dataset.drop;if(!drag.current)return;e.preventDefault();e.stopPropagation();const after=e.clientX>e.currentTarget.getBoundingClientRect().left+e.currentTarget.clientWidth/2;move(drag.current,group.id,'center',after?group.tabs[group.tabs.indexOf(id)+1]:id);}}>
             <button role="tab" id={'reader-tab-'+id} aria-selected={group.active===id} aria-controls={'reader-page-'+id} tabIndex={group.active===id?0:-1} title={tab.title} onClick={()=>activate(id)} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key==='Home'||e.key==='End'){e.preventDefault();const at=e.key==='Home'?0:e.key==='End'?group.tabs.length-1:(group.tabs.indexOf(id)+(e.key==='ArrowRight'?1:group.tabs.length-1))%group.tabs.length,next=group.tabs[at]!;activate(next);requestAnimationFrame(()=>document.getElementById('reader-tab-'+next)?.focus());}if(e.key==='Delete'){e.preventDefault();void close(id);}}}>{icon(tab)}<span>{tab.title}</span></button>
             <button className="reader-tab-close" aria-label={'关闭页面 '+tab.title} title="关闭页面" onClick={()=>void close(id)}><X size={13}/></button>
           </div>;})}
-        </div>
-        <button className="reader-group-action" aria-label="打开页面" title="打开页面" onClick={()=>setMenu(menu?.group===group.id&&menu.kind==='new'?undefined:{group:group.id,kind:'new'})}><Plus size={16}/></button>
-        <button className="reader-group-action" aria-label="分栏操作" title="分栏操作" onClick={()=>setMenu(menu?.group===group.id&&menu.kind==='layout'?undefined:{group:group.id,kind:'layout'})}><MoreHorizontal size={17}/></button>
-        {menu?.group===group.id&&<div className="reader-group-menu" role="menu" aria-label={menu.kind==='new'?'打开页面':'分栏操作'}>{menu.kind==='new'?(['library','notes','search','online','trash'] as const).filter(kind=>kind!=='online'||api.online).map(kind=><button key={kind} role="menuitem" onClick={()=>{commit(value=>openTab(value,{target:{kind}},group.id));setMenu(undefined);}}>{{library:'书库',notes:'笔记',search:'搜索',online:'在线找书',trash:'回收站'}[kind]}</button>):<>
+        </div>}
+        {!tabsHidden&&<><button className="reader-group-action" aria-label="打开页面" title="打开页面" onClick={()=>setMenu(menu?.group===group.id&&menu.kind==='new'?undefined:{group:group.id,kind:'new'})}><Plus size={16}/></button>
+        <button className="reader-group-action" aria-label="分栏操作" title="分栏操作" onClick={()=>setMenu(menu?.group===group.id&&menu.kind==='layout'?undefined:{group:group.id,kind:'layout'})}><MoreHorizontal size={17}/></button></>}
+        {tabsHidden&&<button className="reader-group-action" aria-label="页面菜单" title="页面菜单" aria-expanded={menu?.group===group.id} onClick={()=>setMenu(menu?.group===group.id?undefined:{group:group.id,kind:'tabs'})}><PanelsTopLeft size={17}/></button>}
+        {menu?.group===group.id&&<div className="reader-group-menu" role="menu" aria-label={menu.kind==='new'?'打开页面':menu.kind==='tabs'?'页面菜单':'分栏操作'}>{menu.kind==='tabs'?<><div className="reader-page-switcher">{group.tabs.map(id=>{const tab=layout.tabs.find(tab=>tab.id===id)!;return <button role="menuitemradio" aria-checked={group.active===id} key={id} onClick={()=>{activate(id);setMenu(undefined);}}>{icon(tab)}<span>{tab.title}</span></button>;})}</div><button role="menuitem" onClick={()=>setMenu({group:group.id,kind:'new'})}>打开页面…</button><button role="menuitem" onClick={()=>setMenu({group:group.id,kind:'layout'})}>分栏操作…</button><button role="menuitem" onClick={()=>void close(group.active).then(()=>setMenu(undefined))}>关闭当前页面</button><button role="menuitem" onClick={()=>{setTabVisibility(false,group.id);}}>显示标签栏</button></>:menu.kind==='new'?(['library','notes','search','online','trash'] as const).filter(kind=>kind!=='online'||api.online).map(kind=><button key={kind} role="menuitem" onClick={()=>{commit(value=>openTab(value,{target:{kind}},group.id));setMenu(undefined);}}>{{library:'书库',notes:'笔记',search:'搜索',online:'在线找书',trash:'回收站'}[kind]}</button>):<>
           {(['left','right','top','bottom'] as const).map(edge=><button role="menuitem" key={edge} disabled={group.tabs.length<2} onClick={()=>move(group.active,group.id,edge)}>{edge==='left'||edge==='right'?<Columns2 size={15}/>:<Rows2 size={15}/>}{{left:'移到左侧分栏',right:'移到右侧分栏',top:'移到上方分栏',bottom:'移到下方分栏'}[edge]}</button>)}
           {panes.length>1&&<button role="menuitem" onClick={()=>{commit(value=>{const all=groups(value.root);return {...value,focused:group.id,root:{kind:'group',id:group.id,tabs:all.flatMap(g=>g.tabs),active:group.active}};});setMenu(undefined);}}>合并所有分栏</button>}
+          <button role="menuitem" onClick={()=>{setTabVisibility(!tabsHidden,group.id);}}>{tabsHidden?'显示标签栏':'隐藏标签栏'}</button>
           <small>拖动标签到页面四边分栏<br/>Ctrl + Alt + ← / → 切换标签</small>
         </>}</div>}
       </div>)}

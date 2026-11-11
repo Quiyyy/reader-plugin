@@ -125,3 +125,14 @@
 .reader-tab-page .pdf-tools{flex:0 0 auto}
 
 .reader-tab-page .note-chat-content{align-self:center;width:100%;max-width:760px}
+
+.reader-tab-group.is-collapsed{padding:0 3px 0 0;justify-content:flex-end;background:transparent;border:0}
+.reader-tab-group.is-collapsed .reader-group-menu{top:var(--reader-toolbar-height)}
+.reader-tab-page[data-tabs-hidden=true] :is(.reader-toolbar,.study-editor-head,.study-mobile-nav,.settings-head){padding-right:38px}
+.reader-group-menu{max-height:calc(100dvh - 80px);overflow:auto}
+.reader-page-switcher{max-height:40vh;overflow:auto;padding-bottom:4px;border-bottom:1px solid var(--study-border)}
+.reader-page-switcher>button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;background:none;border:0;text-align:left;border-radius:4px;font-size:12px}
+.reader-page-switcher>button[aria-checked=true]{background:var(--study-soft);font-weight:550}
+.reader-page-switcher>button:hover{background:var(--study-hover)}
+.reader-page-switcher>button span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.reader-page-switcher>button svg{flex:none}
